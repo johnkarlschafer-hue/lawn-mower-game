@@ -5,9 +5,13 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=no">
 <title>Lawn Mower Game — Yard 1</title>
 <style>
-  html, body { margin: 0; height: 100%; background: #1b241b; touch-action: none; }
+  html, body { margin: 0; height: 100%; background: #14200f; touch-action: none; }
   #game { width: 100%; height: 100%; }
 </style>
+<!-- A friendly rounded font from Google Fonts -->
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@400;600&display=swap" rel="stylesheet">
 <!-- Phaser is the game engine. This line loads it from the internet. -->
 <script src="https://cdn.jsdelivr.net/npm/phaser@3.80.1/dist/phaser.min.js"></script>
 </head>
@@ -17,7 +21,7 @@
 // =====================================================================
 //  SETTINGS — try changing these numbers and reloading the page!
 // =====================================================================
-const CELL = 8;                       // size of one "grass cell" in pixels
+const CELL = 8;                       // size of one "grass cell" (used for scoring, not drawing)
 const YARD_W = 640, YARD_H = 448;     // size of the yard
 const HUD_H = 44;                     // height of the info bar at the top
 const COLS = YARD_W / CELL, ROWS = YARD_H / CELL;
@@ -31,6 +35,19 @@ const MOWER = {
 };
 
 const PAY_FULL = 20;  // dollars for a perfectly cut lawn
+
+// Colors of freshly mowed stripes (light when mowing right/down, dark when mowing left/up)
+const STRIPE_LIGHT = '#94d36c';
+const STRIPE_DARK  = '#6fb04b';
+
+const FONT = 'Fredoka, "Trebuchet MS", sans-serif';
+
+// SHARPNESS: the game is drawn this many times bigger than the yard's
+// "logical" size, so it stays crisp on big or high-resolution screens.
+// (1 = old blurry look, 3 = sharpest.)
+const SHARP = Math.max(1, Math.min(3, Math.ceil(
+  Math.min(window.innerWidth / YARD_W, window.innerHeight / (YARD_H + HUD_H)) * (window.devicePixelRatio || 1)
+)));
 
 // The yard layout. Everything is in pixels: x, y = top-left corner.
 const YARD = {
@@ -60,46 +77,63 @@ class YardScene extends Phaser.Scene {
   constructor() { super('yard'); }
 
   create() {
-    this.makeMowerTexture();
+    // Zoom the camera so our 640×492 world fills the bigger, sharper canvas
+    this.cameras.main.setZoom(SHARP).centerOn(YARD_W / 2, (YARD_H + HUD_H) / 2);
+
+    // A "seeded" random generator: same seed = same flowers & trees every time
+    this.rnd = new Phaser.Math.RandomDataGenerator(['mrs-peterson']);
+    this.makeTextures();
 
     // Everything in the yard lives in this container, shifted below the HUD.
     this.yard = this.add.container(0, HUD_H);
 
     // ---- 1. Grass ----
-    // cells: 0 = not grass, 1 = uncut grass, 2 = cut grass
+    // cells: 0 = not grass, 1 = uncut grass, 2 = cut grass  (this is for SCORING)
     this.cells = new Uint8Array(COLS * ROWS);
     this.grassTotal = 0;
     this.cutCount = 0;
-    this.grassRT = this.add.renderTexture(0, 0, YARD_W, YARD_H).setOrigin(0, 0);
-    this.yard.add(this.grassRT);
-
-    this.grassRT.fill(0x3f7a2a, 1);   // base color first, so there are no gaps
-    const uncutShades = [0x3f7a2a, 0x447f2d, 0x3a7326];
     for (let row = 0; row < ROWS; row++) {
       for (let col = 0; col < COLS; col++) {
         const cx = col * CELL + CELL / 2, cy = row * CELL + CELL / 2;
         if (this.obstacleHit(cx, cy, 0) || inRect(cx, cy, YARD.driveway)) continue;
         this.cells[row * COLS + col] = 1;
         this.grassTotal++;
-        this.grassRT.fill(Phaser.Utils.Array.GetRandom(uncutShades), 1, col * CELL, row * CELL, CELL, CELL);
       }
     }
 
-    // Ghost's cut path: a see-through blue layer painted where the ghost has mowed
-    this.ghostRT = this.add.renderTexture(0, 0, YARD_W, YARD_H).setOrigin(0, 0).setAlpha(0.4);
-    this.yard.add(this.ghostRT);
-    this.ghostCells = new Uint8Array(COLS * ROWS);
+    // What you SEE: a long-grass picture, with a "cut" layer painted on top
+    this.cutRT = this.add.renderTexture(0, 0, YARD_W * SHARP, YARD_H * SHARP).setOrigin(0, 0).setScale(1 / SHARP);
+    this.cutRT.drawFrame('grassUncut', undefined, 0, 0);
+    this.yard.add(this.cutRT);
 
     // ---- 2. Scenery (driveway, flower beds, house, trees, fence) ----
-    this.yard.add(this.drawScenery());
+    // We draw it once, then "bake" it into a single picture so the game
+    // doesn't have to redraw hundreds of little shapes 60 times a second.
+    const sceneryG = this.drawScenery().setScale(SHARP);
+    const scenery = this.add.renderTexture(0, 0, YARD_W * SHARP, YARD_H * SHARP).setOrigin(0, 0).setScale(1 / SHARP);
+    scenery.draw(sceneryG, 0, 0);
+    sceneryG.destroy();
+    this.yard.add(scenery);
 
     // ---- 3. The mower ----
-    this.mower = this.add.image(YARD.start.x, YARD.start.y, 'mower').setRotation(YARD.start.angle);
+    this.mower = this.makeMower(false).setPosition(YARD.start.x, YARD.start.y).setRotation(YARD.start.angle);
     this.yard.add(this.mower);
 
     // Line that shows your route at the end
     this.routeG = this.add.graphics();
     this.yard.add(this.routeG);
+
+    // Grass clippings that spray out of the side of the mower
+    this.clippings = this.add.particles(0, 0, 'clip', {
+      speed: { min: 25, max: 80 },
+      angle: { min: 0, max: 360 },
+      lifespan: { min: 250, max: 550 },
+      scale: { start: 1 / SHARP, end: 0.3 / SHARP },
+      alpha: { start: 1, end: 0 },
+      rotate: { min: 0, max: 360 },
+      tint: [0x9ad873, 0x7cc257, 0xb8e892, 0x5e9e3e],
+      emitting: false
+    });
 
     // ---- 4. State ----
     this.started = false;
@@ -116,21 +150,19 @@ class YardScene extends Phaser.Scene {
     this.ghostData = this.best && this.best.ghost && this.best.ghost.length > 1 ? this.best.ghost : null;
     this.ghostIndex = 0;
     this.ghost = null;
+    this.ghostRT = null;
     if (this.ghostData) {
-      this.ghost = this.add.image(YARD.start.x, YARD.start.y, 'mower')
-        .setRotation(YARD.start.angle).setAlpha(0.65).setTint(0xbfe4ff);
+      // Ghost's cut path: a see-through blue layer painted where the ghost has mowed
+      this.ghostRT = this.add.renderTexture(0, 0, YARD_W * SHARP, YARD_H * SHARP)
+        .setOrigin(0, 0).setScale(1 / SHARP).setAlpha(0.33);
+      this.yard.addAt(this.ghostRT, 1);   // just above the grass
+      this.ghost =this.makeMower(true).setPosition(YARD.start.x, YARD.start.y)
+        .setRotation(YARD.start.angle).setAlpha(0.6);
       this.yard.addAt(this.ghost, this.yard.getIndex(this.mower)); // under your mower
     }
 
     // ---- 5. HUD (info bar at the top) ----
-    this.add.rectangle(0, 0, YARD_W, HUD_H, 0x1f2a1f).setOrigin(0, 0);
-    this.hudText = this.add.text(12, HUD_H / 2, '', {
-      fontFamily: 'sans-serif', fontSize: '16px', color: '#e8f5e0'
-    }).setOrigin(0, 0.5);
-    this.finishBtn = this.makeButton(YARD_W - 62, HUD_H / 2, 'Finish ✓', () => {
-      if (this.finished) this.panel.setVisible(!this.panel.visible);
-      else this.finish();
-    }, '15px');
+    this.makeHud();
 
     // ---- 6. Controls ----
     this.cursors = this.input.keyboard.createCursorKeys();
@@ -165,7 +197,8 @@ class YardScene extends Phaser.Scene {
     // Touch / mouse: hold your finger on the yard and the mower drives toward it
     const p = this.input.activePointer;
     if (p.isDown) {
-      const tx = p.worldX, ty = p.worldY - HUD_H;
+      const wp = this.cameras.main.getWorldPoint(p.x, p.y);   // screen → game coordinates
+      const tx = wp.x, ty = wp.y - HUD_H;
       if (ty >= 0) {
         const dx = tx - m.x, dy = ty - m.y;
         if (Math.hypot(dx, dy) > 12) {
@@ -198,7 +231,10 @@ class YardScene extends Phaser.Scene {
     }
 
     // --- cut grass under the deck ---
-    this.mowAt(m.x, m.y, m.rotation);
+    if (this.started) {
+      const newlyCut = this.mowAt(m.x, m.y, m.rotation);
+      if (newlyCut > 0) this.sprayClippings(newlyCut);
+    }
 
     // --- remember the route ---
     const last = this.trail[this.trail.length - 1];
@@ -235,34 +271,19 @@ class YardScene extends Phaser.Scene {
     const f = b[0] > a[0] ? Phaser.Math.Clamp((t - a[0]) / (b[0] - a[0]), 0, 1) : 0;
     this.ghost.setPosition(a[1] + (b[1] - a[1]) * f, a[2] + (b[2] - a[2]) * f);
     this.ghost.setRotation(a[3] + Phaser.Math.Angle.Wrap(b[3] - a[3]) * f);
-    if (this.started) this.ghostTrace(this.ghost.x, this.ghost.y);
-  }
-
-  // Paint the ghost's cut path
-  ghostTrace(x, y) {
-    const r = MOWER.deckRadius;
-    const c0 = Math.max(0, Math.floor((x - r) / CELL)), c1 = Math.min(COLS - 1, Math.floor((x + r) / CELL));
-    const r0 = Math.max(0, Math.floor((y - r) / CELL)), r1 = Math.min(ROWS - 1, Math.floor((y + r) / CELL));
-    for (let row = r0; row <= r1; row++) {
-      for (let col = c0; col <= c1; col++) {
-        const i = row * COLS + col;
-        if (this.cells[i] === 0 || this.ghostCells[i]) continue;   // not grass, or already painted
-        const ccx = col * CELL + CELL / 2, ccy = row * CELL + CELL / 2;
-        if ((ccx - x) ** 2 + (ccy - y) ** 2 <= r * r) {
-          this.ghostCells[i] = 1;
-          this.ghostRT.fill(0x4aa8ff, 1, col * CELL, row * CELL, CELL, CELL);
-        }
-      }
-    }
+    if (this.started) this.stamp(this.ghostRT, 'ghostStamp', this.ghost.x, this.ghost.y);
   }
 
   // ---------- grass cutting ----------
+  // Paints a round "cut" mark at (x, y) and updates the score cells.
+  // Returns how many new cells were cut.
   mowAt(x, y, rot) {
     // Real lawns get light and dark stripes depending on which way you mow
     const cx = Math.cos(rot), sy = Math.sin(rot);
     const light = Math.abs(cx) >= Math.abs(sy) ? cx > 0 : sy > 0;
-    const color = light ? 0x8fd16a : 0x74bd52;
+    this.stamp(this.cutRT, light ? 'cutLight' : 'cutDark', x, y);
 
+    let n = 0;
     const r = MOWER.deckRadius;
     const c0 = Math.max(0, Math.floor((x - r) / CELL)), c1 = Math.min(COLS - 1, Math.floor((x + r) / CELL));
     const r0 = Math.max(0, Math.floor((y - r) / CELL)), r1 = Math.min(ROWS - 1, Math.floor((y + r) / CELL));
@@ -274,10 +295,25 @@ class YardScene extends Phaser.Scene {
         if ((ccx - x) ** 2 + (ccy - y) ** 2 <= r * r) {
           this.cells[i] = 2;
           this.cutCount++;
-          this.grassRT.fill(color, 1, col * CELL, row * CELL, CELL, CELL);
+          n++;
         }
       }
     }
+    return n;
+  }
+
+  // Draw a round brush texture centered on (x, y) onto a paint layer
+  stamp(rt, key, x, y) {
+    const r = MOWER.deckRadius;
+    rt.drawFrame(key, undefined, (x - r) * SHARP, (y - r) * SHARP);
+  }
+
+  sprayClippings(amount) {
+    // clippings shoot out of the chute on the mower's right side
+    const m = this.mower, cs = Math.cos(m.rotation), sn = Math.sin(m.rotation);
+    const lx = 4, ly = 13;
+    const x = m.x + lx * cs - ly * sn, y = m.y + lx * sn + ly * cs + HUD_H;
+    this.clippings.emitParticleAt(x, y, Math.min(3, amount));
   }
 
   // ---------- collisions ----------
@@ -313,8 +349,10 @@ class YardScene extends Phaser.Scene {
     let pay = PAY_FULL * cut;
     if (cut < 0.95) pay *= 0.5; // patchy lawn = half pay
 
-    // Draw your route over the lawn
-    this.routeG.lineStyle(3, 0xffffff, 0.85);
+    // Draw your route over the lawn (dark outline first, then white line)
+    this.routeG.lineStyle(5, 0x000000, 0.25);
+    this.routeG.strokePoints(this.trail, false);
+    this.routeG.lineStyle(2.5, 0xffffff, 0.9);
     this.routeG.strokePoints(this.trail, false);
     this.routeG.fillStyle(0xffe066, 1).fillCircle(this.trail[0].x, this.trail[0].y, 5);
 
@@ -342,109 +380,341 @@ class YardScene extends Phaser.Scene {
       ghostLine,
       comment,
       isBest ? '★ New personal best!' : `Best: ${'★'.repeat(best.stars)} ${pct(best.eff)} efficiency`
-    ];
-    this.showPanel('★'.repeat(stars) + '☆'.repeat(3 - stars), lines);
-    this.finishBtn.setText('Results');
+    ].filter(Boolean);
+    this.showPanel(stars, lines);
+    this.finishBtn.setLabel('Results');
   }
 
-  showPanel(title, lines) {
+  showPanel(stars, lines) {
     const cx = YARD_W / 2, cy = HUD_H + YARD_H / 2;
+    const W = 400, H = 300;
     this.panel = this.add.container(cx, cy);
     const bg = this.add.graphics();
-    bg.fillStyle(0x1b241b, 0.93).fillRoundedRect(-190, -150, 380, 300, 14);
-    bg.lineStyle(2, 0x8fd16a, 1).strokeRoundedRect(-190, -150, 380, 300, 14);
-    const t = this.add.text(0, -120, title, { fontFamily: 'sans-serif', fontSize: '36px', color: '#ffe066' }).setOrigin(0.5);
-    const body = this.add.text(0, -10, lines.join('\n'), {
-      fontFamily: 'sans-serif', fontSize: '16px', color: '#e8f5e0', align: 'center', lineSpacing: 4
+    bg.fillStyle(0x000000, 0.35).fillRoundedRect(-W / 2 + 4, -H / 2 + 6, W, H, 18);   // shadow
+    bg.fillStyle(0x1b2a16, 0.96).fillRoundedRect(-W / 2, -H / 2, W, H, 18);
+    bg.fillStyle(0x24381d, 1).fillRoundedRect(-W / 2, -H / 2, W, 64, { tl: 18, tr: 18, bl: 0, br: 0 });
+    bg.lineStyle(2, 0x8fd16a, 1).strokeRoundedRect(-W / 2, -H / 2, W, H, 18);
+    // Three stars: gold if earned, dim grey if not
+    const t = this.add.graphics();
+    for (let s = 0; s < 3; s++) {
+      const sx = (s - 1) * 52, sy = -H / 2 + 32, pts = [];
+      for (let k = 0; k < 10; k++) {
+        const a = -Math.PI / 2 + k * Math.PI / 5, rad = k % 2 ? 9 : 21;
+        pts.push({ x: sx + Math.cos(a) * rad, y: sy + Math.sin(a) * rad });
+      }
+      const earned = s < stars;
+      t.fillStyle(earned ? 0xb8860b : 0x101a0c, 1).fillPoints(pts.map(p => ({ x: p.x, y: p.y + 2 })), true);
+      t.fillStyle(earned ? 0xffd84a : 0x3a4a33, 1).fillPoints(pts, true);
+    }
+    const body = this.txt(0, -8, lines.join('\n'), {
+      fontSize: '16px', color: '#e8f5e0', align: 'center', lineSpacing: 5
     }).setOrigin(0.5);
-    const again = this.makeButton(-80, 115, 'Mow again', () => this.scene.restart());
-    const route = this.makeButton(80, 115, 'See route', () => this.panel.setVisible(false));
+    const again = this.makeButton(-85, H / 2 - 32, 'Mow again', () => this.scene.restart());
+    const route = this.makeButton(85, H / 2 - 32, 'See route', () => this.panel.setVisible(false));
     this.panel.add([bg, t, body, again, route]);
+    this.panel.setScale(0.85).setAlpha(0);
+    this.tweens.add({ targets: this.panel, scale: 1, alpha: 1, duration: 220, ease: 'Back.Out' });
+  }
+
+  // ---------- HUD ----------
+  makeHud() {
+    const g = this.add.graphics();
+    g.fillStyle(0x16210f, 1).fillRect(0, 0, YARD_W, HUD_H);
+    g.fillStyle(0x000000, 0.25).fillRect(0, HUD_H, YARD_W, 3);   // little shadow under the bar
+
+    this.txt(14, HUD_H / 2, YARD.name, { fontSize: '15px', color: '#e8f5e0', fontStyle: '600' }).setOrigin(0, 0.5);
+
+    this.bar = { x: 200, y: HUD_H / 2 - 9, w: 126, h: 18 };
+    this.barG = this.add.graphics();
+    this.barText = this.txt(this.bar.x + this.bar.w / 2, HUD_H / 2, '', {
+      fontSize: '13px', color: '#ffffff', fontStyle: '600', stroke: '#0c140a', strokeThickness: 3
+    }).setOrigin(0.5);
+    this.skipText = this.txt(this.bar.x + this.bar.w + 10, HUD_H / 2, '', { fontSize: '14px', color: '#c9dcbf' }).setOrigin(0, 0.5);
+    this.timeText = this.txt(440, HUD_H / 2, '', { fontSize: '15px', color: '#ffe9a3' }).setOrigin(0, 0.5);
+
+    this.finishBtn = this.makeButton(YARD_W - 52, HUD_H / 2, 'Finish ✓', () => {
+      if (this.finished) this.panel.setVisible(!this.panel.visible);
+      else this.finish();
+    }, 15);
+  }
+
+  updateHud() {
+    const f = this.grassTotal ? this.cutCount / this.grassTotal : 0;
+    const pct = Math.floor(f * 100);
+    const b = this.bar;
+    this.barG.clear();
+    this.barG.fillStyle(0x0b1308, 1).fillRoundedRect(b.x, b.y, b.w, b.h, b.h / 2);
+    if (f > 0) this.barG.fillStyle(0x8fd16a, 1).fillRoundedRect(b.x, b.y, Math.max(b.h, b.w * f), b.h, b.h / 2);
+    this.barText.setText(`${pct}% cut`);
+    this.skipText.setText(`${100 - pct}% skipped`);
+    this.timeText.setText(`⏱ ${this.elapsed.toFixed(1)}s`);
   }
 
   // ---------- drawing helpers ----------
-  updateHud() {
-    const pct = this.grassTotal ? Math.floor(this.cutCount / this.grassTotal * 100) : 0;
-    this.hudText.setText(`${YARD.name}    Cut ${pct}%   Skipped ${100 - pct}%   ⏱ ${this.elapsed.toFixed(1)}s`);
+  // Text that stays sharp when zoomed
+  txt(x, y, s, style) {
+    return this.add.text(x, y, s, Object.assign({ fontFamily: FONT, resolution: SHARP }, style));
   }
 
-  makeButton(x, y, label, onClick, size = '18px') {
-    const b = this.add.text(x, y, label, {
-      fontFamily: 'sans-serif', fontSize: size, color: '#ffffff',
-      backgroundColor: '#3c7d2b', padding: { x: 12, y: 6 }
-    }).setOrigin(0.5).setInteractive({ useHandCursor: true });
-    b.on('pointerdown', onClick);
-    return b;
+  makeButton(x, y, label, onClick, size = 17) {
+    const t = this.txt(0, -1, label, { fontSize: size + 'px', color: '#ffffff', fontStyle: '600' }).setOrigin(0.5);
+    const bg = this.add.graphics();
+    const c = this.add.container(x, y, [bg, t]);
+    const draw = (hover) => {
+      const w = t.width + 26, h = t.height + 8;
+      bg.clear();
+      bg.fillStyle(0x234f19, 1).fillRoundedRect(-w / 2, -h / 2 + 3, w, h, h / 2);   // 3D bottom edge
+      bg.fillStyle(hover ? 0x5bb23f : 0x479b33, 1).fillRoundedRect(-w / 2, -h / 2, w, h, h / 2);
+      c.setSize(w, h);
+      if (c.input) c.input.hitArea.setTo(0, 0, w, h);
+    };
+    draw(false);
+    c.setInteractive({ useHandCursor: true });
+    c.on('pointerover', () => draw(true));
+    c.on('pointerout', () => draw(false));
+    c.on('pointerdown', onClick);
+    c.setLabel = (s) => { t.setText(s); draw(false); };
+    return c;
+  }
+
+  // Builds the pictures we paint with. Uses the browser's normal canvas drawing.
+  makeTextures() {
+    if (this.textures.exists('grassUncut')) return;   // already made (e.g. after pressing R)
+    const S = SHARP, rnd = new Phaser.Math.RandomDataGenerator(['lawn']);
+
+    // --- long, uncut grass ---
+    const tex = this.textures.createCanvas('grassUncut', YARD_W * S, YARD_H * S);
+    const ctx = tex.getContext();
+    ctx.scale(S, S);
+    ctx.fillStyle = '#3a7228';
+    ctx.fillRect(0, 0, YARD_W, YARD_H);
+    // big soft patches so the lawn isn't one flat color
+    for (let i = 0; i < 45; i++) {
+      const x = rnd.realInRange(0, YARD_W), y = rnd.realInRange(0, YARD_H), r = rnd.realInRange(30, 95);
+      const c = rnd.pick(['74,134,48', '44,98,30', '88,142,52', '58,110,36']);
+      const grad = ctx.createRadialGradient(x, y, 0, x, y, r);
+      grad.addColorStop(0, `rgba(${c},0.55)`);
+      grad.addColorStop(1, `rgba(${c},0)`);
+      ctx.fillStyle = grad;
+      ctx.fillRect(x - r, y - r, r * 2, r * 2);
+    }
+    // thousands of little grass blades
+    ctx.lineCap = 'round';
+    const blades = ['#2b5c1d', '#336b22', '#3f7d2b', '#4c8c33', '#5a9a3b', '#284f1a'];
+    for (const color of blades) {
+      ctx.strokeStyle = color;
+      ctx.lineWidth = 0.9;
+      ctx.beginPath();
+      for (let i = 0; i < 4500; i++) {
+        const x = rnd.frac() * YARD_W, y = rnd.frac() * YARD_H;
+        const len = 2.5 + rnd.frac() * 3.5;
+        const a = -Math.PI / 2 + (rnd.frac() - 0.5) * 1.3;
+        ctx.moveTo(x, y);
+        ctx.lineTo(x + Math.cos(a) * len, y + Math.sin(a) * len);
+      }
+      ctx.stroke();
+    }
+    // a few dandelions
+    for (let i = 0; i < 35; i++) {
+      const x = rnd.frac() * YARD_W, y = rnd.frac() * YARD_H;
+      ctx.fillStyle = '#f5d63a';
+      ctx.beginPath(); ctx.arc(x, y, 1.6, 0, Math.PI * 2); ctx.fill();
+      ctx.fillStyle = '#fff3a0';
+      ctx.beginPath(); ctx.arc(x - 0.4, y - 0.4, 0.6, 0, Math.PI * 2); ctx.fill();
+    }
+    tex.refresh();
+
+    // --- round "brushes" for painting cut grass ---
+    const r = MOWER.deckRadius;
+    const makeStamp = (key, color, specks) => {
+      const t = this.textures.createCanvas(key, Math.ceil(r * 2 * S), Math.ceil(r * 2 * S));
+      const c = t.getContext();
+      c.scale(S, S);
+      c.fillStyle = color;
+      c.beginPath(); c.arc(r, r, r, 0, Math.PI * 2); c.fill();
+      // tiny specks give the stripes a soft, streaky texture as you drive
+      for (const [sc, n] of specks) {
+        c.fillStyle = sc;
+        for (let i = 0; i < n; i++) {
+          const a = rnd.frac() * Math.PI * 2, d = Math.sqrt(rnd.frac()) * (r - 1.5);
+          c.fillRect(r + Math.cos(a) * d, r + Math.sin(a) * d, 0.8, 0.8);
+        }
+      }
+      t.refresh();
+    };
+    makeStamp('cutLight', STRIPE_LIGHT, [['#a5dd80', 40], ['#84c25e', 40]]);
+    makeStamp('cutDark',  STRIPE_DARK,  [['#7dbd58', 40], ['#62a041', 40]]);
+    makeStamp('ghostStamp', '#4aa8ff', []);
+
+    // --- a single grass clipping (white, so particles can tint it) ---
+    const clip = this.textures.createCanvas('clip', Math.ceil(3 * S), Math.ceil(1.6 * S));
+    const cc = clip.getContext();
+    cc.fillStyle = '#ffffff';
+    cc.fillRect(0, 0, 3 * S, 1.6 * S);
+    clip.refresh();
+  }
+
+  // The mower, drawn with shapes so it stays sharp. Faces right (+x); handle at the back.
+  makeMower(ghost) {
+    const P = ghost
+      ? { deck: 0x8fcaff, light: 0xc4e4ff, dark: 0x5c9fd8, engine: 0x6a8fb3, cap: 0x9bbad6, handle: 0x9bbad6, grip: 0x6a8fb3, wheel: 0x4d6f8f }
+      : { deck: 0xd83a2c, light: 0xf06450, dark: 0x9e281e, engine: 0x2c2c2c, cap: 0x4d4d4d, handle: 0x8a8a8a, grip: 0x1d1d1d, wheel: 0x1a1a1a };
+    const g = this.add.graphics();
+    if (!ghost) g.fillStyle(0x000000, 0.25).fillRoundedRect(-5, -8, 26, 21, 7);   // shadow on the grass
+
+    // handle
+    g.lineStyle(2, P.handle, 1);
+    g.lineBetween(-5, -6, -17, -6);
+    g.lineBetween(-5, 6, -17, 6);
+    g.lineStyle(3.5, P.grip, 1);
+    g.lineBetween(-17, -7, -17, 7);
+
+    // wheels (with a little tread)
+    for (const [wx, wy] of [[-5, -12.5], [-5, 8.5], [10, -12.5], [10, 8.5]]) {
+      g.fillStyle(P.wheel, 1).fillRoundedRect(wx, wy, 8, 4, 1.5);
+      g.fillStyle(0x444444, ghost ? 0 : 1).fillRect(wx + 2, wy + 0.5, 1, 3).fillRect(wx + 5, wy + 0.5, 1, 3);
+    }
+
+    // deck
+    g.fillStyle(P.dark, 1).fillRoundedRect(-7, -10, 26, 20, 8);
+    g.fillStyle(P.deck, 1).fillRoundedRect(-7, -10, 26, 18, 8);
+    g.fillStyle(P.light, 1).fillRoundedRect(-3, -8, 17, 4, 2);
+    // side chute where the clippings come out
+    g.fillStyle(P.dark, 1).fillRoundedRect(1, 8, 9, 5, 1.5);
+
+    // engine on top
+    g.fillStyle(P.engine, 1).fillCircle(6, 0, 6.5);
+    g.fillStyle(P.cap, 1).fillCircle(6, 0, 3.6);
+    g.fillStyle(0xffffff, 0.55).fillCircle(4.5, -1.6, 1.2);
+    return g;
   }
 
   drawScenery() {
     const g = this.add.graphics();
+    const rnd = this.rnd;
 
-    // Driveway
+    // ----- Driveway (concrete) -----
     const d = YARD.driveway;
-    g.fillStyle(0x9a9a92, 1).fillRect(d.x, d.y, d.w, d.h);
-    g.lineStyle(2, 0x7d7d76, 1).strokeRect(d.x, d.y, d.w, d.h);
+    g.fillStyle(0xbab7ad, 1).fillRect(d.x, d.y, d.w, d.h);
+    for (let i = 0; i < 260; i++) {
+      g.fillStyle(rnd.pick([0xa8a59b, 0xc8c5bb, 0x9d9a91, 0xd2cfc6]), 1)
+       .fillRect(d.x + rnd.frac() * d.w, d.y + rnd.frac() * d.h, 1.2, 1.2);
+    }
+    g.lineStyle(1.2, 0x8f8c83, 1);
+    for (let y = d.y + 70; y < d.y + d.h; y += 70) g.lineBetween(d.x, y, d.x + d.w, y);   // joints
+    g.fillStyle(0x6e6b65, 0.22).fillEllipse(d.x + d.w / 2 + 4, d.y + 46, 26, 15);          // oil stain
+    g.lineStyle(2, 0x8a877e, 1).strokeRect(d.x, d.y, d.w, d.h);
 
-    // Flower beds
-    const flowerColors = [0xff6b9a, 0xffd23f, 0xffffff, 0xb57cff];
+    // ----- Flower beds -----
+    const petals = [0xff6b9a, 0xffd23f, 0xffffff, 0xb57cff, 0xff8a4c];
     for (const b of YARD.beds) {
-      g.fillStyle(0x6b4a2b, 1).fillRect(b.x, b.y, b.w, b.h);
-      for (let i = 0; i < 26; i++) {
-        g.fillStyle(Phaser.Utils.Array.GetRandom(flowerColors), 1)
-         .fillCircle(b.x + 6 + Math.random() * (b.w - 12), b.y + 6 + Math.random() * (b.h - 12), 3);
+      g.fillStyle(0x000000, 0.18).fillRoundedRect(b.x - 2, b.y - 1, b.w + 7, b.h + 7, 6);  // shadow
+      g.fillStyle(0x9a958a, 1).fillRoundedRect(b.x - 3, b.y - 3, b.w + 6, b.h + 6, 6);     // stone edging
+      for (let x = b.x - 1; x < b.x + b.w; x += 10) {
+        g.fillStyle(0xb9b4a8, 1).fillRoundedRect(x, b.y - 3, 8, 2.5, 1).fillRoundedRect(x, b.y + b.h + 0.5, 8, 2.5, 1);
+      }
+      g.fillStyle(0x5a3c22, 1).fillRoundedRect(b.x, b.y, b.w, b.h, 4);                     // mulch
+      for (let i = 0; i < b.w * b.h / 10; i++) {
+        g.fillStyle(rnd.pick([0x6d4a2b, 0x48301a, 0x7a5532]), 1)
+         .fillRect(b.x + 1 + rnd.frac() * (b.w - 2), b.y + 1 + rnd.frac() * (b.h - 2), 1.3, 1.3);
+      }
+      for (let i = 0; i < 15; i++) {
+        const px = b.x + 8 + rnd.frac() * (b.w - 16), py = b.y + 8 + rnd.frac() * (b.h - 16);
+        g.fillStyle(0x2c6522, 1).fillCircle(px + 1, py + 1, 5.5);
+        g.fillStyle(0x3d8a2e, 1).fillCircle(px - 0.5, py - 0.5, 4);
+        const col = rnd.pick(petals);
+        for (let k = 0; k < 5; k++) {
+          const a = k / 5 * Math.PI * 2;
+          g.fillStyle(col, 1).fillCircle(px + Math.cos(a) * 2.3, py + Math.sin(a) * 2.3, 1.8);
+        }
+        g.fillStyle(0xffe27a, 1).fillCircle(px, py, 1.2);
       }
     }
 
-    // House (seen from above: a roof)
+    // ----- House (seen from above: a "hip" roof with four slopes) -----
     const h = YARD.house;
-    g.fillStyle(0x000000, 0.25).fillRect(h.x + 6, h.y + 6, h.w, h.h);   // shadow
-    g.fillStyle(0xb5562f, 1).fillRect(h.x, h.y, h.w, h.h);
-    g.fillStyle(0x9c4626, 1).fillRect(h.x, h.y, h.w, h.h / 2);          // one side of the roof darker
-    g.lineStyle(3, 0x6e2f18, 1).strokeRect(h.x, h.y, h.w, h.h);
-    g.lineBetween(h.x, h.y + h.h / 2, h.x + h.w, h.y + h.h / 2);         // roof ridge
-    g.fillStyle(0x777777, 1).fillRect(h.x + h.w - 50, h.y + 20, 18, 18); // chimney
+    const x0 = h.x, x1 = h.x + h.w, y0 = h.y, y1 = h.y + h.h, cy = h.y + h.h / 2, i = h.h / 2;
+    g.fillStyle(0x000000, 0.12).fillRect(x0 + 9, y0 + 10, h.w, h.h);   // soft shadow
+    g.fillStyle(0x000000, 0.15).fillRect(x0 + 5, y0 + 6, h.w, h.h);
+    const pts = (...a) => a.map(([x, y]) => ({ x, y }));
+    g.fillStyle(0xc4603a, 1).fillPoints(pts([x0, y0], [x1, y0], [x1 - i, cy], [x0 + i, cy]), true);   // north slope
+    g.fillStyle(0x9a4426, 1).fillPoints(pts([x0, y1], [x1, y1], [x1 - i, cy], [x0 + i, cy]), true);   // south slope
+    g.fillStyle(0xd4724a, 1).fillPoints(pts([x0, y0], [x0, y1], [x0 + i, cy]), true);                // west slope (sunny)
+    g.fillStyle(0x84381d, 1).fillPoints(pts([x1, y0], [x1, y1], [x1 - i, cy]), true);                // east slope (shady)
+    // rows of shingles
+    g.lineStyle(1, 0x000000, 0.13);
+    for (let y = y0 + 7; y < cy - 1; y += 7) { const k = y - y0; g.lineBetween(x0 + k, y, x1 - k, y); }
+    for (let y = y1 - 7; y > cy + 1; y -= 7) { const k = y1 - y; g.lineBetween(x0 + k, y, x1 - k, y); }
+    for (let x = x0 + 7; x < x0 + i - 1; x += 7) { const k = x - x0; g.lineBetween(x, y0 + k, x, y1 - k); }
+    for (let x = x1 - 7; x > x1 - i + 1; x -= 7) { const k = x1 - x; g.lineBetween(x, y0 + k, x, y1 - k); }
+    // ridge and hip lines
+    g.lineStyle(2.5, 0x6a2c16, 1);
+    g.lineBetween(x0 + i, cy, x1 - i, cy);
+    g.lineBetween(x0, y0, x0 + i, cy); g.lineBetween(x0, y1, x0 + i, cy);
+    g.lineBetween(x1, y0, x1 - i, cy); g.lineBetween(x1, y1, x1 - i, cy);
+    g.lineStyle(2, 0x5e2713, 1).strokeRect(x0, y0, h.w, h.h);
+    // chimney
+    const chx = x1 - 62, chy = y0 + 22;
+    g.fillStyle(0x000000, 0.25).fillRect(chx + 4, chy + 4, 18, 18);
+    g.fillStyle(0x8c5546, 1).fillRect(chx, chy, 18, 18);
+    g.fillStyle(0x6e3f33, 1).fillRect(chx, chy + 12, 18, 6);
+    g.fillStyle(0x2a2422, 1).fillRect(chx + 4, chy + 4, 10, 8);
 
-    // Trees
+    // ----- Trees (seen from above: clumps of leaves) -----
     for (const t of YARD.trees) {
-      g.fillStyle(0x000000, 0.25).fillCircle(t.x + 5, t.y + 5, t.r);
-      g.fillStyle(0x2e6b1f, 1).fillCircle(t.x, t.y, t.r);
-      g.fillStyle(0x3d8a2a, 1).fillCircle(t.x - t.r * 0.25, t.y - t.r * 0.25, t.r * 0.6);
+      const r = t.r;
+      g.fillStyle(0x000000, 0.12).fillCircle(t.x + 10, t.y + 11, r * 0.98);   // shadow
+      g.fillStyle(0x000000, 0.16).fillCircle(t.x + 6, t.y + 7, r);
+      const n = 9;
+      for (let k = 0; k < n; k++) {
+        const a = k / n * Math.PI * 2 + rnd.frac() * 0.4;
+        g.fillStyle(0x24561a, 1).fillCircle(t.x + Math.cos(a) * r * 0.6, t.y + Math.sin(a) * r * 0.6, r * 0.42);
+      }
+      g.fillStyle(0x2e6a20, 1).fillCircle(t.x, t.y, r * 0.78);
+      for (let k = 0; k < 6; k++) {
+        const a = k / 6 * Math.PI * 2 + rnd.frac() * 0.5;
+        g.fillStyle(0x3b842a, 1).fillCircle(t.x - r * 0.15 + Math.cos(a) * r * 0.38, t.y - r * 0.15 + Math.sin(a) * r * 0.38, r * 0.3);
+      }
+      g.fillStyle(0x52a33a, 0.9).fillCircle(t.x - r * 0.3, t.y - r * 0.32, r * 0.24);
+      g.fillStyle(0x6cbd4c, 0.6).fillCircle(t.x - r * 0.36, t.y - r * 0.4, r * 0.1);
     }
 
-    // Fence around the yard
-    g.lineStyle(4, 0xd8c9a0, 1).strokeRect(2, 2, YARD_W - 4, YARD_H - 4);
+    // ----- Wooden fence (with a gap where the driveway meets the street) -----
+    const F = 3, R = YARD_W - 3, B = YARD_H - 3;
+    g.lineStyle(3, 0xd9c79c, 1);
+    g.lineBetween(F, F, R, F);
+    g.lineBetween(F, F, F, B);
+    g.lineBetween(R, F, R, B);
+    g.lineBetween(F, B, d.x, B);
+    g.lineBetween(d.x + d.w, B, R, B);
+    const post = (px, py) => {
+      g.fillStyle(0x000000, 0.2).fillRect(px - 2, py - 2, 6, 6);
+      g.fillStyle(0x8a7048, 1).fillRect(px - 3, py - 3, 6, 6);
+      g.fillStyle(0xb79e70, 1).fillRect(px - 3, py - 3, 6, 2.5);
+    };
+    for (let x = F; x <= R; x += 32) { post(x, F); if (x < d.x || x > d.x + d.w) post(x, B); }
+    for (let y = F + 32; y < B; y += 32) { post(F, y); post(R, y); }
+    post(R, F); post(F, B); post(R, B); post(d.x, B); post(d.x + d.w, B);
     return g;
-  }
-
-  makeMowerTexture() {
-    if (this.textures.exists('mower')) return;
-    // Drawn facing right. The handle sticks out the back (left).
-    const g = this.make.graphics({ x: 0, y: 0 }, false);
-    g.lineStyle(3, 0x555555, 1);
-    g.lineBetween(14, 8, 2, 8);
-    g.lineBetween(14, 20, 2, 20);
-    g.lineBetween(2, 8, 2, 20);
-    g.fillStyle(0x222222, 1);                  // wheels
-    g.fillRect(15, 2, 7, 4); g.fillRect(15, 22, 7, 4);
-    g.fillRect(29, 2, 7, 4); g.fillRect(29, 22, 7, 4);
-    g.fillStyle(0xd63a2f, 1).fillRoundedRect(14, 4, 24, 20, 6); // red deck
-    g.fillStyle(0x333333, 1).fillCircle(26, 14, 5);             // engine
-    g.fillStyle(0xffffff, 0.6).fillCircle(24, 12, 1.5);
-    g.generateTexture('mower', 40, 28);
-    g.destroy();
   }
 }
 
-// Start the game
-const game = new Phaser.Game({
-  type: Phaser.AUTO,
-  parent: 'game',
-  width: YARD_W,
-  height: YARD_H + HUD_H,
-  backgroundColor: '#1b241b',
-  scale: { mode: Phaser.Scale.FIT, autoCenter: Phaser.Scale.CENTER_BOTH },
-  scene: [YardScene]
-});
+// Start the game — but wait (at most 1.5 seconds) for the font to download first
+function startGame() {
+  new Phaser.Game({
+    type: Phaser.AUTO,
+    parent: 'game',
+    width: YARD_W * SHARP,
+    height: (YARD_H + HUD_H) * SHARP,
+    backgroundColor: '#14200f',
+    scale: { mode: Phaser.Scale.FIT, autoCenter: Phaser.Scale.CENTER_BOTH },
+    scene: [YardScene]
+  });
+}
+const fontWait = document.fonts && document.fonts.load
+  ? Promise.all([document.fonts.load('400 16px Fredoka'), document.fonts.load('600 16px Fredoka')])
+  : Promise.resolve();
+Promise.race([fontWait, new Promise(r => setTimeout(r, 1500))]).then(startGame, startGame);
 </script>
 </body>
 </html>
