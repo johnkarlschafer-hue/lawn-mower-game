@@ -1,0 +1,450 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=no">
+<title>Lawn Mower Game — Yard 1</title>
+<style>
+  html, body { margin: 0; height: 100%; background: #1b241b; touch-action: none; }
+  #game { width: 100%; height: 100%; }
+</style>
+<!-- Phaser is the game engine. This line loads it from the internet. -->
+<script src="https://cdn.jsdelivr.net/npm/phaser@3.80.1/dist/phaser.min.js"></script>
+</head>
+<body>
+<div id="game"></div>
+<script>
+// =====================================================================
+//  SETTINGS — try changing these numbers and reloading the page!
+// =====================================================================
+const CELL = 8;                       // size of one "grass cell" in pixels
+const YARD_W = 640, YARD_H = 448;     // size of the yard
+const HUD_H = 44;                     // height of the info bar at the top
+const COLS = YARD_W / CELL, ROWS = YARD_H / CELL;
+
+const MOWER = {
+  speed: 120,         // forward speed (pixels per second)
+  reverseSpeed: 60,   // backing up is slower
+  turnSpeed: 3.0,     // how fast it turns (radians per second)
+  deckRadius: 16,     // how wide the blade cuts (half the cutting width)
+  bodyRadius: 10      // size used for bumping into things
+};
+
+const PAY_FULL = 20;  // dollars for a perfectly cut lawn
+
+// The yard layout. Everything is in pixels: x, y = top-left corner.
+const YARD = {
+  name: 'Yard 1 — Mrs. Peterson',
+  house:    { x: 30,  y: 20,  w: 220, h: 150 },
+  driveway: { x: 95,  y: 170, w: 70,  h: 278 },
+  beds:     [ { x: 460, y: 24, w: 150, h: 46 } ],
+  trees:    [ { x: 420, y: 150, r: 26 }, { x: 545, y: 330, r: 22 }, { x: 300, y: 365, r: 18 } ],
+  start:    { x: 130, y: 415, angle: -Math.PI / 2 }   // bottom of the driveway, facing up
+};
+
+const BEST_KEY = 'lmg_yard1_best';
+
+// ---------- small helper functions ----------
+const inRect = (x, y, r) => x >= r.x && x < r.x + r.w && y >= r.y && y < r.y + r.h;
+
+function circleHitsRect(x, y, rad, r) {
+  const nx = Phaser.Math.Clamp(x, r.x, r.x + r.w);
+  const ny = Phaser.Math.Clamp(y, r.y, r.y + r.h);
+  return (x - nx) ** 2 + (y - ny) ** 2 < rad * rad;
+}
+
+// =====================================================================
+//  THE YARD SCENE — a "scene" is one screen of the game
+// =====================================================================
+class YardScene extends Phaser.Scene {
+  constructor() { super('yard'); }
+
+  create() {
+    this.makeMowerTexture();
+
+    // Everything in the yard lives in this container, shifted below the HUD.
+    this.yard = this.add.container(0, HUD_H);
+
+    // ---- 1. Grass ----
+    // cells: 0 = not grass, 1 = uncut grass, 2 = cut grass
+    this.cells = new Uint8Array(COLS * ROWS);
+    this.grassTotal = 0;
+    this.cutCount = 0;
+    this.grassRT = this.add.renderTexture(0, 0, YARD_W, YARD_H).setOrigin(0, 0);
+    this.yard.add(this.grassRT);
+
+    this.grassRT.fill(0x3f7a2a, 1);   // base color first, so there are no gaps
+    const uncutShades = [0x3f7a2a, 0x447f2d, 0x3a7326];
+    for (let row = 0; row < ROWS; row++) {
+      for (let col = 0; col < COLS; col++) {
+        const cx = col * CELL + CELL / 2, cy = row * CELL + CELL / 2;
+        if (this.obstacleHit(cx, cy, 0) || inRect(cx, cy, YARD.driveway)) continue;
+        this.cells[row * COLS + col] = 1;
+        this.grassTotal++;
+        this.grassRT.fill(Phaser.Utils.Array.GetRandom(uncutShades), 1, col * CELL, row * CELL, CELL, CELL);
+      }
+    }
+
+    // Ghost's cut path: a see-through blue layer painted where the ghost has mowed
+    this.ghostRT = this.add.renderTexture(0, 0, YARD_W, YARD_H).setOrigin(0, 0).setAlpha(0.4);
+    this.yard.add(this.ghostRT);
+    this.ghostCells = new Uint8Array(COLS * ROWS);
+
+    // ---- 2. Scenery (driveway, flower beds, house, trees, fence) ----
+    this.yard.add(this.drawScenery());
+
+    // ---- 3. The mower ----
+    this.mower = this.add.image(YARD.start.x, YARD.start.y, 'mower').setRotation(YARD.start.angle);
+    this.yard.add(this.mower);
+
+    // Line that shows your route at the end
+    this.routeG = this.add.graphics();
+    this.yard.add(this.routeG);
+
+    // ---- 4. State ----
+    this.started = false;
+    this.finished = false;
+    this.elapsed = 0;
+    this.distance = 0;
+    this.trail = [{ x: YARD.start.x, y: YARD.start.y }];
+    this.rec = [];        // recording of this run for the ghost: [time, x, y, rotation]
+    this.recTimer = 0;
+
+    // ---- Ghost: a see-through mower that replays your best run ----
+    this.best = null;
+    try { this.best = JSON.parse(localStorage.getItem(BEST_KEY)); } catch (e) {}
+    this.ghostData = this.best && this.best.ghost && this.best.ghost.length > 1 ? this.best.ghost : null;
+    this.ghostIndex = 0;
+    this.ghost = null;
+    if (this.ghostData) {
+      this.ghost = this.add.image(YARD.start.x, YARD.start.y, 'mower')
+        .setRotation(YARD.start.angle).setAlpha(0.65).setTint(0xbfe4ff);
+      this.yard.addAt(this.ghost, this.yard.getIndex(this.mower)); // under your mower
+    }
+
+    // ---- 5. HUD (info bar at the top) ----
+    this.add.rectangle(0, 0, YARD_W, HUD_H, 0x1f2a1f).setOrigin(0, 0);
+    this.hudText = this.add.text(12, HUD_H / 2, '', {
+      fontFamily: 'sans-serif', fontSize: '16px', color: '#e8f5e0'
+    }).setOrigin(0, 0.5);
+    this.finishBtn = this.makeButton(YARD_W - 62, HUD_H / 2, 'Finish ✓', () => {
+      if (this.finished) this.panel.setVisible(!this.panel.visible);
+      else this.finish();
+    }, '15px');
+
+    // ---- 6. Controls ----
+    this.cursors = this.input.keyboard.createCursorKeys();
+    this.keys = this.input.keyboard.addKeys('W,A,S,D,R,H,G,ENTER');
+    this.keys.G.on('down', () => {
+      if (!this.ghost) return;
+      const show = !this.ghost.visible;
+      this.ghost.setVisible(show);
+      this.ghostRT.setVisible(show);
+    });
+    this.keys.R.on('down', () => this.scene.restart());
+    this.keys.ENTER.on('down', () => { if (!this.finished) this.finish(); });
+    this.keys.H.on('down', () => { if (this.finished) this.panel.setVisible(!this.panel.visible); });
+
+    this.updateHud();
+  }
+
+  // Runs about 60 times per second
+  update(time, delta) {
+    if (this.finished) return;
+    const dt = delta / 1000;
+    const m = this.mower;
+
+    // --- read input ---
+    let turn = 0, drive = 0;
+    const c = this.cursors, k = this.keys;
+    if (c.left.isDown || k.A.isDown) turn -= 1;
+    if (c.right.isDown || k.D.isDown) turn += 1;
+    if (c.up.isDown || k.W.isDown) drive = 1;
+    else if (c.down.isDown || k.S.isDown) drive = -1;
+
+    // Touch / mouse: hold your finger on the yard and the mower drives toward it
+    const p = this.input.activePointer;
+    if (p.isDown) {
+      const tx = p.worldX, ty = p.worldY - HUD_H;
+      if (ty >= 0) {
+        const dx = tx - m.x, dy = ty - m.y;
+        if (Math.hypot(dx, dy) > 12) {
+          const diff = Phaser.Math.Angle.Wrap(Math.atan2(dy, dx) - m.rotation);
+          turn = Phaser.Math.Clamp(diff / (MOWER.turnSpeed * dt), -1, 1);
+          if (Math.abs(diff) < 1.0) drive = 1;
+        }
+      }
+    }
+
+    if ((turn !== 0 || drive !== 0) && !this.started) this.started = true;
+    if (this.started) this.elapsed += dt;
+
+    // --- turn ---
+    m.rotation += turn * MOWER.turnSpeed * dt;
+
+    // --- move (and slide along walls instead of getting stuck) ---
+    if (drive !== 0) {
+      const sp = drive > 0 ? MOWER.speed : -MOWER.reverseSpeed;
+      const x = m.x, y = m.y;
+      let nx = x + Math.cos(m.rotation) * sp * dt;
+      let ny = y + Math.sin(m.rotation) * sp * dt;
+      if (this.collides(nx, ny)) {
+        if (!this.collides(nx, y)) ny = y;
+        else if (!this.collides(x, ny)) nx = x;
+        else { nx = x; ny = y; }
+      }
+      this.distance += Math.hypot(nx - x, ny - y);
+      m.setPosition(nx, ny);
+    }
+
+    // --- cut grass under the deck ---
+    this.mowAt(m.x, m.y, m.rotation);
+
+    // --- remember the route ---
+    const last = this.trail[this.trail.length - 1];
+    if (Math.hypot(m.x - last.x, m.y - last.y) > 6) this.trail.push({ x: m.x, y: m.y });
+
+    // --- record for the ghost (20 times per second) and move the ghost ---
+    if (this.started) {
+      this.recTimer -= dt;
+      if (this.recTimer <= 0) { this.recTimer = 0.05; this.recordSample(); }
+    }
+    this.updateGhost();
+
+    this.updateHud();
+    if (this.cutCount >= this.grassTotal) this.finish();
+  }
+
+  // ---------- ghost ----------
+  recordSample() {
+    const m = this.mower;
+    this.rec.push([+this.elapsed.toFixed(2), Math.round(m.x), Math.round(m.y), +m.rotation.toFixed(2)]);
+  }
+
+  updateGhost() {
+    if (!this.ghost) return;
+    const d = this.ghostData, t = this.elapsed;
+    const lastS = d[d.length - 1];
+    if (t >= lastS[0]) {              // the ghost has finished its run
+      this.ghost.setPosition(lastS[1], lastS[2]).setRotation(lastS[3]).setAlpha(0.3);
+      return;
+    }
+    // find the two recorded moments on either side of "now" and blend between them
+    while (this.ghostIndex < d.length - 2 && d[this.ghostIndex + 1][0] <= t) this.ghostIndex++;
+    const a = d[this.ghostIndex], b = d[this.ghostIndex + 1];
+    const f = b[0] > a[0] ? Phaser.Math.Clamp((t - a[0]) / (b[0] - a[0]), 0, 1) : 0;
+    this.ghost.setPosition(a[1] + (b[1] - a[1]) * f, a[2] + (b[2] - a[2]) * f);
+    this.ghost.setRotation(a[3] + Phaser.Math.Angle.Wrap(b[3] - a[3]) * f);
+    if (this.started) this.ghostTrace(this.ghost.x, this.ghost.y);
+  }
+
+  // Paint the ghost's cut path
+  ghostTrace(x, y) {
+    const r = MOWER.deckRadius;
+    const c0 = Math.max(0, Math.floor((x - r) / CELL)), c1 = Math.min(COLS - 1, Math.floor((x + r) / CELL));
+    const r0 = Math.max(0, Math.floor((y - r) / CELL)), r1 = Math.min(ROWS - 1, Math.floor((y + r) / CELL));
+    for (let row = r0; row <= r1; row++) {
+      for (let col = c0; col <= c1; col++) {
+        const i = row * COLS + col;
+        if (this.cells[i] === 0 || this.ghostCells[i]) continue;   // not grass, or already painted
+        const ccx = col * CELL + CELL / 2, ccy = row * CELL + CELL / 2;
+        if ((ccx - x) ** 2 + (ccy - y) ** 2 <= r * r) {
+          this.ghostCells[i] = 1;
+          this.ghostRT.fill(0x4aa8ff, 1, col * CELL, row * CELL, CELL, CELL);
+        }
+      }
+    }
+  }
+
+  // ---------- grass cutting ----------
+  mowAt(x, y, rot) {
+    // Real lawns get light and dark stripes depending on which way you mow
+    const cx = Math.cos(rot), sy = Math.sin(rot);
+    const light = Math.abs(cx) >= Math.abs(sy) ? cx > 0 : sy > 0;
+    const color = light ? 0x8fd16a : 0x74bd52;
+
+    const r = MOWER.deckRadius;
+    const c0 = Math.max(0, Math.floor((x - r) / CELL)), c1 = Math.min(COLS - 1, Math.floor((x + r) / CELL));
+    const r0 = Math.max(0, Math.floor((y - r) / CELL)), r1 = Math.min(ROWS - 1, Math.floor((y + r) / CELL));
+    for (let row = r0; row <= r1; row++) {
+      for (let col = c0; col <= c1; col++) {
+        const i = row * COLS + col;
+        if (this.cells[i] !== 1) continue;
+        const ccx = col * CELL + CELL / 2, ccy = row * CELL + CELL / 2;
+        if ((ccx - x) ** 2 + (ccy - y) ** 2 <= r * r) {
+          this.cells[i] = 2;
+          this.cutCount++;
+          this.grassRT.fill(color, 1, col * CELL, row * CELL, CELL, CELL);
+        }
+      }
+    }
+  }
+
+  // ---------- collisions ----------
+  obstacleHit(x, y, rad) {
+    const rectHit = (r) => rad === 0 ? inRect(x, y, r) : circleHitsRect(x, y, rad, r);
+    if (rectHit(YARD.house)) return true;
+    for (const b of YARD.beds) if (rectHit(b)) return true;
+    for (const t of YARD.trees) if (Math.hypot(x - t.x, y - t.y) < t.r + rad) return true;
+    return false;
+  }
+
+  collides(x, y) {
+    const R = MOWER.bodyRadius;
+    if (x - R < 0 || x + R > YARD_W || y - R < 0 || y + R > YARD_H) return true;
+    return this.obstacleHit(x, y, R);
+  }
+
+  // ---------- end of the job ----------
+  finish() {
+    if (this.finished) return;
+    this.finished = true;
+
+    const cut = this.cutCount / this.grassTotal;
+    const ideal = this.cutCount * CELL * CELL / (2 * MOWER.deckRadius); // shortest possible route
+    const eff = this.distance > 0 ? Math.min(1, ideal / this.distance) : 0;
+
+    let stars = 0, comment;
+    if (cut < 0.95) comment = '"You missed some spots, dear."';
+    else if (eff >= 0.8) { stars = 3; comment = '"Perfect lines! Like a golf course."'; }
+    else if (eff >= 0.65) { stars = 2; comment = '"Looks lovely, thank you!"'; }
+    else { stars = 1; comment = '"Took you a while, but it looks fine."'; }
+
+    let pay = PAY_FULL * cut;
+    if (cut < 0.95) pay *= 0.5; // patchy lawn = half pay
+
+    // Draw your route over the lawn
+    this.routeG.lineStyle(3, 0xffffff, 0.85);
+    this.routeG.strokePoints(this.trail, false);
+    this.routeG.fillStyle(0xffe066, 1).fillCircle(this.trail[0].x, this.trail[0].y, 5);
+
+    // Compare with the ghost's time
+    const prev = this.best;
+    const ghostLine = prev && prev.time
+      ? `Ghost time: ${prev.time.toFixed(1)}s (you were ${Math.abs(this.elapsed - prev.time).toFixed(1)}s ${this.elapsed <= prev.time ? 'faster' : 'slower'})`
+      : '';
+
+    // Save best score (and this run's ghost) in the browser
+    let best = prev;
+    const isBest = !best || !best.ghost || stars > best.stars || (stars === best.stars && eff > best.eff);
+    if (isBest) {
+      this.recordSample();
+      best = { stars, eff, cut, time: this.elapsed, ghost: this.rec };
+      try { localStorage.setItem(BEST_KEY, JSON.stringify(best)); } catch (e) {}
+    }
+
+    const pct = (v) => (v * 100).toFixed(1) + '%';
+    const lines = [
+      `Cut: ${pct(cut)}     Skipped: ${pct(1 - cut)}`,
+      `Route efficiency: ${pct(eff)}`,
+      `Time: ${this.elapsed.toFixed(1)}s     Distance: ${Math.round(this.distance)} px`,
+      `Paid: $${pay.toFixed(2)}`,
+      ghostLine,
+      comment,
+      isBest ? '★ New personal best!' : `Best: ${'★'.repeat(best.stars)} ${pct(best.eff)} efficiency`
+    ];
+    this.showPanel('★'.repeat(stars) + '☆'.repeat(3 - stars), lines);
+    this.finishBtn.setText('Results');
+  }
+
+  showPanel(title, lines) {
+    const cx = YARD_W / 2, cy = HUD_H + YARD_H / 2;
+    this.panel = this.add.container(cx, cy);
+    const bg = this.add.graphics();
+    bg.fillStyle(0x1b241b, 0.93).fillRoundedRect(-190, -150, 380, 300, 14);
+    bg.lineStyle(2, 0x8fd16a, 1).strokeRoundedRect(-190, -150, 380, 300, 14);
+    const t = this.add.text(0, -120, title, { fontFamily: 'sans-serif', fontSize: '36px', color: '#ffe066' }).setOrigin(0.5);
+    const body = this.add.text(0, -10, lines.join('\n'), {
+      fontFamily: 'sans-serif', fontSize: '16px', color: '#e8f5e0', align: 'center', lineSpacing: 4
+    }).setOrigin(0.5);
+    const again = this.makeButton(-80, 115, 'Mow again', () => this.scene.restart());
+    const route = this.makeButton(80, 115, 'See route', () => this.panel.setVisible(false));
+    this.panel.add([bg, t, body, again, route]);
+  }
+
+  // ---------- drawing helpers ----------
+  updateHud() {
+    const pct = this.grassTotal ? Math.floor(this.cutCount / this.grassTotal * 100) : 0;
+    this.hudText.setText(`${YARD.name}    Cut ${pct}%   Skipped ${100 - pct}%   ⏱ ${this.elapsed.toFixed(1)}s`);
+  }
+
+  makeButton(x, y, label, onClick, size = '18px') {
+    const b = this.add.text(x, y, label, {
+      fontFamily: 'sans-serif', fontSize: size, color: '#ffffff',
+      backgroundColor: '#3c7d2b', padding: { x: 12, y: 6 }
+    }).setOrigin(0.5).setInteractive({ useHandCursor: true });
+    b.on('pointerdown', onClick);
+    return b;
+  }
+
+  drawScenery() {
+    const g = this.add.graphics();
+
+    // Driveway
+    const d = YARD.driveway;
+    g.fillStyle(0x9a9a92, 1).fillRect(d.x, d.y, d.w, d.h);
+    g.lineStyle(2, 0x7d7d76, 1).strokeRect(d.x, d.y, d.w, d.h);
+
+    // Flower beds
+    const flowerColors = [0xff6b9a, 0xffd23f, 0xffffff, 0xb57cff];
+    for (const b of YARD.beds) {
+      g.fillStyle(0x6b4a2b, 1).fillRect(b.x, b.y, b.w, b.h);
+      for (let i = 0; i < 26; i++) {
+        g.fillStyle(Phaser.Utils.Array.GetRandom(flowerColors), 1)
+         .fillCircle(b.x + 6 + Math.random() * (b.w - 12), b.y + 6 + Math.random() * (b.h - 12), 3);
+      }
+    }
+
+    // House (seen from above: a roof)
+    const h = YARD.house;
+    g.fillStyle(0x000000, 0.25).fillRect(h.x + 6, h.y + 6, h.w, h.h);   // shadow
+    g.fillStyle(0xb5562f, 1).fillRect(h.x, h.y, h.w, h.h);
+    g.fillStyle(0x9c4626, 1).fillRect(h.x, h.y, h.w, h.h / 2);          // one side of the roof darker
+    g.lineStyle(3, 0x6e2f18, 1).strokeRect(h.x, h.y, h.w, h.h);
+    g.lineBetween(h.x, h.y + h.h / 2, h.x + h.w, h.y + h.h / 2);         // roof ridge
+    g.fillStyle(0x777777, 1).fillRect(h.x + h.w - 50, h.y + 20, 18, 18); // chimney
+
+    // Trees
+    for (const t of YARD.trees) {
+      g.fillStyle(0x000000, 0.25).fillCircle(t.x + 5, t.y + 5, t.r);
+      g.fillStyle(0x2e6b1f, 1).fillCircle(t.x, t.y, t.r);
+      g.fillStyle(0x3d8a2a, 1).fillCircle(t.x - t.r * 0.25, t.y - t.r * 0.25, t.r * 0.6);
+    }
+
+    // Fence around the yard
+    g.lineStyle(4, 0xd8c9a0, 1).strokeRect(2, 2, YARD_W - 4, YARD_H - 4);
+    return g;
+  }
+
+  makeMowerTexture() {
+    if (this.textures.exists('mower')) return;
+    // Drawn facing right. The handle sticks out the back (left).
+    const g = this.make.graphics({ x: 0, y: 0 }, false);
+    g.lineStyle(3, 0x555555, 1);
+    g.lineBetween(14, 8, 2, 8);
+    g.lineBetween(14, 20, 2, 20);
+    g.lineBetween(2, 8, 2, 20);
+    g.fillStyle(0x222222, 1);                  // wheels
+    g.fillRect(15, 2, 7, 4); g.fillRect(15, 22, 7, 4);
+    g.fillRect(29, 2, 7, 4); g.fillRect(29, 22, 7, 4);
+    g.fillStyle(0xd63a2f, 1).fillRoundedRect(14, 4, 24, 20, 6); // red deck
+    g.fillStyle(0x333333, 1).fillCircle(26, 14, 5);             // engine
+    g.fillStyle(0xffffff, 0.6).fillCircle(24, 12, 1.5);
+    g.generateTexture('mower', 40, 28);
+    g.destroy();
+  }
+}
+
+// Start the game
+const game = new Phaser.Game({
+  type: Phaser.AUTO,
+  parent: 'game',
+  width: YARD_W,
+  height: YARD_H + HUD_H,
+  backgroundColor: '#1b241b',
+  scale: { mode: Phaser.Scale.FIT, autoCenter: Phaser.Scale.CENTER_BOTH },
+  scene: [YardScene]
+});
+</script>
+</body>
+</html>
