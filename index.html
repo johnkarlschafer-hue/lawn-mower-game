@@ -36,6 +36,20 @@ const MOWER = {
 
 const PAY_FULL = 20;  // dollars for a perfectly cut lawn
 
+// ---- Difficulty ----
+// "Perfect time" = how long the yard would take if you never overlapped and never turned.
+// Medal times and the gas tank are worked out from it, so new yards get fair targets automatically.
+const MEDALS = { gold: 1.55, silver: 1.9, bronze: 2.4 };  // medal time = perfect time × this
+const FUEL_TANK = 2.5;      // a full tank lasts this × perfect time of driving
+const IDLE_BURN = 0.3;      // standing still burns 30% as much gas as driving
+
+// ---- Style points ----
+const STRIPE_MIN = 100;     // a "clean stripe" is a straight line at least this long (pixels)…
+const STRIPE_FRESH = 0.65;  // …that cut mostly new grass (65% of a full-width cut — some overlap is OK)
+const MAX_COMBO = 5;        // each clean stripe in a row raises the multiplier, up to ×5
+const OVERLAP_LIMIT = 60;   // driving this far over already-cut grass breaks your combo
+const TIP_RATE = 200;       // style points per $1 of tip
+
 const FONT = 'Fredoka, "Trebuchet MS", sans-serif';
 
 // SHARPNESS: the game is drawn this many times bigger than the yard's
@@ -56,6 +70,110 @@ const YARD = {
 };
 
 const BEST_KEY = 'lmg_yard1_best';
+
+// =====================================================================
+//  SOUND — made from scratch with the browser's built-in synthesizer
+//  (no sound files needed). Browsers only allow sound after you press a
+//  key or tap, so it switches on with your first key press.
+// =====================================================================
+const SFX = {
+  ctx: null,
+  on: (() => { try { return localStorage.getItem('lmg_sound') !== 'off'; } catch (e) { return true; } })(),
+
+  init() {
+    if (this.ctx) { if (this.ctx.state === 'suspended') this.ctx.resume(); return; }
+    const AC = window.AudioContext || window.webkitAudioContext;
+    if (!AC) return;
+    const c = this.ctx = new AC();
+    this.master = c.createGain();
+    this.master.gain.value = this.on ? 0.7 : 0;
+    this.master.connect(c.destination);
+
+    // Engine: two low, buzzy tones, muffled, with a "putt-putt" wobble
+    this.eng1 = c.createOscillator(); this.eng1.type = 'sawtooth'; this.eng1.frequency.value = 45;
+    this.eng2 = c.createOscillator(); this.eng2.type = 'square';   this.eng2.frequency.value = 22.5;
+    const muffle = c.createBiquadFilter(); muffle.type = 'lowpass'; muffle.frequency.value = 380;
+    const wobble = c.createGain(); wobble.gain.value = 0.7;
+    this.lfo = c.createOscillator(); this.lfo.frequency.value = 12;
+    const lfoAmount = c.createGain(); lfoAmount.gain.value = 0.3;
+    this.lfo.connect(lfoAmount).connect(wobble.gain);
+    this.engGain = c.createGain(); this.engGain.gain.value = 0;
+    this.eng1.connect(muffle); this.eng2.connect(muffle);
+    muffle.connect(wobble).connect(this.engGain).connect(this.master);
+
+    // Blades chewing grass: a hiss of filtered noise
+    const buf = c.createBuffer(1, c.sampleRate, c.sampleRate), d = buf.getChannelData(0);
+    for (let i = 0; i < d.length; i++) d[i] = Math.random() * 2 - 1;
+    this.noise = c.createBufferSource(); this.noise.buffer = buf; this.noise.loop = true;
+    const hiss = c.createBiquadFilter(); hiss.type = 'bandpass'; hiss.frequency.value = 2600; hiss.Q.value = 0.7;
+    this.bladeGain = c.createGain(); this.bladeGain.gain.value = 0;
+    this.noise.connect(hiss).connect(this.bladeGain).connect(this.master);
+
+    [this.eng1, this.eng2, this.lfo, this.noise].forEach(o => o.start());
+  },
+
+  // Called every frame: is the engine running, how fast (0–1), cutting grass?, low on gas?
+  engine(running, speed = 0, cutting = false, sputter = false) {
+    if (!this.ctx) return;
+    const t = this.ctx.currentTime;
+    let vol = running ? 0.22 : 0;
+    if (running && sputter && Math.random() < 0.15) vol *= 0.15;   // coughing engine
+    this.engGain.gain.setTargetAtTime(vol, t, 0.06);
+    const f = 42 + 26 * speed;
+    this.eng1.frequency.setTargetAtTime(f, t, 0.2);
+    this.eng2.frequency.setTargetAtTime(f / 2 + 0.7, t, 0.2);
+    this.lfo.frequency.setTargetAtTime(10 + 8 * speed, t, 0.2);
+    this.bladeGain.gain.setTargetAtTime(running && cutting ? 0.045 : 0, t, 0.05);
+  },
+
+  // One short musical note
+  tone(freq, dur, type = 'sine', vol = 0.2, delay = 0, slideTo = null) {
+    if (!this.ctx) return;
+    const c = this.ctx, t = c.currentTime + delay;
+    const o = c.createOscillator(), g = c.createGain();
+    o.type = type;
+    o.frequency.setValueAtTime(freq, t);
+    if (slideTo) o.frequency.exponentialRampToValueAtTime(slideTo, t + dur);
+    g.gain.setValueAtTime(0.0001, t);
+    g.gain.exponentialRampToValueAtTime(vol, t + 0.01);
+    g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
+    o.connect(g).connect(this.master);
+    o.start(t); o.stop(t + dur + 0.05);
+  },
+
+  ding(combo) {                       // higher pitch for bigger combos
+    const f = 660 * Math.pow(2, (combo - 1) * 2 / 12);
+    this.tone(f, 0.15, 'triangle', 0.18);
+    this.tone(f * 1.5, 0.3, 'triangle', 0.15, 0.08);
+  },
+  thud()       { this.tone(150, 0.25, 'square', 0.07, 0, 60); },
+  sputterOut() { this.tone(90, 0.7, 'sawtooth', 0.12, 0, 28); },
+  medal(kind) {
+    const notes = { gold: [523, 659, 784, 1047], silver: [523, 659, 784], bronze: [523, 659] }[kind] || [330, 262];
+    notes.forEach((f, i) => this.tone(f, 0.35, 'triangle', 0.16, i * 0.12));
+  },
+
+  toggle() {
+    this.on = !this.on;
+    try { localStorage.setItem('lmg_sound', this.on ? 'on' : 'off'); } catch (e) {}
+    if (this.master) this.master.gain.value = this.on ? 0.7 : 0;
+    return this.on;
+  }
+};
+window.addEventListener('keydown', () => SFX.init());
+window.addEventListener('pointerdown', () => SFX.init());
+// Go quiet when you switch to another tab
+document.addEventListener('visibilitychange', () => {
+  if (!SFX.ctx) return;
+  if (document.hidden) SFX.ctx.suspend(); else SFX.ctx.resume();
+});
+
+const MEDAL_COLORS = {
+  gold:   { face: 0xffd84a, rim: 0xb8860b, text: '#ffd84a', name: 'Gold' },
+  silver: { face: 0xe3e9ef, rim: 0x8f9aa5, text: '#e3e9ef', name: 'Silver' },
+  bronze: { face: 0xe39a5b, rim: 0x8a5428, text: '#e39a5b', name: 'Bronze' },
+  none:   { face: 0x3a4a33, rim: 0x101a0c, text: '#7d8f74', name: 'No medal' }
+};
 
 // ---------- small helper functions ----------
 const inRect = (x, y, r) => x >= r.x && x < r.x + r.w && y >= r.y && y < r.y + r.h;
@@ -154,6 +272,28 @@ class YardScene extends Phaser.Scene {
     this.finished = false;
     this.elapsed = 0;
     this.distance = 0;
+
+    // Targets for this yard (see MEDALS and FUEL_TANK at the top)
+    this.perfectT = this.grassTotal * CELL * CELL / (2 * MOWER.deckRadius) / MOWER.speed;
+    this.medalT = {
+      gold: Math.round(this.perfectT * MEDALS.gold),
+      silver: Math.round(this.perfectT * MEDALS.silver),
+      bronze: Math.round(this.perfectT * MEDALS.bronze)
+    };
+    this.fuelMax = this.perfectT * FUEL_TANK;
+    this.fuel = this.fuelMax;
+
+    // Style: clean stripes, combos, overlap
+    this.style = 0;          // style points (turned into tips at the end)
+    this.combo = 1;
+    this.bestCombo = 1;
+    this.cleanStripes = 0;
+    this.run = null;         // the straight line you're driving right now
+    this.overlapRun = 0;     // how far you've driven over cut grass without cutting anything new
+    this.overlapWarned = false;
+    this.wasted = 0;         // total distance driven over already-cut grass
+    this.sinceFresh = 0;
+    this.shownMedal = null;  // which medal icon the HUD is showing
     this.trail = [{ x: YARD.start.x, y: YARD.start.y }];
     this.rec = [];        // recording of this run for the ghost: [time, x, y, rotation]
     this.recTimer = 0;
@@ -180,7 +320,12 @@ class YardScene extends Phaser.Scene {
 
     // ---- 6. Controls ----
     this.cursors = this.input.keyboard.createCursorKeys();
-    this.keys = this.input.keyboard.addKeys('W,A,S,D,R,H,G,ENTER');
+    this.keys = this.input.keyboard.addKeys('W,A,S,D,R,H,G,M,ENTER');
+    this.keys.M.on('down', () => {
+      const on = SFX.toggle();
+      this.pop(this.mower.x, this.mower.y - 24, on ? 'Sound on' : 'Sound off', '#e8f5e0');
+    });
+    this.events.once('shutdown', () => SFX.engine(false));
     this.keys.G.on('down', () => {
       if (!this.ghost) return;
       const show = !this.ghost.visible;
@@ -191,7 +336,44 @@ class YardScene extends Phaser.Scene {
     this.keys.ENTER.on('down', () => { if (!this.finished) this.finish(); });
     this.keys.H.on('down', () => { if (this.finished) this.panel.setVisible(!this.panel.visible); });
 
+    this.makeIntro();
     this.updateHud();
+  }
+
+  // The card you see before you start: who the job is for, and what to aim for
+  makeIntro() {
+    const W = 380, H = 236, cx = YARD_W / 2, cy = HUD_H + YARD_H / 2;
+    const c = this.intro = this.add.container(cx, cy);
+    const bg = this.add.graphics();
+    bg.fillStyle(0x000000, 0.35).fillRoundedRect(-W / 2 + 4, -H / 2 + 6, W, H, 18);
+    bg.fillStyle(0x1b2a16, 0.95).fillRoundedRect(-W / 2, -H / 2, W, H, 18);
+    bg.lineStyle(2, 0x8fd16a, 1).strokeRoundedRect(-W / 2, -H / 2, W, H, 18);
+    c.add(bg);
+    c.add(this.txt(0, -H / 2 + 26, YARD.name, { fontSize: '22px', color: '#ffffff', fontStyle: '600' }).setOrigin(0.5));
+    c.add(this.txt(0, -H / 2 + 54, 'Finish the lawn fast for a medal:', { fontSize: '14px', color: '#c9dcbf' }).setOrigin(0.5));
+
+    const mg = this.add.graphics();
+    c.add(mg);
+    ['gold', 'silver', 'bronze'].forEach((k, i) => {
+      const x = (i - 1) * 110 - 22, y = -H / 2 + 86;
+      this.drawMedal(mg, x, y, 13, k);
+      c.add(this.txt(x + 20, y, `${this.medalT[k]}s`, { fontSize: '17px', color: MEDAL_COLORS[k].text, fontStyle: '600' }).setOrigin(0, 0.5));
+    });
+
+    c.add(this.txt(0, 30, [
+      'Long, straight stripes on uncut grass earn tips.',
+      'Do them in a row for a combo!',
+      'Don\'t drive over cut grass too long,',
+      'and watch your gas ⛽'
+    ].join('\n'), { fontSize: '14px', color: '#e8f5e0', align: 'center', lineSpacing: 3 }).setOrigin(0.5));
+    c.add(this.txt(0, H / 2 - 22, 'Drive to start   ·   M = sound on/off', { fontSize: '13px', color: '#ffe9a3' }).setOrigin(0.5));
+  }
+
+  hideIntro() {
+    if (!this.intro) return;
+    const c = this.intro;
+    this.intro = null;
+    this.tweens.add({ targets: c, alpha: 0, scale: 0.9, duration: 250, onComplete: () => c.destroy() });
   }
 
   // Runs about 60 times per second
@@ -223,8 +405,22 @@ class YardScene extends Phaser.Scene {
       }
     }
 
-    if ((turn !== 0 || drive !== 0) && !this.started) this.started = true;
-    if (this.started) this.elapsed += dt;
+    if ((turn !== 0 || drive !== 0) && !this.started) {
+      this.started = true;
+      this.hideIntro();
+    }
+    if (this.started) {
+      this.elapsed += dt;
+      this.fuel -= dt * (drive !== 0 ? 1 : IDLE_BURN);
+      if (this.fuel <= 0) {
+        this.fuel = 0;
+        this.pop(m.x, m.y - 24, 'Out of gas!', '#ff8a6b', 20);
+        SFX.sputterOut();
+        this.finish('gas');
+        return;
+      }
+    }
+    const prevX = m.x, prevY = m.y;
 
     // --- turn ---
     m.rotation += turn * MOWER.turnSpeed * dt;
@@ -245,10 +441,14 @@ class YardScene extends Phaser.Scene {
     }
 
     // --- cut grass under the deck ---
+    let newlyCut = 0;
     if (this.started) {
-      const newlyCut = this.mowAt(m.x, m.y, m.rotation);
+      newlyCut = this.mowAt(m.x, m.y, m.rotation);
       if (newlyCut > 0) this.sprayClippings(newlyCut);
+      const moved = Math.hypot(m.x - prevX, m.y - prevY);
+      this.trackStyle(drive, moved, newlyCut);
     }
+    SFX.engine(this.started, drive !== 0 ? 1 : 0, newlyCut > 0, this.fuel / this.fuelMax < 0.2);
 
     // --- remember the route ---
     const last = this.trail[this.trail.length - 1];
@@ -331,6 +531,83 @@ class YardScene extends Phaser.Scene {
     this.clippings.emitParticleAt(x, y, Math.min(3, amount));
   }
 
+  // ---------- style: clean stripes, combos and overlap ----------
+  trackStyle(drive, moved, fresh) {
+    const m = this.mower;
+    const col = Math.floor(m.x / CELL), row = Math.floor(m.y / CELL);
+    const onLawn = this.cells[row * COLS + col] !== 0;
+    const driving = drive > 0 && moved > 0.5;
+
+    // Overlap: driving on the lawn but not cutting anything new.
+    // (Grass is counted in 8-pixel squares, so we only call it overlap after
+    //  12 pixels without a single new square.)
+    if (fresh > 0) {
+      this.sinceFresh = 0;
+      this.overlapRun = 0;
+      this.overlapWarned = false;
+    } else if (driving && onLawn) {
+      this.sinceFresh = (this.sinceFresh || 0) + moved;
+      if (this.sinceFresh > 12) {
+        this.wasted += moved;
+        this.overlapRun += moved;
+        if (this.overlapRun >= OVERLAP_LIMIT && !this.overlapWarned) {
+          this.overlapWarned = true;
+          this.pop(m.x, m.y - 24, this.combo > 1 ? 'Combo lost!' : 'Overlap!', '#ffab7a');
+          SFX.thud();
+          this.combo = 1;
+        }
+      }
+    }
+
+    // Stripes: a "run" is one straight line. Turning, stopping or reversing ends it.
+    const r = this.run;
+    const straight = r && Math.abs(Phaser.Math.Angle.Wrap(m.rotation - r.heading)) < 0.18;
+    if (r && (!driving || !straight)) this.endStripe();
+    if (driving) {
+      if (!this.run) this.run = { heading: m.rotation, len: 0, cells: 0 };
+      this.run.len += moved;
+    }
+    if (this.run) this.run.cells += fresh;
+  }
+
+  endStripe() {
+    const r = this.run;
+    this.run = null;
+    if (!r || r.len < STRIPE_MIN) return;
+    // How many squares a full-width cut on fresh grass would have cut over this distance
+    const fullWidth = r.len * 2 * MOWER.deckRadius / (CELL * CELL);
+    if (r.cells / fullWidth < STRIPE_FRESH) return;
+    const pts = Math.round(r.len / 10) * this.combo;
+    this.style += pts;
+    this.cleanStripes++;
+    const m = this.mower;
+    this.pop(m.x, m.y - 24, `Clean stripe! +${pts}` + (this.combo > 1 ? `  ×${this.combo}` : ''), '#fff3a0');
+    SFX.ding(this.combo);
+    this.combo = Math.min(MAX_COMBO, this.combo + 1);
+    this.bestCombo = Math.max(this.bestCombo, this.combo);
+    if (this.styleText) this.tweens.add({ targets: this.styleText, scale: 1.25, duration: 90, yoyo: true });
+  }
+
+  // Floating text that rises and fades (x, y are yard coordinates)
+  pop(x, y, text, color = '#ffffff', size = 15) {
+    const t = this.txt(Phaser.Math.Clamp(x, 70, YARD_W - 70), Math.max(y, 40) + HUD_H, text, {
+      fontSize: size + 'px', color, fontStyle: '600', stroke: '#0c140a', strokeThickness: 4
+    }).setOrigin(0.5).setDepth(10);
+    this.tweens.add({ targets: t, y: t.y - 30, alpha: 0, duration: 1100, ease: 'Cubic.Out', onComplete: () => t.destroy() });
+  }
+
+  drawMedal(g, x, y, r, kind) {
+    const c = MEDAL_COLORS[kind];
+    if (kind !== 'none') {    // little ribbon
+      g.fillStyle(0x3d6fd6, 1).fillTriangle(x - r * 0.7, y - r * 0.4, x - r * 0.1, y - r * 0.4, x - r * 0.75, y - r * 1.6);
+      g.fillStyle(0xd64545, 1).fillTriangle(x + r * 0.7, y - r * 0.4, x + r * 0.1, y - r * 0.4, x + r * 0.75, y - r * 1.6);
+    }
+    g.fillStyle(c.rim, 1).fillCircle(x, y + 1.5, r);
+    g.fillStyle(c.face, 1).fillCircle(x, y, r);
+    g.lineStyle(Math.max(1, r * 0.12), c.rim, 0.6).strokeCircle(x, y, r * 0.68);
+    if (kind !== 'none') g.fillStyle(0xffffff, 0.45).fillCircle(x - r * 0.35, y - r * 0.35, r * 0.18);
+  }
+
   // ---------- collisions ----------
   obstacleHit(x, y, rad) {
     const rectHit = (r) => rad === 0 ? inRect(x, y, r) : circleHitsRect(x, y, rad, r);
@@ -347,22 +624,31 @@ class YardScene extends Phaser.Scene {
   }
 
   // ---------- end of the job ----------
-  finish() {
+  finish(reason) {
     if (this.finished) return;
+    this.endStripe();          // count the stripe you were in the middle of
     this.finished = true;
+    this.hideIntro();
+    SFX.engine(false);
 
     const cut = this.cutCount / this.grassTotal;
-    const ideal = this.cutCount * CELL * CELL / (2 * MOWER.deckRadius); // shortest possible route
-    const eff = this.distance > 0 ? Math.min(1, ideal / this.distance) : 0;
+    const t = this.elapsed;
+    const M = this.medalT;
+    let medal = 'none';
+    if (cut >= 0.95) medal = t <= M.gold ? 'gold' : t <= M.silver ? 'silver' : t <= M.bronze ? 'bronze' : 'none';
 
-    let stars = 0, comment;
-    if (cut < 0.95) comment = '"You missed some spots, dear."';
-    else if (eff >= 0.8) { stars = 3; comment = '"Perfect lines! Like a golf course."'; }
-    else if (eff >= 0.65) { stars = 2; comment = '"Looks lovely, thank you!"'; }
-    else { stars = 1; comment = '"Took you a while, but it looks fine."'; }
+    const comment =
+      reason === 'gas' && cut < 0.95 ? '"Out of gas? Oh dear… you missed a bit."' :
+      cut < 0.95         ? '"You missed some spots, dear."' :
+      medal === 'gold'   ? '"Perfect lines! Like a golf course."' :
+      medal === 'silver' ? '"Looks lovely, thank you!"' :
+      medal === 'bronze' ? '"Took you a while, but it looks fine."' :
+                           '"Finally! I nearly called someone else."';
 
     let pay = PAY_FULL * cut;
     if (cut < 0.95) pay *= 0.5; // patchy lawn = half pay
+    const tips = this.style / TIP_RATE;
+    this.time.delayedCall(250, () => SFX.medal(medal));
 
     // Draw your route over the lawn (dark outline first, then white line)
     this.routeG.lineStyle(5, 0x000000, 0.25);
@@ -373,60 +659,62 @@ class YardScene extends Phaser.Scene {
 
     // Compare with the ghost's time
     const prev = this.best;
-    const ghostLine = prev && prev.time
+    const ghostLine = prev && prev.time && cut >= 0.95 && (prev.cut || 0) >= 0.95
       ? `Ghost time: ${prev.time.toFixed(1)}s (you were ${Math.abs(this.elapsed - prev.time).toFixed(1)}s ${this.elapsed <= prev.time ? 'faster' : 'slower'})`
       : '';
 
-    // Save best score (and this run's ghost) in the browser
+    // Save best run (and its ghost) in the browser.
+    // A finished lawn (95%+) always beats an unfinished one; then the faster time wins.
     let best = prev;
-    const isBest = !best || !best.ghost || stars > best.stars || (stars === best.stars && eff > best.eff);
+    const done = cut >= 0.95, bestDone = best && (best.cut || 0) >= 0.95;
+    const isBest = !best || !best.ghost || (done !== bestDone ? done : done ? t < best.time : cut > best.cut);
     if (isBest) {
       this.recordSample();
-      best = { stars, eff, cut, time: this.elapsed, ghost: this.rec };
+      best = { cut, time: t, medal, ghost: this.rec };
       try { localStorage.setItem(BEST_KEY, JSON.stringify(best)); } catch (e) {}
     }
 
     const pct = (v) => (v * 100).toFixed(1) + '%';
+    const lawnDriven = Math.max(1, this.distance);
     const lines = [
-      `Cut: ${pct(cut)}     Skipped: ${pct(1 - cut)}`,
-      `Route efficiency: ${pct(eff)}`,
-      `Time: ${this.elapsed.toFixed(1)}s     Distance: ${Math.round(this.distance)} px`,
-      `Paid: $${pay.toFixed(2)}`,
+      `Time: ${t.toFixed(1)}s      Cut: ${pct(cut)}  ·  Skipped: ${pct(1 - cut)}`,
+      `Clean stripes: ${this.cleanStripes}   ·   Best combo: ×${this.bestCombo}`,
+      `Overlap: ${Math.round(this.wasted / lawnDriven * 100)}% of your driving was over cut grass`,
+      `Paid $${pay.toFixed(2)}  +  tips $${tips.toFixed(2)}  =  $${(pay + tips).toFixed(2)}`,
       ghostLine,
       comment,
-      isBest ? '★ New personal best!' : `Best: ${'★'.repeat(best.stars)} ${pct(best.eff)} efficiency`
+      isBest ? '★ New personal best!' : (bestDone ? `Your best: ${best.time.toFixed(1)}s` : '')
     ].filter(Boolean);
-    this.showPanel(stars, lines);
+    const title = reason === 'gas' && medal === 'none' ? 'Out of gas!' :
+                  medal === 'none' ? (done ? 'Too slow for a medal' : 'Not finished') :
+                  `${MEDAL_COLORS[medal].name} medal!`;
+    this.showPanel(medal, title, lines);
     this.finishBtn.setLabel('Results');
   }
 
-  showPanel(stars, lines) {
+  showPanel(medal, title, lines) {
     const cx = YARD_W / 2, cy = HUD_H + YARD_H / 2;
-    const W = 400, H = 300;
+    const W = 440, H = 330;
     this.panel = this.add.container(cx, cy);
     const bg = this.add.graphics();
     bg.fillStyle(0x000000, 0.35).fillRoundedRect(-W / 2 + 4, -H / 2 + 6, W, H, 18);   // shadow
     bg.fillStyle(0x1b2a16, 0.96).fillRoundedRect(-W / 2, -H / 2, W, H, 18);
     bg.fillStyle(0x24381d, 1).fillRoundedRect(-W / 2, -H / 2, W, 64, { tl: 18, tr: 18, bl: 0, br: 0 });
     bg.lineStyle(2, 0x8fd16a, 1).strokeRoundedRect(-W / 2, -H / 2, W, H, 18);
-    // Three stars: gold if earned, dim grey if not
-    const t = this.add.graphics();
-    for (let s = 0; s < 3; s++) {
-      const sx = (s - 1) * 52, sy = -H / 2 + 32, pts = [];
-      for (let k = 0; k < 10; k++) {
-        const a = -Math.PI / 2 + k * Math.PI / 5, rad = k % 2 ? 9 : 21;
-        pts.push({ x: sx + Math.cos(a) * rad, y: sy + Math.sin(a) * rad });
-      }
-      const earned = s < stars;
-      t.fillStyle(earned ? 0xb8860b : 0x101a0c, 1).fillPoints(pts.map(p => ({ x: p.x, y: p.y + 2 })), true);
-      t.fillStyle(earned ? 0xffd84a : 0x3a4a33, 1).fillPoints(pts, true);
-    }
-    const body = this.txt(0, -8, lines.join('\n'), {
-      fontSize: '16px', color: '#e8f5e0', align: 'center', lineSpacing: 5
+    // Medal + title in the header
+    const head = this.txt(0, -H / 2 + 34, title, {
+      fontSize: '26px', color: MEDAL_COLORS[medal].text, fontStyle: '600'
+    }).setOrigin(0, 0.5);
+    const mg = this.add.graphics();
+    const w = head.width + 44;
+    head.setX(-w / 2 + 44);
+    this.drawMedal(mg, -w / 2 + 16, -H / 2 + 36, 17, medal);
+    const body = this.txt(0, 10, lines.join('\n'), {
+      fontSize: '15px', color: '#e8f5e0', align: 'center', lineSpacing: 6
     }).setOrigin(0.5);
-    const again = this.makeButton(-85, H / 2 - 32, 'Mow again', () => this.scene.restart());
-    const route = this.makeButton(85, H / 2 - 32, 'See route', () => this.panel.setVisible(false));
-    this.panel.add([bg, t, body, again, route]);
+    const again = this.makeButton(-85, H / 2 - 30, 'Mow again', () => this.scene.restart());
+    const route = this.makeButton(85, H / 2 - 30, 'See route', () => this.panel.setVisible(false));
+    this.panel.add([bg, mg, head, body, again, route]);
     this.panel.setScale(0.85).setAlpha(0);
     this.tweens.add({ targets: this.panel, scale: 1, alpha: 1, duration: 220, ease: 'Back.Out' });
   }
@@ -437,17 +725,26 @@ class YardScene extends Phaser.Scene {
     g.fillStyle(0x16210f, 1).fillRect(0, 0, YARD_W, HUD_H);
     g.fillStyle(0x000000, 0.25).fillRect(0, HUD_H, YARD_W, 3);   // little shadow under the bar
 
-    this.txt(14, HUD_H / 2, YARD.name, { fontSize: '15px', color: '#e8f5e0', fontStyle: '600' }).setOrigin(0, 0.5);
-
-    this.bar = { x: 200, y: HUD_H / 2 - 9, w: 126, h: 18 };
+    const mid = HUD_H / 2;
+    // how much is cut
+    this.bar = { x: 12, y: mid - 9, w: 108, h: 18 };
     this.barG = this.add.graphics();
-    this.barText = this.txt(this.bar.x + this.bar.w / 2, HUD_H / 2, '', {
+    this.barText = this.txt(this.bar.x + this.bar.w / 2, mid, '', {
       fontSize: '13px', color: '#ffffff', fontStyle: '600', stroke: '#0c140a', strokeThickness: 3
     }).setOrigin(0.5);
-    this.skipText = this.txt(this.bar.x + this.bar.w + 10, HUD_H / 2, '', { fontSize: '14px', color: '#c9dcbf' }).setOrigin(0, 0.5);
-    this.timeText = this.txt(440, HUD_H / 2, '', { fontSize: '15px', color: '#ffe9a3' }).setOrigin(0, 0.5);
+    // gas gauge
+    this.txt(132, mid, '⛽', { fontSize: '15px' }).setOrigin(0, 0.5);
+    this.fuelBar = { x: 154, y: mid - 5, w: 64, h: 10 };
+    this.fuelG = this.add.graphics();
+    // timer, and the next medal you can still get
+    this.timeText = this.txt(234, mid, '', { fontSize: '16px', color: '#ffe9a3', fontStyle: '600' }).setOrigin(0, 0.5);
+    this.medalG = this.add.graphics();
+    this.medalText = this.txt(338, mid, '', { fontSize: '14px', color: '#ffffff' }).setOrigin(0, 0.5);
+    // style points and combo
+    this.styleText = this.txt(420, mid, '', { fontSize: '16px', color: '#fff3a0', fontStyle: '600' }).setOrigin(0, 0.5);
+    this.comboText = this.txt(484, mid, '', { fontSize: '14px', color: '#ffab7a', fontStyle: '600' }).setOrigin(0, 0.5);
 
-    this.finishBtn = this.makeButton(YARD_W - 52, HUD_H / 2, 'Finish ✓', () => {
+    this.finishBtn = this.makeButton(YARD_W - 50, HUD_H / 2, 'Finish ✓', () => {
       if (this.finished) this.panel.setVisible(!this.panel.visible);
       else this.finish();
     }, 15);
@@ -461,8 +758,30 @@ class YardScene extends Phaser.Scene {
     this.barG.fillStyle(0x0b1308, 1).fillRoundedRect(b.x, b.y, b.w, b.h, b.h / 2);
     if (f > 0) this.barG.fillStyle(0x8fd16a, 1).fillRoundedRect(b.x, b.y, Math.max(b.h, b.w * f), b.h, b.h / 2);
     this.barText.setText(`${pct}% cut`);
-    this.skipText.setText(`${100 - pct}% skipped`);
+
+    // gas: green → yellow → blinking red
+    const fb = this.fuelBar, ff = Phaser.Math.Clamp(this.fuel / this.fuelMax, 0, 1);
+    const fcol = ff > 0.5 ? 0x8fd16a : ff > 0.2 ? 0xf2c94c : 0xff5c4a;
+    const blink = ff <= 0.2 && Math.floor(this.time.now / 250) % 2 === 0;
+    this.fuelG.clear();
+    this.fuelG.fillStyle(0x0b1308, 1).fillRoundedRect(fb.x, fb.y, fb.w, fb.h, fb.h / 2);
+    if (ff > 0 && !blink) this.fuelG.fillStyle(fcol, 1).fillRoundedRect(fb.x, fb.y, Math.max(fb.h, fb.w * ff), fb.h, fb.h / 2);
+
     this.timeText.setText(`⏱ ${this.elapsed.toFixed(1)}s`);
+
+    // next medal still possible
+    const t = this.elapsed, M = this.medalT;
+    const next = t <= M.gold ? 'gold' : t <= M.silver ? 'silver' : t <= M.bronze ? 'bronze' : 'none';
+    if (next !== this.shownMedal) {
+      this.shownMedal = next;
+      this.medalG.clear();
+      this.drawMedal(this.medalG, 326, HUD_H / 2, 8, next);
+    }
+    this.medalText.setText(next === 'none' ? '—' : `${M[next]}s`);
+    this.medalText.setColor(MEDAL_COLORS[next].text);
+
+    this.styleText.setText(`★ ${this.style}`);
+    this.comboText.setText(this.combo > 1 ? `×${this.combo}` : '');
   }
 
   // ---------- drawing helpers ----------
