@@ -1254,7 +1254,7 @@ function updateGhost() {
   const gx = a[1] + (b[1] - a[1]) * f, gy = a[2] + (b[2] - a[2]) * f;
   placeModel(ghostMesh, gx, gy, a[3] + wrapAngle(b[3] - a[3]) * f);
   if (G.started) {
-    stampMask(gx, gy, false, true);
+    // (the ghost's path is only drawn on the minimap, not on the 3D lawn)
     mgctx.fillStyle = '#4aa8ff'; mgctx.beginPath(); mgctx.arc(gx, gy, MOWER.deckRadius, 0, 7); mgctx.fill();
   }
 }
