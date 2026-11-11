@@ -74,7 +74,10 @@
 </style>
 <!-- Three.js is the 3D engine. This tells the browser where to download it from. -->
 <script type="importmap">
-  { "imports": { "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js" } }
+  { "imports": {
+      "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js",
+      "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/"
+  } }
 </script>
 </head>
 <body>
@@ -93,13 +96,16 @@
 </div>
 
 <div id="miniWrap"><canvas id="mini" width="640" height="448"></canvas></div>
-<div id="help">Arrows / WASD drive · C camera · G ghost · M sound · R restart</div>
+<div id="help">Arrows / WASD drive · C camera · G ghost · M sound · Q graphics · R restart</div>
 <div id="intro" class="card"></div>
 <div id="results" class="card hidden"></div>
 <div id="pops"></div>
 
 <script type="module">
 import * as THREE from 'three';
+import { RoundedBoxGeometry } from 'three/addons/geometries/RoundedBoxGeometry.js';
+import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
+import { mergeVertices } from 'three/addons/utils/BufferGeometryUtils.js';
 
 // =====================================================================
 //  SETTINGS — the same yard and rules as the 2D version
@@ -331,9 +337,10 @@ function makeCutLawn(S, seed, base, sheen, grains, clips) {
 //  3D SETUP: renderer, scene, camera, lights
 // =====================================================================
 const renderer = new THREE.WebGLRenderer({ canvas: document.getElementById('view'), antialias: true });
-renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
 renderer.shadowMap.enabled = true;
-renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+renderer.shadowMap.type = THREE.PCFShadowMap;
+renderer.toneMapping = THREE.ACESFilmicToneMapping;   // a "film camera" color curve: softer, richer light
+renderer.toneMappingExposure = 0.9;
 const maxAniso = renderer.capabilities.getMaxAnisotropy();
 
 const scene = new THREE.Scene();
@@ -346,6 +353,9 @@ const scene = new THREE.Scene();
   scene.background = t;
 }
 scene.fog = new THREE.Fog(0xd5ecfa, 900, 2600);
+// soft light bouncing in from all around, so shapes look rounded instead of flat
+scene.environment = new THREE.PMREMGenerator(renderer).fromScene(new RoomEnvironment(), 0.04).texture;
+const ENV = 0.25;   // how strong that all-around light is
 
 const camera = new THREE.PerspectiveCamera(CAMERA.fov, 1, 1, 6000);
 function resize() {
@@ -356,8 +366,8 @@ function resize() {
 window.addEventListener('resize', resize);
 resize();
 
-scene.add(new THREE.HemisphereLight(0xe6f4ff, 0x52702e, 0.75));
-const sun = new THREE.DirectionalLight(0xfff1d6, 1.05);
+scene.add(new THREE.HemisphereLight(0xe6f4ff, 0x52702e, 0.4));
+const sun = new THREE.DirectionalLight(0xfff1d6, 2.4);
 sun.position.set(320 - 380, 720, 224 + 460);     // high in the south-west
 sun.target.position.set(320, 0, 224);
 sun.castShadow = true;
@@ -365,9 +375,10 @@ sun.shadow.mapSize.set(2048, 2048);
 Object.assign(sun.shadow.camera, { left: -560, right: 560, top: 560, bottom: -560, near: 100, far: 2200 });
 sun.shadow.bias = -0.0006;
 sun.shadow.normalBias = 1.2;
+sun.shadow.radius = 3;          // soft shadow edges
 scene.add(sun, sun.target);
 
-const mat = (color, extra = {}) => new THREE.MeshLambertMaterial({ color, ...extra });
+const mat = (color, extra = {}) => new THREE.MeshStandardMaterial({ color, roughness: 0.85, metalness: 0, envMapIntensity: ENV, ...extra });
 const texFrom = (c, repeat) => {
   const t = new THREE.CanvasTexture(c);
   t.colorSpace = THREE.SRGBColorSpace; t.anisotropy = maxAniso;
@@ -393,6 +404,41 @@ function bar(a, b, r, material, parent) {
   return m;
 }
 
+// same, but with rounded ends (arms, legs, handles)
+function barC(a, b, r, material, parent, shadows = true) {
+  const A = new THREE.Vector3(...a), B = new THREE.Vector3(...b);
+  const len = Math.max(0.01, A.distanceTo(B) - 0 * r);
+  const m = new THREE.Mesh(new THREE.CapsuleGeometry(r, len, 4, 14), material);
+  m.position.copy(A).add(B).multiplyScalar(0.5);
+  m.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), B.clone().sub(A).normalize());
+  m.castShadow = shadows;
+  parent.add(m);
+  return m;
+}
+// smooth random "noise" (used to make leafy, lumpy tree crowns)
+const _h = (i, j, k) => { const s = Math.sin(i * 127.1 + j * 311.7 + k * 74.7) * 43758.5453; return s - Math.floor(s); };
+function noise3(x, y, z) {
+  const ix = Math.floor(x), iy = Math.floor(y), iz = Math.floor(z);
+  const fx = x - ix, fy = y - iy, fz = z - iz;
+  const u = fx * fx * (3 - 2 * fx), v = fy * fy * (3 - 2 * fy), w = fz * fz * (3 - 2 * fz);
+  const L = (a, b, t) => a + (b - a) * t;
+  return L(L(L(_h(ix, iy, iz), _h(ix + 1, iy, iz), u), L(_h(ix, iy + 1, iz), _h(ix + 1, iy + 1, iz), u), v),
+           L(L(_h(ix, iy, iz + 1), _h(ix + 1, iy, iz + 1), u), L(_h(ix, iy + 1, iz + 1), _h(ix + 1, iy + 1, iz + 1), u), v), w);
+}
+// a canvas texture made of stripes (wood grain, siding, bark)
+function stripeTex(w, h, base, lines, vertical, rnd, repeat) {
+  const c = canvas2d(w, h), ctx = c.getContext('2d');
+  ctx.fillStyle = base; ctx.fillRect(0, 0, w, h);
+  for (const [color, n, thick] of lines) {
+    ctx.fillStyle = color;
+    for (let i = 0; i < n; i++) {
+      const p = rnd() * (vertical ? w : h), t = thick * (0.5 + rnd());
+      if (vertical) ctx.fillRect(p, 0, t, h); else ctx.fillRect(0, p, w, t);
+    }
+  }
+  return texFrom(c, repeat);
+}
+
 // =====================================================================
 //  THE LAWN: one flat ground with a special "shader" that mixes
 //  long grass, light stripes and dark stripes using a cut "mask"
@@ -415,7 +461,7 @@ maskTex.magFilter = maskTex.minFilter = THREE.LinearFilter;
 maskTex.needsUpdate = true;
 const ghostOn = { value: 1 };
 
-const groundMat = new THREE.MeshLambertMaterial({ map: uncutTex });
+const groundMat = new THREE.MeshStandardMaterial({ map: uncutTex, roughness: 1, metalness: 0, envMapIntensity: ENV });
 groundMat.onBeforeCompile = (sh) => {
   Object.assign(sh.uniforms, {
     cutLight: { value: cutLightTex }, cutDark: { value: cutDarkTex }, mask: { value: maskTex }, ghostOn,
@@ -469,6 +515,90 @@ function stampMask(x, y, light, ghost) {
   maskTex.needsUpdate = true;
 }
 
+// ---------------------------------------------------------------------
+//  REAL GRASS BLADES: thousands of little tufts. The graphics card reads the
+//  cut mask for each tuft, so when you mow over it, it shrinks to stubble.
+// ---------------------------------------------------------------------
+const timeU = { value: 0 };
+let grassMesh = null, tuftCount = 0;
+function buildGrass(cells) {
+  const rnd = seeded(77);
+  // one tuft = 4 thin, curved, pointed blades
+  const pos = [], col = [], idx = [];
+  const baseC = new THREE.Color(0x2b5a1c), tipC = new THREE.Color(0x7dbb4c), c = new THREE.Color();
+  for (let b = 0; b < 4; b++) {
+    const a = rnd() * Math.PI * 2, ox = (rnd() - 0.5) * 2.4, oz = (rnd() - 0.5) * 2.4;
+    const h = 5 + rnd() * 3, w = 0.8 + rnd() * 0.5, lean = 0.3 + rnd() * 0.5;
+    const px = -Math.sin(a), pz = Math.cos(a), start = pos.length / 3;
+    for (let k = 0; k <= 3; k++) {
+      const t = k / 3, y = h * t, bend = lean * t * t * h * 0.5, hw = w * (1 - t * 0.92) * 0.5;
+      const x = ox + Math.cos(a) * bend, z = oz + Math.sin(a) * bend;
+      pos.push(x - px * hw, y, z - pz * hw, x + px * hw, y, z + pz * hw);
+      c.copy(baseC).lerp(tipC, t);
+      col.push(c.r, c.g, c.b, c.r, c.g, c.b);
+    }
+    for (let k = 0; k < 3; k++) {
+      const i = start + k * 2;
+      idx.push(i, i + 1, i + 2, i + 1, i + 3, i + 2);
+    }
+  }
+  const geo = new THREE.BufferGeometry();
+  geo.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3));
+  geo.setAttribute('color', new THREE.Float32BufferAttribute(col, 3));
+  geo.setAttribute('normal', new THREE.Float32BufferAttribute(pos.map((_, i) => i % 3 === 1 ? 1 : 0), 3));
+  geo.setIndex(idx);
+
+  const gm = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 1, metalness: 0, side: THREE.DoubleSide, envMapIntensity: ENV });
+  gm.onBeforeCompile = (sh) => {
+    sh.uniforms.grassMask = { value: maskTex };
+    sh.uniforms.time = timeU;
+    sh.vertexShader = sh.vertexShader
+      .replace('#include <common>', `#include <common>
+        uniform sampler2D grassMask; uniform float time; varying float vCut; varying float vLight;`)
+      .replace('#include <begin_vertex>', `#include <begin_vertex>
+        vec4 tuftW = instanceMatrix * vec4(0.0, 0.0, 0.0, 1.0);
+        vec4 mk = texture2D(grassMask, vec2(tuftW.x / ${YARD_W}.0, 1.0 - tuftW.z / ${YARD_H}.0));
+        vCut = smoothstep(0.35, 0.75, mk.r);
+        vLight = mk.g;
+        float hgt = position.y / 8.0;
+        transformed.y *= mix(1.0, 0.13, vCut);                       // mowed: short stubble
+        float sway = sin(time * 1.7 + tuftW.x * 0.045 + tuftW.z * 0.06) + 0.5 * sin(time * 3.1 + tuftW.z * 0.11);
+        transformed.x += sway * 0.6 * hgt * hgt * (1.0 - vCut);       // a gentle breeze
+      `);
+    sh.fragmentShader = sh.fragmentShader
+      .replace('#include <common>', `#include <common>
+        varying float vCut; varying float vLight;`)
+      .replace('#include <color_fragment>', `#include <color_fragment>
+        vec3 stripe = mix(vec3(0.075, 0.29, 0.035), vec3(0.27, 0.62, 0.12), smoothstep(0.35, 0.65, vLight));
+        diffuseColor.rgb = mix(diffuseColor.rgb, stripe, vCut * 0.7);`)
+      .replace('#include <normal_fragment_begin>', `#include <normal_fragment_begin>
+        normal = normalize((viewMatrix * vec4(0.0, 1.0, 0.0, 0.0)).xyz);   // light blades like the ground`);
+  };
+
+  // place 3 tufts in every grass cell, shuffled so we can show fewer on slow computers
+  const spots = [];
+  for (let row = 0; row < ROWS; row++) for (let col = 0; col < COLS; col++) {
+    if (cells[row * COLS + col] !== 1) continue;
+    for (let k = 0; k < 3; k++) spots.push([col * CELL + rnd() * CELL, row * CELL + rnd() * CELL]);
+  }
+  for (let i = spots.length - 1; i > 0; i--) { const j = Math.floor(rnd() * (i + 1)); [spots[i], spots[j]] = [spots[j], spots[i]]; }
+  tuftCount = spots.length;
+  grassMesh = new THREE.InstancedMesh(geo, gm, tuftCount);
+  const m4 = new THREE.Matrix4(), q = new THREE.Quaternion(), sc = new THREE.Vector3(), v = new THREE.Vector3(), up = new THREE.Vector3(0, 1, 0);
+  const tint = new THREE.Color();
+  spots.forEach(([x, z], i) => {
+    q.setFromAxisAngle(up, rnd() * Math.PI * 2);
+    const s = 0.8 + rnd() * 0.45;
+    m4.compose(v.set(x, 0, z), q, sc.set(s, s * (0.85 + rnd() * 0.3), s));
+    grassMesh.setMatrixAt(i, m4);
+    const k = 0.8 + rnd() * 0.4;   // some tufts a little lighter or darker
+    grassMesh.setColorAt(i, tint.setRGB(k * (0.92 + rnd() * 0.16), k, k * (0.9 + rnd() * 0.2), THREE.LinearSRGBColorSpace));
+  });
+  grassMesh.frustumCulled = false;
+  grassMesh.receiveShadow = true;
+  scene.add(grassMesh);
+}
+
 // =====================================================================
 //  SCENERY
 // =====================================================================
@@ -478,7 +608,8 @@ const fadeables = [];   // things that turn see-through when they block your vie
 function buildHouse(r, o) {
   const g = new THREE.Group(), mats = [];
   const wallH = o.wallH || 100;
-  const wall = mat(o.wall); mats.push(wall);
+  const siding = stripeTex(8, 64, '#ffffff', [['rgba(0,0,0,0.13)', 1, 3]], false, () => 0.9, [1, wallH / 9]);
+  const wall = mat(o.wall, { map: siding }); mats.push(wall);
   addMesh(new THREE.BoxGeometry(r.w, wallH, r.h), wall, r.x + r.w / 2, wallH / 2, r.y + r.h / 2, g);
   const trim = mat(0xb8a88a); mats.push(trim);
   addMesh(new THREE.BoxGeometry(r.w + 4, 8, r.h + 4), trim, r.x + r.w / 2, 4, r.y + r.h / 2, g);
@@ -487,7 +618,7 @@ function buildHouse(r, o) {
   const glass = mat(0x5d7ea8), frame = mat(0xffffff); mats.push(glass, frame);
   const win = (px, pz, alongX) => {
     const fw = alongX ? [36, 30, 2] : [2, 30, 36], gw = alongX ? [30, 24, 2.6] : [2.6, 24, 30];
-    addMesh(new THREE.BoxGeometry(...fw), frame, px, wallH * 0.58, pz, g);
+    addMesh(new RoundedBoxGeometry(...fw, 2, 0.9), frame, px, wallH * 0.58, pz, g);
     addMesh(new THREE.BoxGeometry(...gw), glass, px, wallH * 0.58, pz, g);
   };
   for (const w of o.windows || []) {
@@ -526,10 +657,16 @@ function buildHouse(r, o) {
   sctx.fillStyle = o.roof; sctx.fillRect(0, 0, 64, 64);
   sctx.fillStyle = 'rgba(0,0,0,0.28)'; sctx.fillRect(0, 54, 64, 10);
   sctx.fillStyle = 'rgba(255,255,255,0.10)'; sctx.fillRect(0, 0, 64, 6);
-  const roofMat = new THREE.MeshLambertMaterial({ map: texFrom(sc, [1, 1]), side: THREE.DoubleSide, flatShading: true });
+  const roofMat = new THREE.MeshStandardMaterial({ map: texFrom(sc, [1, 1]), side: THREE.DoubleSide, roughness: 0.8, envMapIntensity: ENV });
   roofMat.map.wrapS = roofMat.map.wrapT = THREE.RepeatWrapping;
   mats.push(roofMat);
   addMesh(rg, roofMat, 0, 0, 0, g);
+  // white boards along the edge of the roof
+  const fascia = mat(0xf4f1ea); mats.push(fascia);
+  addMesh(new RoundedBoxGeometry(x1 - x0 + 2, 5, 3, 2, 1), fascia, (x0 + x1) / 2, y - 1.5, z0, g);
+  addMesh(new RoundedBoxGeometry(x1 - x0 + 2, 5, 3, 2, 1), fascia, (x0 + x1) / 2, y - 1.5, z1, g);
+  addMesh(new RoundedBoxGeometry(3, 5, z1 - z0 + 2, 2, 1), fascia, x0, y - 1.5, (z0 + z1) / 2, g);
+  addMesh(new RoundedBoxGeometry(3, 5, z1 - z0 + 2, 2, 1), fascia, x1, y - 1.5, (z0 + z1) / 2, g);
   if (o.chimney) {
     const brick = mat(0x8c5546), dark = mat(0x2a2422); mats.push(brick, dark);
     addMesh(new THREE.BoxGeometry(18, 46, 18), brick, r.x + o.chimney[0], wallH + 40, r.y + o.chimney[1], g);
@@ -545,25 +682,52 @@ fadeables.push(buildHouse(YARD.house, {
   windows: [[30, 's'], [40, 'n'], [110, 'n'], [180, 'n'], [45, 'e'], [105, 'e'], [45, 'w'], [105, 'w']]
 }));
 
-// Trees: a ring of mulch, a trunk and a bumpy leafy crown
+// Trees: a ring of mulch, a trunk with branches and a soft, lumpy leafy crown
+const barkTex = stripeTex(64, 128, '#7a5636', [['#5e4128', 18, 2], ['#8c6643', 10, 1.5]], true, seeded(4), [2, 3]);
+function leafBlob(s, seed, base) {
+  let geo = new THREE.IcosahedronGeometry(s, 3);
+  geo.deleteAttribute('normal'); geo.deleteAttribute('uv');
+  geo = mergeVertices(geo);                       // join the corners so the shape shades smoothly
+  const p = geo.attributes.position, col = new Float32Array(p.count * 3), c = new THREE.Color(), v = new THREE.Vector3();
+  const dark = new THREE.Color(base).multiplyScalar(0.45), light = new THREE.Color(base).lerp(new THREE.Color(0xd8f07a), 0.3);
+  for (let i = 0; i < p.count; i++) {
+    v.fromBufferAttribute(p, i);
+    const big = noise3(v.x * 0.06 + seed, v.y * 0.06 + 3, v.z * 0.06);
+    const small = noise3(v.x * 0.2 + seed, v.y * 0.2, v.z * 0.2);
+    v.multiplyScalar(1 + (big - 0.5) * 0.4 + (small - 0.5) * 0.14);
+    p.setXYZ(i, v.x, v.y, v.z);
+    const up = v.y / s * 0.5 + 0.5, speck = noise3(v.x * 0.45 + seed, v.y * 0.45, v.z * 0.45);
+    c.copy(dark).lerp(light, clamp(up * 0.85 + (speck - 0.5) * 0.7, 0, 1));
+    col.set([c.r, c.g, c.b], i * 3);
+  }
+  geo.setAttribute('color', new THREE.BufferAttribute(col, 3));
+  geo.computeVertexNormals();
+  return geo;
+}
 function buildTree(x, z, r, rnd, mulch, fade) {
   const g = new THREE.Group();
   if (mulch) {
-    const m = addMesh(new THREE.CylinderGeometry(r, r, 2, 28), mat(0x5a3c22), x, 1, z, g);
+    const m = addMesh(new THREE.CylinderGeometry(r, r + 1.5, 2.4, 40), mat(0x4e341d, { roughness: 1 }), x, 1.2, z, g);
     m.castShadow = false;
   }
   const trunkH = 26 + r * 1.1;
-  addMesh(new THREE.CylinderGeometry(4 + r * 0.08, 6 + r * 0.1, trunkH, 10), mat(0x6b4a2b), x, trunkH / 2, z, g);
-  const leafMats = [mat(0x2e6a20, { flatShading: true }), mat(0x3b842a, { flatShading: true }), mat(0x24561a, { flatShading: true })];
-  const n = 7;
+  const bark = mat(0xffffff, { map: barkTex, roughness: 0.95 });
+  addMesh(new THREE.CylinderGeometry(3 + r * 0.07, 5.5 + r * 0.1, trunkH + r * 0.5, 16), bark, x, (trunkH + r * 0.5) / 2, z, g);
+  for (let k = 0; k < 3; k++) {
+    const a = rnd() * Math.PI * 2;
+    barC([x, trunkH * 0.75, z], [x + Math.cos(a) * r * 0.6, trunkH + r * 0.35, z + Math.sin(a) * r * 0.6], 1.8 + r * 0.03, bark, g);
+  }
+  const leaf = mat(0xffffff, { vertexColors: true, roughness: 0.9 });
+  const base = rnd.pick([0x3f8a2e, 0x4a9334, 0x377d28, 0x45902f]);
+  const n = mulch ? 7 : 5;
   for (let k = 0; k < n; k++) {
-    const a = k / n * Math.PI * 2 + rnd() * 0.5, d = k === 0 ? 0 : r * 0.7;
-    const s = r * (k === 0 ? 1.1 : 0.75 + rnd() * 0.2);
-    addMesh(new THREE.IcosahedronGeometry(s, 1), leafMats[k % 3],
-      x + Math.cos(a) * d, trunkH + r * 0.3 + (k === 0 ? r * 0.3 : rnd() * r * 0.4), z + Math.sin(a) * d, g);
+    const a = k / n * Math.PI * 2 + rnd() * 0.5, d = k === 0 ? 0 : r * 0.68;
+    const s = r * (k === 0 ? 1.1 : 0.72 + rnd() * 0.2);
+    addMesh(leafBlob(s, rnd() * 100, base), leaf,
+      x + Math.cos(a) * d, trunkH + r * 0.3 + (k === 0 ? r * 0.35 : rnd() * r * 0.4), z + Math.sin(a) * d, g);
   }
   scene.add(g);
-  if (fade) fadeables.push({ group: g, mats: leafMats, box: new THREE.Box3().setFromObject(g) });
+  if (fade) fadeables.push({ group: g, mats: [leaf], box: new THREE.Box3().setFromObject(g) });
 }
 {
   const rnd = seeded(5);
@@ -581,17 +745,21 @@ function buildTree(x, z, r, rnd, mulch, fade) {
   const petals = [0xff6b9a, 0xffd23f, 0xffffff, 0xb57cff, 0xff8a4c].map(c => mat(c));
   const leaf = mat(0x2f7024), leaf2 = mat(0x3f8a2e), centre = mat(0xffe27a);
   for (const b of YARD.beds) {
-    addMesh(new THREE.BoxGeometry(b.w + 6, 7, b.h + 6), mat(0x9a958a), b.x + b.w / 2, 3.5, b.y + b.h / 2);
-    addMesh(new THREE.BoxGeometry(b.w, 7.4, b.h), mat(0x5a3c22), b.x + b.w / 2, 3.7, b.y + b.h / 2);
+    addMesh(new RoundedBoxGeometry(b.w + 8, 8, b.h + 8, 3, 3), mat(0xa29d92, { roughness: 0.95 }), b.x + b.w / 2, 4, b.y + b.h / 2);
+    const mc = canvas2d(128, 64), mx = mc.getContext('2d');
+    mx.fillStyle = '#5a3c22'; mx.fillRect(0, 0, 128, 64);
+    for (let i = 0; i < 900; i++) { mx.fillStyle = rnd.pick(['#6d4a2b', '#48301a', '#7a5532']); mx.fillRect(rnd() * 128, rnd() * 64, 1.5, 1.5); }
+    const mulchTop = new THREE.PlaneGeometry(b.w, b.h); mulchTop.rotateX(-Math.PI / 2);
+    addMesh(mulchTop, mat(0xffffff, { map: texFrom(mc), roughness: 1 }), b.x + b.w / 2, 8.3, b.y + b.h / 2).castShadow = false;
     for (let i = 0; i < 16; i++) {
       const px = b.x + 9 + rnd() * (b.w - 18), pz = b.y + 9 + rnd() * (b.h - 18);
-      addMesh(new THREE.SphereGeometry(6, 10, 8), rnd() < 0.5 ? leaf : leaf2, px, 10, pz);
+      addMesh(new THREE.SphereGeometry(6, 20, 14), rnd() < 0.5 ? leaf : leaf2, px, 11, pz);
       const pm = rnd.pick(petals);
       for (let k = 0; k < 5; k++) {
         const a = k / 5 * Math.PI * 2;
-        addMesh(new THREE.SphereGeometry(2, 8, 6), pm, px + Math.cos(a) * 2.6, 16, pz + Math.sin(a) * 2.6);
+        addMesh(new THREE.SphereGeometry(2, 12, 8), pm, px + Math.cos(a) * 2.6, 17, pz + Math.sin(a) * 2.6);
       }
-      addMesh(new THREE.SphereGeometry(1.4, 8, 6), centre, px, 16.8, pz);
+      addMesh(new THREE.SphereGeometry(1.4, 12, 8), centre, px, 17.8, pz);
     }
   }
 }
@@ -618,13 +786,17 @@ function buildTree(x, z, r, rnd, mulch, fade) {
 
 // Wooden fence with a gap for the driveway
 {
-  const wood = mat(0x9c7f55), rail = mat(0xd9c79c), d = YARD.driveway;
+  const grainV = stripeTex(32, 128, '#ffffff', [['rgba(90,60,30,0.25)', 10, 1], ['rgba(255,255,255,0.2)', 6, 1]], true, seeded(12), [1, 1]);
+  const grainH = stripeTex(128, 32, '#ffffff', [['rgba(90,60,30,0.25)', 10, 1], ['rgba(255,255,255,0.2)', 6, 1]], false, seeded(13), [1, 1]);
+  const wood = mat(0xa68558, { map: grainV }), railX = mat(0xdcc9a0, { map: grainH }), railZ = mat(0xdcc9a0, { map: grainV });
+  const d = YARD.driveway;
   const F = 3, R = YARD_W - 3, B = YARD_H - 3, H = 46;
-  const post = (x, z) => addMesh(new THREE.BoxGeometry(6, H, 6), wood, x, H / 2, z);
+  const postGeo = new RoundedBoxGeometry(6, H, 6, 2, 1.2);
+  const post = (x, z) => addMesh(postGeo, wood, x, H / 2, z);
   const rails = (x0, z0, x1, z1) => {
     const len = Math.hypot(x1 - x0, z1 - z0), alongX = z0 === z1;
     for (const y of [17, 38]) {
-      addMesh(new THREE.BoxGeometry(alongX ? len : 3, 5, alongX ? 3 : len), rail, (x0 + x1) / 2, y, (z0 + z1) / 2);
+      addMesh(new RoundedBoxGeometry(alongX ? len : 3, 5, alongX ? 3 : len, 2, 1), alongX ? railX : railZ, (x0 + x1) / 2, y, (z0 + z1) / 2);
     }
   };
   rails(F, F, R, F); rails(F, F, F, B); rails(R, F, R, B); rails(F, B, d.x, B); rails(d.x + d.w, B, R, B);
@@ -665,41 +837,59 @@ function buildTree(x, z, r, rnd, mulch, fade) {
 // =====================================================================
 function buildMower(ghost) {
   const g = new THREE.Group();
-  const M = ghost ? () => new THREE.MeshBasicMaterial({ color: 0x8fcaff, transparent: true, opacity: 0.4, depthWrite: false })
-                  : (c) => mat(c);
-  const red = M(0xd83a2c), darkRed = M(0x9e281e), engine = M(0x2c2c2c), grey = M(0x6b6b6b), black = M(0x1a1a1a);
-  const add = (geo, m, x, y, z) => { const o = addMesh(geo, m, x, y, z, g, !ghost); return o; };
+  const ghostMat = new THREE.MeshBasicMaterial({ color: 0x8fcaff, transparent: true, opacity: 0.4, depthWrite: false });
+  const M = ghost ? () => ghostMat : (c, e) => mat(c, e);
+  const add = (geo, m, x, y, z) => addMesh(geo, m, x, y, z, g, !ghost);
+  const sh = !ghost;
 
-  add(new THREE.CylinderGeometry(15, 15.5, 6, 28), red, 0, 7, 0);                  // deck
-  add(new THREE.CylinderGeometry(16, 16, 2.5, 28), darkRed, 0, 4, 0);              // skirt
-  add(new THREE.BoxGeometry(10, 5, 7), darkRed, 0, 6, 17);                         // side chute
-  add(new THREE.CylinderGeometry(7.5, 8, 9, 20), engine, 2, 14, 0);                // engine
-  add(new THREE.CylinderGeometry(5, 5, 2, 16), grey, 2, 19.5, 0);
-  for (const [x, z] of [[11, -16], [11, 16], [-11, -16], [-11, 16]]) {
-    const w = add(new THREE.CylinderGeometry(4.5, 4.5, 3, 14), black, x, 4.5, z);
-    w.rotation.x = Math.PI / 2;
+  // ---- the mower ----
+  const red = M(0xd8342a, { roughness: 0.4 }), darkRed = M(0x9e281e, { roughness: 0.6 }), engine = M(0x2a2a2a, { roughness: 0.45 });
+  const metal = M(0xc4c8ce, { roughness: 0.35, metalness: 0.25 }), black = M(0x151515, { roughness: 0.9 });
+  const hub = M(0xdedede, { roughness: 0.35, metalness: 0.4 }), yellow = M(0xf2c230, { roughness: 0.5 });
+  add(new THREE.CylinderGeometry(15.5, 16, 5, 48), red, 0, 6.5, 0);                         // deck
+  add(new THREE.SphereGeometry(15.5, 48, 12, 0, Math.PI * 2, 0, Math.PI / 2), red, 0, 9, 0).scale.y = 0.28;   // domed top
+  add(new THREE.TorusGeometry(15.9, 1.3, 10, 48), darkRed, 0, 4.3, 0).rotation.x = Math.PI / 2;               // rim
+  add(new RoundedBoxGeometry(11, 5, 8, 2, 1.8), darkRed, 0, 6.5, 17.5);                    // side chute
+  add(new THREE.CylinderGeometry(7.2, 8.2, 9, 36), engine, 2, 14, 0);                       // engine
+  add(new THREE.SphereGeometry(7.2, 36, 10, 0, Math.PI * 2, 0, Math.PI / 2), M(0x555a60, { roughness: 0.4 }), 2, 18.4, 0).scale.y = 0.4;
+  add(new RoundedBoxGeometry(6, 4, 7, 2, 1.4), black, 8.5, 15.5, -4);                      // air filter
+  add(new THREE.CylinderGeometry(2, 2, 1.6, 18), yellow, -2, 20.5, 4);                     // gas cap
+  for (const [x, z] of [[11, -17], [11, 17], [-11, -17], [-11, 17]]) {
+    const tire = add(new THREE.TorusGeometry(3.6, 1.5, 12, 28), black, x, 5, z);
+    const cap = add(new THREE.CylinderGeometry(2.6, 2.6, 2.6, 20), hub, x, 5, z);
+    cap.rotation.x = Math.PI / 2;
   }
-  const handleMat = M(0x8a8a8a);
-  bar([-12, 9, -9], [-34, 44, -10], 1.2, handleMat, g);
-  bar([-12, 9, 9], [-34, 44, 10], 1.2, handleMat, g);
-  bar([-34, 44, -11], [-34, 44, 11], 1.8, black, g);
+  barC([-12, 9, -9.5], [-34, 44, -10.5], 1.1, metal, g, sh);                                // handle
+  barC([-12, 9, 9.5], [-34, 44, 10.5], 1.1, metal, g, sh);
+  barC([-34, 44, -12], [-34, 44, 12], 1.9, black, g, sh);                                    // grip
 
-  // the worker
-  const skin = M(0xf1c27d), shirt = M(0xff7a3d), jeans = M(0x35508a), cap = M(0x2f5fb3), shoe = M(0x3b2b20);
+  // ---- the worker ----
+  const skin = M(0xf0c08a, { roughness: 0.7 }), shirt = M(0xff7a3d, { roughness: 0.9 }), jeans = M(0x3a5590, { roughness: 0.95 });
+  const capM = M(0x2f5fb3, { roughness: 0.8 }), shoe = M(0x4a3426, { roughness: 0.8 }), hair = M(0x5a3a22, { roughness: 0.9 });
   const legs = [];
-  for (const z of [-5, 5]) {
+  for (const z of [-4.6, 4.6]) {
     const hip = new THREE.Group(); hip.position.set(-47, 34, z); g.add(hip);
-    const leg = addMesh(new THREE.BoxGeometry(7, 32, 7), jeans, 0, -16, 0, hip, !ghost);
-    addMesh(new THREE.BoxGeometry(11, 4, 8), shoe, 2, -32, 0, hip, !ghost);
+    addMesh(new THREE.CapsuleGeometry(3.6, 24, 6, 14), jeans, 0, -14, 0, hip, sh);
+    const foot = addMesh(new THREE.CapsuleGeometry(3, 5, 6, 12), shoe, 2.5, -30, 0, hip, sh);
+    foot.rotation.z = Math.PI / 2;
     legs.push(hip);
   }
-  const torso = add(new THREE.BoxGeometry(11, 28, 19), shirt, -46, 48, 0);
+  add(new THREE.SphereGeometry(8, 24, 16), jeans, -47, 35, 0).scale.set(0.72, 0.6, 1.08);   // hips
+  const torso = add(new THREE.CapsuleGeometry(8, 11, 8, 20), shirt, -46, 49, 0);
+  torso.scale.set(0.72, 1, 1.12);
   torso.rotation.z = -0.12;
-  bar([-44, 58, -10], [-35, 45, -10], 2.6, shirt, g);
-  bar([-44, 58, 10], [-35, 45, 10], 2.6, shirt, g);
-  add(new THREE.SphereGeometry(7, 14, 10), skin, -45, 70, 0);
-  add(new THREE.SphereGeometry(7.4, 14, 8, 0, Math.PI * 2, 0, Math.PI / 2), cap, -45, 71.5, 0);
-  add(new THREE.BoxGeometry(9, 1.5, 12), cap, -38, 72, 0);                         // cap brim
+  add(new THREE.CylinderGeometry(2.6, 3, 5, 14), skin, -45, 61.5, 0);                        // neck
+  add(new THREE.SphereGeometry(6.8, 32, 24), skin, -45, 68.5, 0);                            // head
+  for (const z of [-6.5, 6.5]) add(new THREE.SphereGeometry(1.6, 12, 10), skin, -45.5, 68.5, z);   // ears
+  add(new THREE.SphereGeometry(6.95, 32, 16, 0, Math.PI * 2, Math.PI * 0.42, Math.PI * 0.2), hair, -45.3, 68.5, 0);
+  add(new THREE.SphereGeometry(7.3, 32, 16, 0, Math.PI * 2, 0, Math.PI / 2), capM, -45, 70, 0);          // cap
+  add(new THREE.CylinderGeometry(6.8, 6.8, 1, 28, 1, false, 0, Math.PI), capM, -44.5, 70.3, 0);  // brim (half circle, forward)
+  for (const z of [-10, 10]) {
+    const s = Math.sign(z);
+    barC([-45, 57, z], [-41.5, 49.5, z + s * 1.2], 2.9, shirt, g, sh);                       // upper arm (sleeve)
+    barC([-41.5, 49.5, z + s * 1.2], [-35.5, 44.5, z - s * 0.5], 2.2, skin, g, sh);         // forearm
+    add(new THREE.SphereGeometry(2.6, 16, 12), skin, -34.5, 44, z - s * 1);                  // hand
+  }
   g.userData.legs = legs;
   if (ghost) g.traverse(o => { o.castShadow = false; o.receiveShadow = false; });
   scene.add(g);
@@ -828,6 +1018,7 @@ const medalT = {
   bronze: Math.round(perfectT * MEDALS.bronze)
 };
 const fuelMax = perfectT * FUEL_TANK;
+buildGrass(cellsTemplate);
 
 const G = { cells: new Uint8Array(COLS * ROWS), ghostShown: true };
 let camMode = (() => { try { return localStorage.getItem('lmg3d_cam') || 'turning'; } catch (e) { return 'turning'; } })();
@@ -912,12 +1103,54 @@ clickBtn('finishBtn', () => {
 });
 
 // =====================================================================
+//  GRAPHICS QUALITY — press Q to change. If the game runs slowly, it
+//  steps down by itself (sharpness first, then fewer grass blades).
+// =====================================================================
+const QUALITY = [
+  { name: 'High',   pr: Math.min(window.devicePixelRatio || 1, 2), grass: 1 },
+  { name: 'Medium', pr: 1,    grass: 0.6 },
+  { name: 'Low',    pr: 0.75, grass: 0.3 }
+];
+let qLevel = 0, qAuto = true;
+try { const q = localStorage.getItem('lmg3d_quality'); if (q !== null) { qLevel = +q; qAuto = false; } } catch (e) {}
+function applyQuality() {
+  const q = QUALITY[qLevel];
+  renderer.setPixelRatio(q.pr);
+  resize();
+  grassMesh.count = Math.floor(tuftCount * q.grass);
+}
+applyQuality();
+const fpsMeter = { t: 0, frames: 0 };
+function checkSpeed(dt) {
+  if (!qAuto || qLevel >= QUALITY.length - 1) return;
+  fpsMeter.t += dt; fpsMeter.frames++;
+  if (fpsMeter.t < 3) return;
+  const fps = fpsMeter.frames / fpsMeter.t;
+  fpsMeter.t = 0; fpsMeter.frames = 0;
+  if (fps < 40) {
+    qLevel++;
+    applyQuality();
+    pop(G.mower.x, G.mower.y, `Graphics: ${QUALITY[qLevel].name} (Q to change)`, '#e8f5e0');
+  }
+}
+window.addEventListener('keydown', (e) => {
+  if (e.code !== 'KeyQ' || e.repeat) return;
+  qLevel = (qLevel + 1) % QUALITY.length;
+  qAuto = false;
+  try { localStorage.setItem('lmg3d_quality', qLevel); } catch (err) {}
+  applyQuality();
+  pop(G.mower.x, G.mower.y, `Graphics: ${QUALITY[qLevel].name}`, '#e8f5e0');
+});
+
+// =====================================================================
 //  MAIN LOOP
 // =====================================================================
 let lastT = performance.now();
 function frame(now) {
   const dt = Math.min(0.05, (now - lastT) / 1000);
   lastT = now;
+  timeU.value = now / 1000;
+  checkSpeed((now - (frame.prev || now)) / 1000); frame.prev = now;
   update(dt);
   updateClips(dt);
   updateCamera(dt, false);
@@ -1256,7 +1489,7 @@ function finish(reason) {
 updateCamButton();
 newRun();
 requestAnimationFrame(frame);
-window.__game = { G, keys, finish, newRun, mowAt, update, updateCamera, get camMode() { return camMode; }, toggleCamera };   // for testing
+window.__game = { G, keys, CAMERA, finish, newRun, mowAt, update, updateCamera, get camMode() { return camMode; }, toggleCamera };   // for testing
 </script>
 </body>
 </html>
