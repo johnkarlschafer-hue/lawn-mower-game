@@ -50,6 +50,34 @@
     border-radius: 12px; overflow: hidden; border: 3px solid rgba(22,33,15,.9); box-shadow: 0 4px 14px rgba(0,0,0,.35); }
   #mini { display: block; width: 100%; height: auto; }
   #help { position: fixed; left: 14px; bottom: 12px; color: #fff; font-size: 13px; text-shadow: 0 1px 3px #000, 0 0 6px #000; opacity: 0.9; }
+  .card button.big { font-size: 20px; padding: 12px 26px; margin-top: 4px; }
+  .tiltnote { font-size: 13px; color: #c9dcbf; }
+
+  /* ---- phones held sideways: smaller bar, minimap and cards ---- */
+  @media (max-height: 520px) {
+    #hud { height: 40px; gap: 10px; padding: 0 8px; font-size: 13px; }
+    .bar { width: 84px; height: 16px; }
+    #cutTxt { line-height: 16px; font-size: 11px; }
+    .fbar { width: 44px; }
+    #timer { min-width: 58px; }
+    #medalNext { font-size: 12px; min-width: 46px; }
+    #style, #combo { min-width: 0; font-size: 13px; }
+    button { padding: 5px 10px; font-size: 13px; }
+    #camBtn .lbl { display: none; }
+    #help { display: none; }
+    #miniWrap { width: 24vw; min-width: 120px; right: 8px; bottom: 8px; border-width: 2px; }
+    .card { min-width: 0; max-width: 70vw; padding: 8px 16px 10px; top: calc(50% + 20px);
+            max-height: calc(100vh - 56px); overflow-y: auto; box-sizing: border-box; }
+    .card h1 { font-size: 17px; }
+    .card p { margin: 4px 0; font-size: 12px; line-height: 1.35; }
+    .card .medals { margin: 2px 0; font-size: 14px; gap: 16px; }
+    .card .medal.big { width: 24px; height: 24px; }
+    .card .btns { margin-top: 6px; }
+    .card button.big { font-size: 16px; padding: 8px 20px; }
+    .card .tiltnote { font-size: 11px; margin-bottom: 0; }
+    .card .sub { display: none; }
+    .pop { font-size: 15px !important; }
+  }
 
   /* ---- intro & results cards ---- */
   .card { position: fixed; left: 50%; top: 50%; transform: translate(-50%, -50%); min-width: 360px; max-width: 90vw;
@@ -91,6 +119,7 @@
   <div id="style">★ 0</div>
   <div id="combo"></div>
   <div class="spacer"></div>
+  <button id="levelBtn" class="quiet hidden">⟲ Level</button>
   <button id="camBtn" class="quiet">🎥</button>
   <button id="finishBtn">Finish ✓</button>
 </div>
@@ -143,6 +172,17 @@ const CAMERA = {
 };
 
 const TEX = 3;   // grass texture sharpness (pixels per unit)
+
+// ---- Tilt controls (phones) ----
+//  Hold the phone sideways like a tray. Tilt it away from you to drive forward,
+//  towards you to back up, and turn it like a steering wheel to steer.
+const TILT = {
+  forward: 22,       // degrees of forward tilt for full speed
+  steer: 28,         // degrees of steering-wheel turn for the sharpest turn
+  dead: 4,           // degrees you can wobble without anything happening
+  invertSteer: false,   // set to true if left and right feel backwards
+  invertDrive: false    // set to true if forward and back feel backwards
+};
 
 const YARD = {
   name: 'Yard 1 — Mrs. Peterson',
@@ -1093,7 +1133,7 @@ function toggleCamera() {
   pop(G.mower.x, G.mower.y, camMode === 'turning' ? 'Camera: turns with you' : 'Camera: always faces north', '#e8f5e0');
 }
 function updateCamButton() {
-  document.getElementById('camBtn').textContent = camMode === 'turning' ? '🎥 Turns with mower (C)' : '🎥 Fixed view (C)';
+  document.getElementById('camBtn').innerHTML = '🎥<span class="lbl"> ' + (camMode === 'turning' ? 'Turns with mower (C)' : 'Fixed view (C)') + '</span>';
 }
 const clickBtn = (id, fn) => document.getElementById(id).addEventListener('click', (e) => { e.currentTarget.blur(); fn(); });
 clickBtn('camBtn', toggleCamera);
@@ -1101,6 +1141,80 @@ clickBtn('finishBtn', () => {
   if (G.finished) document.getElementById('results').classList.toggle('hidden');
   else finish();
 });
+
+// =====================================================================
+//  TILT TO DRIVE (phones)
+//  The phone tells us which way is "up" as it tilts. We turn that into
+//  directions on the screen, compare with how you held it when you
+//  started (the "level" position), and turn the difference into
+//  driving and steering.
+// =====================================================================
+const tilt = { on: false, level: null, latest: null };
+const toRad = Math.PI / 180;
+function upOnScreen(e) {
+  if (e.beta == null || e.gamma == null) return null;
+  const b = e.beta * toRad, g = e.gamma * toRad;
+  // "up" in the phone's own directions…
+  const ux = -Math.cos(b) * Math.sin(g), uy = Math.sin(b), uz = Math.cos(b) * Math.cos(g);
+  // …turned to match the screen, which may be rotated sideways
+  const ang = ((screen.orientation && screen.orientation.angle) ?? window.orientation ?? 0) * toRad;
+  const sx = ux * Math.cos(ang) - uy * Math.sin(ang);
+  const sy = ux * Math.sin(ang) + uy * Math.cos(ang);
+  return { pitch: Math.atan2(sy, uz) / toRad, roll: Math.asin(clamp(sx, -1, 1)) / toRad };
+}
+function onOrientation(e) {
+  const u = upOnScreen(e);
+  if (!u) return;
+  tilt.latest = u;
+  if (!tilt.level) setLevel();
+}
+function setLevel() {
+  if (!tilt.latest) return;
+  tilt.level = { ...tilt.latest };
+}
+function readTilt() {
+  const u = tilt.latest, L = tilt.level;
+  if (!u || !L) return null;
+  const dz = (v) => Math.sign(v) * Math.max(0, Math.abs(v) - TILT.dead);
+  let fwd = dz(L.pitch - u.pitch) / (TILT.forward - TILT.dead);
+  let steer = dz(-(u.roll - L.roll)) / (TILT.steer - TILT.dead);
+  if (TILT.invertDrive) fwd = -fwd;
+  if (TILT.invertSteer) steer = -steer;
+  return { drive: clamp(fwd, -1, 1), turn: clamp(steer, -1, 1) };
+}
+async function startTilt() {
+  // go full screen and stay sideways (Android); ignore it if the phone says no
+  try { await document.documentElement.requestFullscreen({ navigationUI: 'hide' }); } catch (e) {}
+  try { await screen.orientation.lock('landscape'); } catch (e) {}
+  // iPhones ask for permission first
+  if (typeof DeviceOrientationEvent !== 'undefined' && typeof DeviceOrientationEvent.requestPermission === 'function') {
+    try {
+      if (await DeviceOrientationEvent.requestPermission() !== 'granted') { tiltProblem('Motion access was refused.'); return; }
+    } catch (e) { tiltProblem('Motion access was refused.'); return; }
+  }
+  if (!window.isSecureContext) { tiltProblem('Tilt only works when the game is opened from an https:// web address.'); return; }
+  tilt.on = true;
+  tilt.level = null;
+  window.addEventListener('deviceorientation', onOrientation);
+  $('levelBtn').classList.remove('hidden');
+  // wait for the first reading, then show the "tilt to start" card
+  let waited = 0;
+  const check = setInterval(() => {
+    waited += 250;
+    if (tilt.latest) { clearInterval(check); showIntro(); }
+    else if (waited === 2000) {
+      const n = document.querySelector('#intro .tiltnote');
+      if (n) n.textContent = 'Waiting for tilt readings… If nothing happens, this phone may not support it — you can still drive by holding your finger on the lawn.';
+    }
+  }, 250);
+}
+function tiltProblem(msg) {
+  tilt.on = false;
+  const n = document.querySelector('#intro .tiltnote');
+  if (n) n.textContent = msg + ' You can still drive by holding your finger on the lawn.';
+}
+clickBtn('levelBtn', () => { setLevel(); pop(G.mower.x, G.mower.y, 'Level set', '#e8f5e0'); });
+const isPhone = window.matchMedia('(pointer: coarse)').matches;
 
 // =====================================================================
 //  GRAPHICS QUALITY — press Q to change. If the game runs slowly, it
@@ -1170,7 +1284,10 @@ function update(dt) {
   if (down('ArrowUp', 'KeyW')) drive = 1;
   else if (down('ArrowDown', 'KeyS')) drive = -1;
 
-  if (pointer.active) {
+  if (tilt.on && tilt.level) {
+    const t = readTilt();
+    if (t) { turn = t.turn; drive = t.drive; }
+  } else if (pointer.active) {
     const ndc = new THREE.Vector2(pointer.x / window.innerWidth * 2 - 1, -(pointer.y / window.innerHeight) * 2 + 1);
     raycaster.setFromCamera(ndc, camera);
     const hit = new THREE.Vector3();
@@ -1187,7 +1304,7 @@ function update(dt) {
   if ((turn !== 0 || drive !== 0) && !G.started) { G.started = true; hideIntro(); }
   if (G.started) {
     G.elapsed += dt;
-    G.fuel -= dt * (drive !== 0 ? 1 : IDLE_BURN);
+    G.fuel -= dt * (IDLE_BURN + (1 - IDLE_BURN) * Math.min(1, Math.abs(drive)));
     if (G.fuel <= 0) {
       G.fuel = 0;
       pop(m.x, m.y, 'Out of gas!', '#ff8a6b', 24);
@@ -1200,7 +1317,7 @@ function update(dt) {
 
   m.rot += turn * MOWER.turnSpeed * dt;
   if (drive !== 0) {
-    const sp = drive > 0 ? MOWER.speed : -MOWER.reverseSpeed;
+    const sp = drive > 0 ? MOWER.speed * drive : MOWER.reverseSpeed * drive;   // drive can be in-between (tilting)
     let nx = m.x + Math.cos(m.rot) * sp * dt, ny = m.y + Math.sin(m.rot) * sp * dt;
     if (collides(nx, ny)) {
       if (!collides(nx, m.y)) ny = m.y;
@@ -1218,7 +1335,7 @@ function update(dt) {
     if (newlyCut > 0) emitClips(m.x, m.y, m.rot, Math.min(3, newlyCut));
     trackStyle(drive, moved, newlyCut);
   }
-  SFX.engine(G.started, drive !== 0 ? 1 : 0, newlyCut > 0, G.fuel / fuelMax < 0.2);
+  SFX.engine(G.started, Math.min(1, Math.abs(drive)), newlyCut > 0, G.fuel / fuelMax < 0.2);
 
   // move the 3D model, and swing the worker's legs as he walks
   placeModel(mowerMesh, m.x, m.y, m.rot);
@@ -1413,14 +1530,22 @@ function showIntro() {
   const el = $('intro');
   el.innerHTML = `
     <h1>${YARD.name}</h1>
-    <p class="small" style="color:#c9dcbf;margin:6px 0 0">Finish the lawn fast for a medal:</p>
+    <p class="small sub" style="color:#c9dcbf;margin:6px 0 0">Finish the lawn fast for a medal:</p>
     <div class="medals">
       ${['gold', 'silver', 'bronze'].map(k => `<span class="m ${k}"><span class="medal ${k}"></span>${medalT[k]}s</span>`).join('')}
     </div>
-    <p>Long, straight stripes on uncut grass earn tips.<br>Do them in a row for a combo!<br>
-       Don't drive over cut grass too long, and watch your gas ⛽</p>
-    <p class="small">Drive to start · C switches the camera · M = sound on/off</p>`;
+    ${isPhone
+      ? `<p>Straight stripes earn tips · chain them for a combo · don't overlap · watch your gas ⛽</p>`
+      : `<p>Long, straight stripes on uncut grass earn tips.<br>Do them in a row for a combo!<br>
+         Don't drive over cut grass too long, and watch your gas ⛽</p>`}
+    ${isPhone && !tilt.on ? `
+      <button id="tiltBtn" class="big">📱 Tilt to drive</button>
+      <p class="tiltnote">Hold the phone like a tray, then tap. Tilt away to go · steer like a wheel.</p>`
+    : isPhone ? `<p class="small">Tilt away from you to start · ⟲ Level resets your neutral position</p>`
+    : `<p class="small">Drive to start · C switches the camera · M = sound on/off</p>`}`;
   el.classList.remove('hidden');
+  const tb = document.getElementById('tiltBtn');
+  if (tb) tb.addEventListener('click', (e) => { e.stopPropagation(); startTilt(); });
 }
 function hideIntro() { $('intro').classList.add('hidden'); }
 
@@ -1489,7 +1614,7 @@ function finish(reason) {
 updateCamButton();
 newRun();
 requestAnimationFrame(frame);
-window.__game = { G, keys, CAMERA, finish, newRun, mowAt, update, updateCamera, get camMode() { return camMode; }, toggleCamera };   // for testing
+window.__game = { G, keys, CAMERA, tilt, readTilt, finish, newRun, mowAt, update, updateCamera, get camMode() { return camMode; }, toggleCamera };   // for testing
 </script>
 </body>
 </html>
