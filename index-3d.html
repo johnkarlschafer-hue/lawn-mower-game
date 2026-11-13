@@ -52,6 +52,8 @@
   #help { position: fixed; left: 14px; bottom: 12px; color: #fff; font-size: 13px; text-shadow: 0 1px 3px #000, 0 0 6px #000; opacity: 0.9; }
   .card button.big { font-size: 20px; padding: 12px 26px; margin-top: 4px; }
   .tiltnote { font-size: 13px; color: #c9dcbf; }
+  #tiltDbg { position: fixed; left: 8px; bottom: 8px; color: #fff; font-size: 11px; background: rgba(0,0,0,.45);
+    padding: 3px 8px; border-radius: 6px; pointer-events: none; }
 
   /* ---- phones held sideways: smaller bar, minimap and cards ---- */
   @media (max-height: 520px) {
@@ -125,6 +127,7 @@
 </div>
 
 <div id="miniWrap"><canvas id="mini" width="640" height="448"></canvas></div>
+<div id="tiltDbg" class="hidden"></div>
 <div id="help">Arrows / WASD drive · C camera · G ghost · M sound · Q graphics · R restart</div>
 <div id="intro" class="card"></div>
 <div id="results" class="card hidden"></div>
@@ -1149,23 +1152,38 @@ clickBtn('finishBtn', () => {
 //  started (the "level" position), and turn the difference into
 //  driving and steering.
 // =====================================================================
-const tilt = { on: false, level: null, latest: null };
+const tilt = { on: false, level: null, latest: null, source: 'none', oriOK: false, oriNull: 0, g: null, events: 0 };
 const toRad = Math.PI / 180;
-function upOnScreen(e) {
-  if (e.beta == null || e.gamma == null) return null;
-  const b = e.beta * toRad, g = e.gamma * toRad;
-  // "up" in the phone's own directions…
-  const ux = -Math.cos(b) * Math.sin(g), uy = Math.sin(b), uz = Math.cos(b) * Math.cos(g);
-  // …turned to match the screen, which may be rotated sideways
+// turn the phone's "up" direction (in the phone's own directions) into screen directions
+function upToScreen(ux, uy, uz) {
+  const len = Math.hypot(ux, uy, uz) || 1;
+  ux /= len; uy /= len; uz /= len;
   const ang = ((screen.orientation && screen.orientation.angle) ?? window.orientation ?? 0) * toRad;
   const sx = ux * Math.cos(ang) - uy * Math.sin(ang);
   const sy = ux * Math.sin(ang) + uy * Math.cos(ang);
   return { pitch: Math.atan2(sy, uz) / toRad, roll: Math.asin(clamp(sx, -1, 1)) / toRad };
 }
+// Source 1: the phone's orientation sensor (smooth)
 function onOrientation(e) {
-  const u = upOnScreen(e);
-  if (!u) return;
+  tilt.events++;
+  if (e.beta == null || e.gamma == null) { tilt.oriNull++; return; }
+  tilt.oriOK = true;
+  const b = e.beta * toRad, g = e.gamma * toRad;
+  gotReading(upToScreen(-Math.cos(b) * Math.sin(g), Math.sin(b), Math.cos(b) * Math.cos(g)), 'orientation');
+}
+// Source 2 (backup): the raw motion sensor, which feels gravity
+function onMotion(e) {
+  tilt.events++;
+  const a = e.accelerationIncludingGravity;
+  if (!a || a.x == null || tilt.oriOK) return;
+  const k = 0.2;   // smooth out the jitter
+  tilt.g = tilt.g ? { x: tilt.g.x + (a.x - tilt.g.x) * k, y: tilt.g.y + (a.y - tilt.g.y) * k, z: tilt.g.z + (a.z - tilt.g.z) * k }
+                  : { x: a.x, y: a.y, z: a.z };
+  gotReading(upToScreen(tilt.g.x, tilt.g.y, tilt.g.z), 'motion');
+}
+function gotReading(u, source) {
   tilt.latest = u;
+  tilt.source = source;
   if (!tilt.level) setLevel();
 }
 function setLevel() {
@@ -1183,20 +1201,25 @@ function readTilt() {
   return { drive: clamp(fwd, -1, 1), turn: clamp(steer, -1, 1) };
 }
 async function startTilt() {
-  // go full screen and stay sideways (Android); ignore it if the phone says no
-  try { await document.documentElement.requestFullscreen({ navigationUI: 'hide' }); } catch (e) {}
-  try { await screen.orientation.lock('landscape'); } catch (e) {}
-  // iPhones ask for permission first
-  if (typeof DeviceOrientationEvent !== 'undefined' && typeof DeviceOrientationEvent.requestPermission === 'function') {
-    try {
-      if (await DeviceOrientationEvent.requestPermission() !== 'granted') { tiltProblem('Motion access was refused.'); return; }
-    } catch (e) { tiltProblem('Motion access was refused.'); return; }
+  // iPhones ask for permission first (must happen right after the tap)
+  for (const Ev of [window.DeviceOrientationEvent, window.DeviceMotionEvent]) {
+    if (Ev && typeof Ev.requestPermission === 'function') {
+      try { if (await Ev.requestPermission() !== 'granted') { tiltProblem('Motion access was refused.'); return; } }
+      catch (e) { tiltProblem('Motion access was refused.'); return; }
+    }
   }
   if (!window.isSecureContext) { tiltProblem('Tilt only works when the game is opened from an https:// web address.'); return; }
-  tilt.on = true;
-  tilt.level = null;
+  // start listening straight away…
+  tilt.on = true; tilt.level = null; tilt.latest = null;
   window.addEventListener('deviceorientation', onOrientation);
+  window.addEventListener('devicemotion', onMotion);
   $('levelBtn').classList.remove('hidden');
+  $('tiltDbg').classList.remove('hidden');
+  // …then go full screen and sideways, without waiting for an answer
+  try {
+    const fs = document.documentElement.requestFullscreen && document.documentElement.requestFullscreen({ navigationUI: 'hide' });
+    if (fs && fs.then) fs.then(() => screen.orientation && screen.orientation.lock && screen.orientation.lock('landscape')).catch(() => {});
+  } catch (e) {}
   // wait for the first reading, then show the "tilt to start" card
   let waited = 0;
   const check = setInterval(() => {
@@ -1204,9 +1227,18 @@ async function startTilt() {
     if (tilt.latest) { clearInterval(check); showIntro(); }
     else if (waited === 2000) {
       const n = document.querySelector('#intro .tiltnote');
-      if (n) n.textContent = 'Waiting for tilt readings… If nothing happens, this phone may not support it — you can still drive by holding your finger on the lawn.';
+      if (n) n.textContent = tilt.events === 0
+        ? 'No tilt readings yet. Your browser may be blocking motion sensors — see the note below the game.'
+        : 'The phone sends tilt readings, but they are empty — the browser is probably blocking motion sensors.';
     }
   }, 250);
+}
+function updateTiltDbg() {
+  if (!tilt.on) return;
+  const u = tilt.latest, L = tilt.level;
+  $('tiltDbg').textContent = !u
+    ? `tilt: waiting… (${tilt.events} events, ${tilt.oriNull} empty)`
+    : `tilt (${tilt.source}): forward ${(L.pitch - u.pitch).toFixed(0)}° · steer ${(-(u.roll - L.roll)).toFixed(0)}°`;
 }
 function tiltProblem(msg) {
   tilt.on = false;
@@ -1269,6 +1301,7 @@ function frame(now) {
   updateClips(dt);
   updateCamera(dt, false);
   updateFading(dt);
+  updateTiltDbg();
   drawMini();
   renderer.render(scene, camera);
   requestAnimationFrame(frame);
