@@ -1201,14 +1201,17 @@ function readTilt() {
   return { drive: clamp(fwd, -1, 1), turn: clamp(steer, -1, 1) };
 }
 async function startTilt() {
-  // iPhones ask for permission first (must happen right after the tap)
-  for (const Ev of [window.DeviceOrientationEvent, window.DeviceMotionEvent]) {
-    if (Ev && typeof Ev.requestPermission === 'function') {
-      try { if (await Ev.requestPermission() !== 'granted') { tiltProblem('Motion access was refused.'); return; } }
-      catch (e) { tiltProblem('Motion access was refused.'); return; }
-    }
-  }
   if (!window.isSecureContext) { tiltProblem('Tilt only works when the game is opened from an https:// web address.'); return; }
+  // Some browsers ask for permission first. Both requests must go out at the same
+  // moment, right after the tap — a second, later request gets rejected.
+  const asks = [window.DeviceOrientationEvent, window.DeviceMotionEvent]
+    .filter(Ev => Ev && typeof Ev.requestPermission === 'function')
+    .map(Ev => { try { return Ev.requestPermission(); } catch (e) { return Promise.reject(e); } });
+  // Don't give up if an answer is "no" or an error: just listen anyway — the readout shows what arrives.
+  Promise.allSettled(asks).then(results => {
+    tilt.permission = results.length === 0 ? 'not needed'
+      : results.some(r => r.status === 'fulfilled' && r.value === 'granted') ? 'granted' : 'refused';
+  });
   // start listening straight away…
   tilt.on = true; tilt.level = null; tilt.latest = null;
   window.addEventListener('deviceorientation', onOrientation);
@@ -1237,7 +1240,7 @@ function updateTiltDbg() {
   if (!tilt.on) return;
   const u = tilt.latest, L = tilt.level;
   $('tiltDbg').textContent = !u
-    ? `tilt: waiting… (${tilt.events} events, ${tilt.oriNull} empty)`
+    ? `tilt: waiting… (${tilt.events} events, ${tilt.oriNull} empty, permission: ${tilt.permission || 'asking'})`
     : `tilt (${tilt.source}): forward ${(L.pitch - u.pitch).toFixed(0)}° · steer ${(-(u.roll - L.roll)).toFixed(0)}°`;
 }
 function tiltProblem(msg) {
