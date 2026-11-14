@@ -1218,6 +1218,7 @@ async function startTilt() {
   window.addEventListener('devicemotion', onMotion);
   $('levelBtn').classList.remove('hidden');
   $('tiltDbg').classList.remove('hidden');
+  hideIntro();
   // …then go full screen and sideways, without waiting for an answer
   try {
     const fs = document.documentElement.requestFullscreen && document.documentElement.requestFullscreen({ navigationUI: 'hide' });
@@ -1227,7 +1228,7 @@ async function startTilt() {
   let waited = 0;
   const check = setInterval(() => {
     waited += 250;
-    if (tilt.latest) { clearInterval(check); showIntro(); }
+    if (tilt.latest) { clearInterval(check); hideIntro(); pop(G.mower.x, G.mower.y, 'Tilt away from you to go!', '#fff3a0', 20); }
     else if (waited === 2000) {
       const n = document.querySelector('#intro .tiltnote');
       if (n) n.textContent = tilt.events === 0
@@ -1577,9 +1578,10 @@ function showIntro() {
     ${isPhone && !tilt.on ? `
       <button id="tiltBtn" class="big">📱 Tilt to drive</button>
       <p class="tiltnote">Hold the phone like a tray, then tap. Tilt away to go · steer like a wheel.</p>`
-    : isPhone ? `<p class="small">Tilt away from you to start · ⟲ Level resets your neutral position</p>`
+    : isPhone ? `<p class="small">Tilt away from you to start · tap here to close</p>`
     : `<p class="small">Drive to start · C switches the camera · M = sound on/off</p>`}`;
   el.classList.remove('hidden');
+  if (isPhone) el.onclick = (e) => { if (e.target.tagName !== 'BUTTON') hideIntro(); };
   const tb = document.getElementById('tiltBtn');
   if (tb) tb.addEventListener('click', (e) => { e.stopPropagation(); startTilt(); });
 }
