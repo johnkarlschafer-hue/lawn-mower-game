@@ -180,9 +180,10 @@ const TEX = 3;   // grass texture sharpness (pixels per unit)
 //  Hold the phone sideways like a tray. Tilt it away from you to drive forward,
 //  towards you to back up, and turn it like a steering wheel to steer.
 const TILT = {
-  forward: 22,       // degrees of forward tilt for full speed
-  steer: 28,         // degrees of steering-wheel turn for the sharpest turn
-  dead: 4,           // degrees you can wobble without anything happening
+  forward: 12,       // degrees of forward tilt for full speed
+  steer: 20,         // degrees of steering-wheel turn for the sharpest turn
+  dead: 3,           // degrees you can wobble without anything happening
+  settle: 0.5,       // seconds to wait for the phone to settle before setting "level"
   invertSteer: false,   // set to true if left and right feel backwards
   invertDrive: false    // set to true if forward and back feel backwards
 };
@@ -1184,15 +1185,41 @@ function onMotion(e) {
 function gotReading(u, source) {
   tilt.latest = u;
   tilt.source = source;
-  if (!tilt.level) setLevel();
+  if (!tilt.level && !tilt.settling) levelSoon();
 }
+// wait a moment for the phone to stop moving, then call that position "level"
+function levelSoon(msg) {
+  tilt.level = null;
+  tilt.settling = true;
+  clearTimeout(tilt.settleTimer);
+  tilt.settleTimer = setTimeout(() => {
+    tilt.settling = false;
+    setLevel();
+    if (msg) pop(G.mower.x, G.mower.y, msg, '#e8f5e0');
+  }, TILT.settle * 1000);
+}
+// lock the screen sideways (needs full screen on Android); try again on every tap of Level
+function lockSideways() {
+  try {
+    const go = () => screen.orientation && screen.orientation.lock && screen.orientation.lock('landscape').catch(() => {});
+    if (document.fullscreenElement) go();
+    else {
+      const fs = document.documentElement.requestFullscreen && document.documentElement.requestFullscreen({ navigationUI: 'hide' });
+      if (fs && fs.then) fs.then(go).catch(() => {});
+    }
+  } catch (e) {}
+}
+// if the screen turns anyway, start again from a fresh "level"
+const onTurned = () => { if (tilt.on) levelSoon('Screen turned — level reset'); };
+if (screen.orientation && screen.orientation.addEventListener) screen.orientation.addEventListener('change', onTurned);
+else window.addEventListener('orientationchange', onTurned);
 function setLevel() {
   if (!tilt.latest) return;
   tilt.level = { ...tilt.latest };
 }
 function readTilt() {
   const u = tilt.latest, L = tilt.level;
-  if (!u || !L) return null;
+  if (!u || !L || tilt.settling) return { drive: 0, turn: 0 };
   const dz = (v) => Math.sign(v) * Math.max(0, Math.abs(v) - TILT.dead);
   let fwd = dz(L.pitch - u.pitch) / (TILT.forward - TILT.dead);
   let steer = dz(-(u.roll - L.roll)) / (TILT.steer - TILT.dead);
@@ -1220,10 +1247,7 @@ async function startTilt() {
   $('tiltDbg').classList.remove('hidden');
   hideIntro();
   // …then go full screen and sideways, without waiting for an answer
-  try {
-    const fs = document.documentElement.requestFullscreen && document.documentElement.requestFullscreen({ navigationUI: 'hide' });
-    if (fs && fs.then) fs.then(() => screen.orientation && screen.orientation.lock && screen.orientation.lock('landscape')).catch(() => {});
-  } catch (e) {}
+  lockSideways();
   // wait for the first reading, then show the "tilt to start" card
   let waited = 0;
   const check = setInterval(() => {
@@ -1240,7 +1264,9 @@ async function startTilt() {
 function updateTiltDbg() {
   if (!tilt.on) return;
   const u = tilt.latest, L = tilt.level;
-  $('tiltDbg').textContent = !u
+  $('tiltDbg').textContent = u && !L
+    ? `tilt (${tilt.source}): hold steady…`
+    : !u
     ? `tilt: waiting… (${tilt.events} events, ${tilt.oriNull} empty, permission: ${tilt.permission || 'asking'})`
     : `tilt (${tilt.source}): forward ${(L.pitch - u.pitch).toFixed(0)}° · steer ${(-(u.roll - L.roll)).toFixed(0)}°`;
 }
@@ -1249,7 +1275,7 @@ function tiltProblem(msg) {
   const n = document.querySelector('#intro .tiltnote');
   if (n) n.textContent = msg + ' You can still drive by holding your finger on the lawn.';
 }
-clickBtn('levelBtn', () => { setLevel(); pop(G.mower.x, G.mower.y, 'Level set', '#e8f5e0'); });
+clickBtn('levelBtn', () => { lockSideways(); levelSoon('Level set'); });
 const isPhone = window.matchMedia('(pointer: coarse)').matches;
 
 // =====================================================================
