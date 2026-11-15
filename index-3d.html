@@ -52,6 +52,24 @@
   #help { position: fixed; left: 14px; bottom: 12px; color: #fff; font-size: 13px; text-shadow: 0 1px 3px #000, 0 0 6px #000; opacity: 0.9; }
   .card button.big { font-size: 20px; padding: 12px 26px; margin-top: 4px; }
   .tiltnote { font-size: 13px; color: #c9dcbf; }
+  /* ---- touch controls ---- */
+  #touchUI { position: fixed; inset: 0; pointer-events: none; }
+  #steerPad { position: fixed; left: 12px; bottom: 12px; width: 38vw; height: 34vh; max-width: 340px; pointer-events: auto;
+    border-radius: 22px; background: rgba(255,255,255,0.10); border: 2px dashed rgba(255,255,255,0.35); touch-action: none; }
+  #steerPad .hint { position: absolute; left: 0; right: 0; top: 8px; text-align: center; color: rgba(255,255,255,.75); font-size: 12px; }
+  #knob { position: absolute; left: 50%; top: 55%; width: 64px; height: 64px; margin: -32px 0 0 -32px; border-radius: 50%;
+    background: rgba(255,255,255,0.85); box-shadow: 0 3px 10px rgba(0,0,0,.35); display: flex; align-items: center; justify-content: center;
+    font-size: 24px; color: #2c3f25; }
+  .pedal { position: fixed; pointer-events: auto; touch-action: none; border-radius: 50%; display: flex; align-items: center;
+    justify-content: center; font-weight: 600; color: #fff; box-shadow: 0 5px 0 rgba(0,0,0,.35); user-select: none; }
+  .pedal.on { transform: translateY(3px); box-shadow: 0 2px 0 rgba(0,0,0,.35); filter: brightness(1.15); }
+  #gasBtn { right: 18px; bottom: 18px; width: 110px; height: 110px; background: #479b33; font-size: 22px; }
+  #revBtn { right: 140px; bottom: 22px; width: 72px; height: 72px; background: #a8513a; font-size: 14px; }
+  body.touch #miniWrap { top: 48px; bottom: auto; left: 8px; right: auto; }
+  #ctrlBtn .lbl { margin-left: 4px; }
+  .modes { display: flex; flex-direction: column; gap: 7px; align-items: stretch; margin-top: 6px; }
+  .modes button { font-size: 15px; padding: 8px 16px; }
+  .modes button.rec { box-shadow: 0 3px 0 #234f19, 0 0 0 2px #ffe9a3; }
   #tiltDbg { position: fixed; left: 8px; bottom: 8px; color: #fff; font-size: 11px; background: rgba(0,0,0,.45);
     padding: 3px 8px; border-radius: 6px; pointer-events: none; }
 
@@ -78,6 +96,10 @@
     .card button.big { font-size: 16px; padding: 8px 20px; }
     .card .tiltnote { font-size: 11px; margin-bottom: 0; }
     .card .sub { display: none; }
+    .card .modes { gap: 5px; margin-top: 4px; }
+    .card .modes button { font-size: 13px; padding: 6px 12px; }
+    #gasBtn { width: 92px; height: 92px; font-size: 19px; }
+    #revBtn { right: 120px; width: 62px; height: 62px; font-size: 12px; }
     .pop { font-size: 15px !important; }
   }
 
@@ -121,6 +143,7 @@
   <div id="style">★ 0</div>
   <div id="combo"></div>
   <div class="spacer"></div>
+  <button id="ctrlBtn" class="quiet hidden">🎮<span class="lbl"></span></button>
   <button id="levelBtn" class="quiet hidden">⟲ Level</button>
   <button id="camBtn" class="quiet">🎥</button>
   <button id="finishBtn">Finish ✓</button>
@@ -128,6 +151,11 @@
 
 <div id="miniWrap"><canvas id="mini" width="640" height="448"></canvas></div>
 <div id="tiltDbg" class="hidden"></div>
+<div id="touchUI" class="hidden">
+  <div id="steerPad"><div class="hint">drag left / right to steer</div><div id="knob">⇆</div></div>
+  <div id="revBtn" class="pedal">REV</div>
+  <div id="gasBtn" class="pedal">GO</div>
+</div>
 <div id="help">Arrows / WASD drive · C camera · G ghost · M sound · Q graphics · R restart</div>
 <div id="intro" class="card"></div>
 <div id="results" class="card hidden"></div>
@@ -186,6 +214,15 @@ const TILT = {
   settle: 0.5,       // seconds to wait for the phone to settle before setting "level"
   invertSteer: false,   // set to true if left and right feel backwards
   invertDrive: false    // set to true if forward and back feel backwards
+};
+
+// ---- Phone steering helpers (all phone control styles) ----
+const STEERING = {
+  smooth: 0.12,      // seconds of smoothing: bigger = calmer, smaller = quicker
+  curve: 1.6,        // bigger = gentler near the middle (finer control), still full turn at the edge
+  assist: true,      // straight-line assist: gently straightens you along the yard when you're not steering
+  assistAngle: 8,    // …only if you're within this many degrees of straight
+  autoSpeed: 0.85    // auto-drive speed (1 = full speed)
 };
 
 const YARD = {
@@ -1214,6 +1251,7 @@ const onTurned = () => { if (tilt.on) levelSoon('Screen turned — level reset')
 if (screen.orientation && screen.orientation.addEventListener) screen.orientation.addEventListener('change', onTurned);
 else window.addEventListener('orientationchange', onTurned);
 function setLevel() {
+  ctrl.cruising = false;
   if (!tilt.latest) return;
   tilt.level = { ...tilt.latest };
 }
@@ -1252,7 +1290,7 @@ async function startTilt() {
   let waited = 0;
   const check = setInterval(() => {
     waited += 250;
-    if (tilt.latest) { clearInterval(check); hideIntro(); pop(G.mower.x, G.mower.y, 'Tilt away from you to go!', '#fff3a0', 20); }
+    if (tilt.latest) { clearInterval(check); hideIntro(); }
     else if (waited === 2000) {
       const n = document.querySelector('#intro .tiltnote');
       if (n) n.textContent = tilt.events === 0
@@ -1277,6 +1315,88 @@ function tiltProblem(msg) {
 }
 clickBtn('levelBtn', () => { lockSideways(); levelSoon('Level set'); });
 const isPhone = window.matchMedia('(pointer: coarse)').matches;
+
+// =====================================================================
+//  PHONE CONTROL STYLES
+//   auto  = the mower drives itself; tilt to steer, nudge back to stop
+//   tilt  = tilt forward for speed, turn like a wheel to steer
+//   touch = on-screen steering pad and GO / REV pedals
+// =====================================================================
+const CTRL_NAMES = { auto: 'Auto-drive + tilt', tilt: 'Tilt to drive', touch: 'Touch' };
+const ctrl = { mode: 'none', cruising: false, sm: { turn: 0, drive: 0 } };
+const touch = { id: null, x0: 0, steer: 0, gas: false, rev: false };
+const curve = (v) => Math.sign(v) * Math.pow(Math.abs(v), STEERING.curve);
+
+function phoneInput(dt) {
+  let raw = null;
+  if (ctrl.mode === 'touch') {
+    raw = { turn: curve(touch.steer), drive: touch.gas ? 1 : touch.rev ? -1 : 0 };
+  } else if ((ctrl.mode === 'tilt' || ctrl.mode === 'auto') && tilt.on) {
+    const t = readTilt();
+    if (!t) return { turn: 0, drive: 0 };
+    if (ctrl.mode === 'tilt') raw = { turn: curve(t.turn), drive: t.drive };
+    else {
+      // auto-drive: a nudge forward starts cruising, a nudge back stops, tilting further back reverses
+      if (t.drive > 0.35) ctrl.cruising = true;
+      if (t.drive < -0.35) ctrl.cruising = false;
+      raw = { turn: curve(t.turn), drive: t.drive < -0.75 ? -1 : ctrl.cruising ? STEERING.autoSpeed : 0 };
+    }
+  }
+  if (!raw) return null;
+  // smooth it out so a shaky hand doesn't make the mower jerk
+  const k = 1 - Math.exp(-dt / STEERING.smooth);
+  ctrl.sm.turn += (raw.turn - ctrl.sm.turn) * k;
+  ctrl.sm.drive += (raw.drive - ctrl.sm.drive) * k;
+  const tidy = (v) => Math.abs(v) < 0.02 ? 0 : v;
+  return { turn: tidy(ctrl.sm.turn), drive: tidy(ctrl.sm.drive) };
+}
+
+function setMode(mode) {
+  ctrl.mode = mode;
+  ctrl.cruising = false;
+  ctrl.sm = { turn: 0, drive: 0 };
+  try { localStorage.setItem('lmg3d_ctrl', mode); } catch (e) {}
+  const isTouch = mode === 'touch';
+  document.body.classList.toggle('touch', isTouch);
+  $('touchUI').classList.toggle('hidden', !isTouch);
+  $('levelBtn').classList.toggle('hidden', isTouch);
+  $('tiltDbg').classList.toggle('hidden', isTouch);
+  $('ctrlBtn').classList.remove('hidden');
+  $('ctrlBtn').querySelector('.lbl').textContent = CTRL_NAMES[mode];
+  hideIntro();
+  if (isTouch) lockSideways();
+  else if (!tilt.on) startTilt();
+  const hint = { auto: 'Nudge forward to go · back to stop', tilt: 'Tilt away from you to go!', touch: 'Hold GO · drag the pad to steer' }[mode];
+  setTimeout(() => pop(G.mower.x, G.mower.y, hint, '#fff3a0', 20), 400);
+}
+clickBtn('ctrlBtn', () => setMode(ctrl.mode === 'auto' ? 'tilt' : ctrl.mode === 'tilt' ? 'touch' : 'auto'));
+
+// touch pad: drag sideways from wherever your thumb lands
+{
+  const pad = document.getElementById('steerPad'), knob = document.getElementById('knob');
+  const RANGE = 70;   // pixels of drag for the sharpest turn
+  const moveKnob = (dx) => { knob.style.transform = `translateX(${dx}px)`; };
+  pad.addEventListener('pointerdown', (e) => {
+    touch.id = e.pointerId; touch.x0 = e.clientX; touch.steer = 0;
+    pad.setPointerCapture(e.pointerId); moveKnob(0);
+  });
+  pad.addEventListener('pointermove', (e) => {
+    if (e.pointerId !== touch.id) return;
+    const dx = clamp(e.clientX - touch.x0, -RANGE, RANGE);
+    touch.steer = dx / RANGE;
+    moveKnob(dx);
+  });
+  const release = (e) => { if (e.pointerId !== touch.id) return; touch.id = null; touch.steer = 0; moveKnob(0); };
+  pad.addEventListener('pointerup', release);
+  pad.addEventListener('pointercancel', release);
+  for (const [id, key] of [['gasBtn', 'gas'], ['revBtn', 'rev']]) {
+    const b = document.getElementById(id);
+    const on = (v) => (e) => { touch[key] = v; b.classList.toggle('on', v); if (v) b.setPointerCapture(e.pointerId); };
+    b.addEventListener('pointerdown', on(true));
+    b.addEventListener('pointerup', on(false));
+    b.addEventListener('pointercancel', on(false));
+  }
+}
 
 // =====================================================================
 //  GRAPHICS QUALITY — press Q to change. If the game runs slowly, it
@@ -1347,10 +1467,9 @@ function update(dt) {
   if (down('ArrowUp', 'KeyW')) drive = 1;
   else if (down('ArrowDown', 'KeyS')) drive = -1;
 
-  if (tilt.on && tilt.level) {
-    const t = readTilt();
-    if (t) { turn = t.turn; drive = t.drive; }
-  } else if (pointer.active) {
+  const ph = phoneInput(dt);
+  if (ph) { turn = ph.turn; drive = ph.drive; }
+  else if (pointer.active && ctrl.mode === 'none') {
     const ndc = new THREE.Vector2(pointer.x / window.innerWidth * 2 - 1, -(pointer.y / window.innerHeight) * 2 + 1);
     raycaster.setFromCamera(ndc, camera);
     const hit = new THREE.Vector3();
@@ -1379,6 +1498,12 @@ function update(dt) {
   const prevX = m.x, prevY = m.y;
 
   m.rot += turn * MOWER.turnSpeed * dt;
+  // straight-line assist (phones): not steering and nearly lined up? ease onto the straight line
+  if (ctrl.mode !== 'none' && STEERING.assist && Math.abs(turn) < 0.04 && drive > 0) {
+    const straightA = Math.round(m.rot / (Math.PI / 2)) * (Math.PI / 2);
+    const off = wrapAngle(straightA - m.rot);
+    if (Math.abs(off) < STEERING.assistAngle * toRad) m.rot += clamp(off, -1.2 * dt, 1.2 * dt);
+  }
   if (drive !== 0) {
     const sp = drive > 0 ? MOWER.speed * drive : MOWER.reverseSpeed * drive;   // drive can be in-between (tilting)
     let nx = m.x + Math.cos(m.rot) * sp * dt, ny = m.y + Math.sin(m.rot) * sp * dt;
@@ -1601,15 +1726,18 @@ function showIntro() {
       ? `<p>Straight stripes earn tips · chain them for a combo · don't overlap · watch your gas ⛽</p>`
       : `<p>Long, straight stripes on uncut grass earn tips.<br>Do them in a row for a combo!<br>
          Don't drive over cut grass too long, and watch your gas ⛽</p>`}
-    ${isPhone && !tilt.on ? `
-      <button id="tiltBtn" class="big">📱 Tilt to drive</button>
-      <p class="tiltnote">Hold the phone like a tray, then tap. Tilt away to go · steer like a wheel.</p>`
-    : isPhone ? `<p class="small">Tilt away from you to start · tap here to close</p>`
+    ${isPhone && ctrl.mode === 'none' ? `
+      <p class="tiltnote">Hold the phone sideways, then pick your controls:</p>
+      <div class="modes">
+        <button data-mode="auto" class="rec">📱 Auto-drive + tilt to steer</button>
+        <button data-mode="tilt">📱 Tilt to drive</button>
+        <button data-mode="touch">👆 Touch buttons</button>
+      </div>`
+    : isPhone ? `<p class="small">${{ auto: 'Nudge forward to go', tilt: 'Tilt away from you to go', touch: 'Hold GO to start' }[ctrl.mode]} · tap here to close</p>`
     : `<p class="small">Drive to start · C switches the camera · M = sound on/off</p>`}`;
   el.classList.remove('hidden');
   if (isPhone) el.onclick = (e) => { if (e.target.tagName !== 'BUTTON') hideIntro(); };
-  const tb = document.getElementById('tiltBtn');
-  if (tb) tb.addEventListener('click', (e) => { e.stopPropagation(); startTilt(); });
+  el.querySelectorAll('.modes button').forEach(b => b.addEventListener('click', (e) => { e.stopPropagation(); setMode(b.dataset.mode); }));
 }
 function hideIntro() { $('intro').classList.add('hidden'); }
 
@@ -1678,7 +1806,7 @@ function finish(reason) {
 updateCamButton();
 newRun();
 requestAnimationFrame(frame);
-window.__game = { G, keys, CAMERA, tilt, readTilt, finish, newRun, mowAt, update, updateCamera, get camMode() { return camMode; }, toggleCamera };   // for testing
+window.__game = { G, keys, CAMERA, tilt, readTilt, ctrl, touch, setMode, finish, newRun, mowAt, update, updateCamera, get camMode() { return camMode; }, toggleCamera };   // for testing
 </script>
 </body>
 </html>
