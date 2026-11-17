@@ -280,8 +280,13 @@ const TILT = {
 const STEERING = {
   smooth: 0.12,      // seconds of smoothing: bigger = calmer, smaller = quicker
   curve: 1.6,        // bigger = gentler near the middle (finer control), still full turn at the edge
-  assist: true,      // straight-line assist: gently straightens you along the yard when you're not steering
-  assistAngle: 8,    // …only if you're within this many degrees of straight
+  // Magnetic straight lines: the mower is pulled toward straight up/down/left/right on the lawn
+  // (parallel or perpendicular to the yard), so long clean stripes are easy on a phone.
+  assist: true,      // turn the magnet on or off
+  assistAngle: 15,   // it grabs you when you're within this many degrees of straight
+  assistPull: 7,     // how strongly it pulls (bigger = snaps into line faster)
+  assistHold: 0.35,  // steering harder than this (0–1) breaks free of the magnet, for real turns
+  assistLine: true,  // show a faint guide line on the lawn when you're locked onto a straight line
   autoSpeed: 0.85    // auto-drive speed (1 = full speed)
 };
 
@@ -1217,6 +1222,42 @@ const finder = new THREE.Group();
   scene.add(finder);
 }
 
+// A faint dashed guide line ahead of the mower while the magnet holds you on a straight line.
+// It's a long thin strip lying on the lawn, with a repeating "dash" picture on it.
+const guideTex = (() => {
+  const c = canvas2d(32, 4), x = c.getContext('2d');
+  x.fillStyle = '#ffffff'; x.fillRect(0, 0, 18, 4);       // 18 px of dash, 14 px of gap
+  const t = new THREE.CanvasTexture(c);
+  t.wrapS = THREE.RepeatWrapping; t.colorSpace = THREE.SRGBColorSpace;
+  return t;
+})();
+const guideGeo = new THREE.PlaneGeometry(1, 2.4);
+guideGeo.rotateX(-Math.PI / 2);
+guideGeo.translate(0.5, 0, 0);                              // starts at its left end, so scale.x = length
+const guide = new THREE.Mesh(guideGeo, new THREE.MeshBasicMaterial({
+  map: guideTex, transparent: true, opacity: 0, depthWrite: false, depthTest: false }));
+guide.renderOrder = 9;   // drawn on top of the grass blades
+guide.frustumCulled = false;
+guide.visible = false;
+scene.add(guide);
+function updateGuide(on) {
+  const mat = guide.material, m = G.mower;
+  mat.opacity += ((on && STEERING.assistLine ? 0.75 : 0) - mat.opacity) * 0.15;
+  guide.visible = mat.opacity > 0.02;
+  if (!guide.visible) return;
+  const ca = Math.cos(m.rot), sa = Math.sin(m.rot), start = MOWER.deckRadius + 6;
+  // run the line from just in front of the mower to the fence (or 260 units, whichever is shorter)
+  let len = 30;
+  while (len < 260 && !collides(m.x + ca * (len + 8), m.y + sa * (len + 8))) len += 8;
+  const L = Math.max(0, len - start);
+  guide.position.set(m.x + ca * start, 2, m.y + sa * start);
+  guide.rotation.y = -m.rot;
+  guide.scale.x = Math.max(0.001, L);
+  guideTex.repeat.x = L / 32;
+  // dashes stay put on the lawn as you move, instead of sliding along with you
+  guideTex.offset.x = ((m.x * ca + m.y * sa + start) / 32) % 1;
+}
+
 // Rain (only on rainy days): lots of short falling streaks
 const RAIN_N = 2500;
 const rainGeo = new THREE.BufferGeometry();
@@ -1406,6 +1447,7 @@ function newRun() {
   });
   $('pullBtn').classList.add('hidden');
   finder.visible = false;
+  guide.visible = false; guide.material.opacity = 0;
   G.best = null;
   try { G.best = JSON.parse(localStorage.getItem(bestKey())); } catch (e) {}
   G.ghostData = G.best && G.best.ghost && G.best.ghost.length > 1 ? G.best.ghost : null;
@@ -1811,12 +1853,21 @@ function update(dt) {
   const prevX = m.x, prevY = m.y;
 
   m.rot += turn * MOWER.turnSpeed * dt;
-  // straight-line assist (phones): not steering and nearly lined up? ease onto the straight line
-  if (ctrl.mode !== 'none' && STEERING.assist && Math.abs(turn) < 0.04 && drive > 0) {
+  // magnetic straight lines (phones): near straight and only steering lightly? get pulled into line.
+  // The harder you steer, the weaker the pull — steer past assistHold and you're free to turn.
+  let locked = false;
+  if (ctrl.mode !== 'none' && STEERING.assist && drive !== 0 && !G.stalled) {
     const straightA = Math.round(m.rot / (Math.PI / 2)) * (Math.PI / 2);
-    const off = wrapAngle(straightA - m.rot);
-    if (Math.abs(off) < STEERING.assistAngle * toRad) m.rot += clamp(off, -1.2 * dt, 1.2 * dt);
+    const off = wrapAngle(straightA - m.rot), steer = Math.abs(turn);
+    if (Math.abs(off) < STEERING.assistAngle * toRad && steer < STEERING.assistHold) {
+      const strength = STEERING.assistPull * (1 - steer / STEERING.assistHold);
+      m.rot += off * (1 - Math.exp(-dt * strength));
+      if (Math.abs(off) < 0.6 * toRad && strength > STEERING.assistPull * 0.5) { m.rot = straightA + (m.rot - straightA) * 0.5; locked = true; }
+    }
   }
+  if (locked && !G.locked) SFX.tone(900, 0.04, 'sine', 0.035);   // tiny "click" as it locks on
+  G.locked = locked;
+  updateGuide(locked && th > 0.2);
   G.bumpCD -= dt;
   if (th !== 0) {
     const sp = th > 0 ? MOWER.speed * th : MOWER.reverseSpeed * th;   // can be in-between (tilting, speeding up)
@@ -2211,6 +2262,7 @@ function finish(reason) {
   $('pullBtn').classList.add('hidden');
   $('timer').classList.remove('hurry');
   finder.visible = false;
+  guide.visible = false; guide.material.opacity = 0;
   SFX.engine(false);
 
   const cut = G.cutCount / grassTotal, t = G.elapsed, done = cut >= 0.95;
@@ -2373,6 +2425,7 @@ function showHub() {
   ['results', 'intro'].forEach(id => $(id).classList.add('hidden'));
   $('pullBtn').classList.add('hidden');
   finder.visible = false;
+  guide.visible = false; guide.material.opacity = 0;
   ghostMesh.visible = false;
   SFX.engine(false);
   styleMower(currentMower());
@@ -2489,7 +2542,7 @@ showHub();
 updateCamera(0, true);
 requestAnimationFrame(frame);
 window.__game = { G, keys, CAMERA, tilt, readTilt, ctrl, touch, setMode, finish, newRun, mowAt, update, updateCamera,
-  get camMode() { return camMode; }, toggleCamera, get career() { return career; }, startJob, showHub, nextDay, loadYard, pullCord, MOWERS, YARDS };   // for testing
+  get camMode() { return camMode; }, toggleCamera, get career() { return career; }, startJob, showHub, nextDay, loadYard, pullCord, MOWERS, YARDS, guide };   // for testing
 </script>
 </body>
 </html>
