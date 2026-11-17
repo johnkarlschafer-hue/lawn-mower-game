@@ -117,12 +117,67 @@
   .card .small { font-size: 13px; color: #ffe9a3; }
   .card .btns { display: flex; justify-content: center; gap: 20px; margin-top: 14px; }
   .hidden { display: none !important; }
+  body.inhub #hud, body.inhub #miniWrap, body.inhub #touchUI, body.inhub #help, body.inhub #tiltDbg { display: none !important; }
 
   /* ---- floating text ---- */
   #pops { position: fixed; inset: 0; pointer-events: none; }
   .pop { position: absolute; transform: translate(-50%, -50%); font-weight: 600; font-size: 19px; white-space: nowrap;
     text-shadow: 0 0 4px #0c140a, 0 0 4px #0c140a, 0 2px 2px #0c140a; animation: rise 1.1s ease-out forwards; }
   @keyframes rise { to { transform: translate(-50%, -190%); opacity: 0; } }
+
+  /* ---- stripe meter, ghost race, pulses and flashes ---- */
+  #stripe { position: relative; width: 70px; height: 14px; border-radius: 7px; background: #0b1308; overflow: hidden; }
+  #stripeFill { position: absolute; left: 0; top: 0; bottom: 0; width: 0; background: #e8f5e0; border-radius: 7px; transition: background 0.15s; }
+  #stripeFill.ready { background: #ffd84a; box-shadow: 0 0 8px #ffd84a; }
+  #stripeFill.bad { background: #c0634a; }
+  #stripe span { position: absolute; inset: 0; text-align: center; line-height: 14px; font-size: 10px; font-weight: 600;
+    color: #fff; text-shadow: 0 0 3px #0c140a, 0 0 3px #0c140a; letter-spacing: 0.5px; }
+  #ghostDelta { font-size: 14px; font-weight: 600; min-width: 70px; }
+  #ghostDelta.ahead { color: #9be37a; } #ghostDelta.behind { color: #ff8a6b; }
+  #timer.hurry { color: #ffab4a; animation: blink 0.5s steps(1) infinite; }
+  .pulse { animation: pulse 0.35s ease-out; }
+  @keyframes pulse { 40% { transform: scale(1.6); } }
+  .shake { animation: shake 0.4s; }
+  @keyframes shake { 20%, 60% { transform: translateX(-4px); } 40%, 80% { transform: translateX(4px); } }
+  #flash { position: fixed; inset: 0; pointer-events: none; opacity: 0; transition: opacity 0.35s; }
+  #flash.red { box-shadow: inset 0 0 90px 10px rgba(255, 70, 50, 0.65); }
+  #flash.gold { box-shadow: inset 0 0 90px 10px rgba(255, 216, 74, 0.55); }
+  #flash.on { opacity: 1; transition: none; }
+  #pullBtn { position: fixed; left: 50%; top: 58%; transform: translate(-50%, -50%); font-size: 26px; padding: 18px 34px;
+    background: #c2512f; box-shadow: 0 6px 0 #6e2614; }
+  #pullBtn small { display: block; font-size: 13px; font-weight: 400; opacity: 0.9; }
+  #pullBtn.yank { transform: translate(-50%, -42%); box-shadow: 0 2px 0 #6e2614; }
+
+  /* ---- the clipboard (business hub) ---- */
+  #hub { min-width: 0; width: min(760px, 94vw); max-height: 88vh; overflow-y: auto; box-sizing: border-box; text-align: left; }
+  #hub h1 { text-align: center; }
+  #hub .top { display: flex; justify-content: center; flex-wrap: wrap; gap: 8px 18px; margin: 6px 0 4px; font-size: 15px; }
+  #hub .top b { color: #ffe9a3; }
+  #hub h2 { font-size: 15px; margin: 12px 0 6px; color: #8fd16a; text-transform: uppercase; letter-spacing: 1px; }
+  #hub .row { display: flex; align-items: center; gap: 10px; padding: 7px 10px; margin: 5px 0; border-radius: 10px;
+    background: rgba(255,255,255,0.06); }
+  #hub .row .info { flex: 1; min-width: 0; }
+  #hub .row .name { font-weight: 600; }
+  #hub .row .sub2 { font-size: 13px; color: #c9dcbf; }
+  #hub .row button { font-size: 14px; padding: 6px 12px; white-space: nowrap; }
+  #hub .row.locked { opacity: 0.55; }
+  #hub button:disabled { background: #3c4637; box-shadow: 0 3px 0 #1b2117; color: #9aa592; cursor: default; }
+  #hub .warn { color: #ffab7a; } #hub .good { color: #9be37a; }
+  #hub .note { margin: 8px 0; padding: 8px 12px; border-radius: 10px; background: rgba(255, 233, 163, 0.12);
+    border-left: 4px solid #ffe9a3; font-size: 14px; line-height: 1.45; }
+  #hub .foot { display: flex; justify-content: space-between; align-items: center; gap: 10px; margin-top: 12px; flex-wrap: wrap; }
+  #hub .meter { display: inline-block; width: 60px; height: 9px; border-radius: 5px; background: #0b1308; vertical-align: middle; overflow: hidden; }
+  #hub .meter i { display: block; height: 100%; background: #8fd16a; }
+  @media (max-height: 520px) {
+    #stripe { width: 44px; } #stripe span { display: none; }
+    #ghostDelta { font-size: 12px; min-width: 0; }
+    #hub { max-height: calc(100vh - 16px); top: 50%; padding: 8px 14px; }
+    #hub h2 { margin: 8px 0 4px; font-size: 13px; }
+    #hub .row { padding: 4px 8px; margin: 3px 0; }
+    #hub .row .sub2 { font-size: 11px; }
+    #hub .top { font-size: 13px; }
+    #pullBtn { font-size: 20px; padding: 12px 24px; }
+  }
 </style>
 <!-- Three.js is the 3D engine. This tells the browser where to download it from. -->
 <script type="importmap">
@@ -142,9 +197,12 @@
   <div id="medalNext"><span id="medalIcon" class="medal gold"></span><span id="medalTxt"></span></div>
   <div id="style">★ 0</div>
   <div id="combo"></div>
+  <div id="stripe" title="Clean stripe building up"><div id="stripeFill"></div><span>STRIPE</span></div>
+  <div id="ghostDelta"></div>
   <div class="spacer"></div>
   <button id="ctrlBtn" class="quiet hidden">🎮<span class="lbl"></span></button>
   <button id="levelBtn" class="quiet hidden">⟲ Level</button>
+  <button id="hubBtn" class="quiet" title="Clipboard (Esc)">📋</button>
   <button id="camBtn" class="quiet">🎥</button>
   <button id="finishBtn">Finish ✓</button>
 </div>
@@ -156,9 +214,12 @@
   <div id="revBtn" class="pedal">REV</div>
   <div id="gasBtn" class="pedal">GO</div>
 </div>
-<div id="help">Arrows / WASD drive · C camera · G ghost · M sound · Q graphics · R restart</div>
+<div id="help">Arrows / WASD drive · C camera · G ghost · M sound · Q graphics · R restart · Esc clipboard</div>
 <div id="intro" class="card"></div>
 <div id="results" class="card hidden"></div>
+<div id="hub" class="card hidden"></div>
+<div id="flash"></div>
+<button id="pullBtn" class="hidden">PULL THE CORD<small>tap fast · or press SPACE</small></button>
 <div id="pops"></div>
 
 <script type="module">
@@ -183,7 +244,6 @@ const MOWER = {
   bodyRadius: 14      // size used for bumping into things
 };
 
-const PAY_FULL = 20;
 const MEDALS = { gold: 1.55, silver: 1.9, bronze: 2.4 };   // medal time = perfect time × this
 const FUEL_TANK = 2.5;
 const IDLE_BURN = 0.3;
@@ -225,15 +285,82 @@ const STEERING = {
   autoSpeed: 0.85    // auto-drive speed (1 = full speed)
 };
 
-const YARD = {
-  name: 'Yard 1 — Mrs. Peterson',
-  house:    { x: 30,  y: 20,  w: 220, h: 150 },
-  driveway: { x: 95,  y: 170, w: 70,  h: 278 },
-  beds:     [ { x: 460, y: 24, w: 150, h: 46 } ],
-  trees:    [ { x: 420, y: 150, r: 26 }, { x: 545, y: 330, r: 22 }, { x: 300, y: 365, r: 18 } ],
-  start:    { x: 130, y: 415, angle: -Math.PI / 2 }
+// ---- The customers' yards ----
+//  Every lot on the street is the same size (640 × 448). The driveway must run to the
+//  bottom edge (that's where the street is). house.look = colors, door/garage/window spots.
+//  pay = what they pay for a full mow. stars = reputation (★) you need before they ask you.
+const YARDS = [
+  { id: 'peterson', name: 'Mrs. Peterson', pay: 20, stars: 0,
+    story: 'Mrs. Peterson next door needs her lawn mowed every few days. Dad gave you his old push mower. Time to start a business!',
+    house:    { x: 30,  y: 20,  w: 220, h: 150 },
+    look:     { wall: 0xf3e6c9, roof: '#c4603a', garage: 100, door: 185, chimney: [158, 34],
+                windows: [[30, 's'], [40, 'n'], [110, 'n'], [180, 'n'], [45, 'e'], [105, 'e'], [45, 'w'], [105, 'w']] },
+    driveway: { x: 95,  y: 170, w: 70,  h: 278 },
+    beds:     [ { x: 460, y: 24, w: 150, h: 46 } ],
+    trees:    [ { x: 420, y: 150, r: 26 }, { x: 545, y: 330, r: 22 }, { x: 300, y: 365, r: 18 } ],
+    start:    { x: 130, y: 415, angle: -Math.PI / 2 } },
+  { id: 'alvarez', name: 'Mr. Alvarez', pay: 24, stars: 2,
+    story: 'Mr. Alvarez saw your stripes from across the street. "Can you do mine too? Watch out for my roses."',
+    house:    { x: 380, y: 20,  w: 230, h: 140 },
+    look:     { wall: 0xdfe9d4, roof: '#4f6b8a', garage: 125, door: 200, chimney: [60, 30],
+                windows: [[40, 's'], [40, 'n'], [115, 'n'], [190, 'n'], [40, 'e'], [100, 'e'], [40, 'w'], [100, 'w']] },
+    driveway: { x: 470, y: 160, w: 70,  h: 288 },
+    beds:     [ { x: 36, y: 30, w: 46, h: 150 } ],
+    trees:    [ { x: 210, y: 120, r: 30 }, { x: 130, y: 335, r: 20 }, { x: 330, y: 270, r: 16 } ],
+    start:    { x: 505, y: 415, angle: -Math.PI / 2 } },
+  { id: 'kowalski', name: 'The Kowalskis', pay: 28, stars: 5,
+    story: 'The Kowalskis heard about you from Mrs. Peterson. Their driveway cuts the lawn right down the middle — plan your route!',
+    house:    { x: 200, y: 20,  w: 240, h: 130 },
+    look:     { wall: 0xf6f0e4, roof: '#6d4c3d', garage: 120, door: 195, chimney: [40, 30],
+                windows: [[40, 's'], [50, 'n'], [120, 'n'], [190, 'n'], [40, 'e'], [95, 'e'], [40, 'w'], [95, 'w']] },
+    driveway: { x: 285, y: 150, w: 70,  h: 298 },
+    beds:     [ { x: 30, y: 30, w: 120, h: 40 }, { x: 490, y: 30, w: 120, h: 40 } ],
+    trees:    [ { x: 110, y: 260, r: 28 }, { x: 530, y: 250, r: 28 }, { x: 190, y: 390, r: 16 }, { x: 450, y: 390, r: 16 } ],
+    start:    { x: 320, y: 415, angle: -Math.PI / 2 } },
+  { id: 'daniels', name: 'Coach Daniels', pay: 34, stars: 9,
+    story: 'Coach Daniels has lots of trees and not much patience. "Make it look like a ball field, kid." He pays well, though.',
+    house:    { x: 30,  y: 20,  w: 180, h: 120 },
+    look:     { wall: 0xcfe0ee, roof: '#8a3b32', garage: 60, door: 140, chimney: [40, 30],
+                windows: [[45, 'n'], [135, 'n'], [40, 'e'], [90, 'e'], [40, 'w'], [90, 'w']] },
+    driveway: { x: 55,  y: 140, w: 70,  h: 308 },
+    beds:     [ { x: 228, y: 196, w: 44, h: 44 } ],
+    trees:    [ { x: 340, y: 90, r: 24 }, { x: 480, y: 170, r: 20 }, { x: 585, y: 85, r: 18 },
+                { x: 330, y: 330, r: 22 }, { x: 470, y: 365, r: 26 }, { x: 585, y: 290, r: 16 } ],
+    start:    { x: 90, y: 415, angle: -Math.PI / 2 } }
+];
+let YARD = YARDS[0];
+const bestKey = () => YARD.id === 'peterson' ? 'lmg3d_yard1_best' : 'lmg3d_best_' + YARD.id;
+
+// ---- Mowers you can own ----
+//  Modelled on real walk-behind mowers. deck = cutting width in inches, speed = walking speed,
+//  tank = liters of gas, burn = liters per second at full throttle, wear = how much each job wears it out.
+//  (20 inches of cutting width = 32 units in the game.)
+const MOWERS = [
+  { id: 'old',    name: 'Dad\'s old 20" push mower', like: 'a tired old side-discharge push mower from the garage',
+    price: 0,   deck: 20, speed: 120, tank: 0.9, burn: 0.006,  wear: 16, color: 0xb5523f },
+  { id: 'used21', name: 'Used 21" self-propelled',  like: 'a second-hand 21-inch self-propelled mower — it pulls itself along',
+    price: 180, deck: 21, speed: 128, tank: 1.0, burn: 0.006,  wear: 10, color: 0x3d8b37 },
+  { id: 'new22',  name: 'New 22" self-propelled',   like: 'a brand-new 22-inch self-propelled mower with a variable-speed drive',
+    price: 420, deck: 22, speed: 138, tank: 1.1, burn: 0.0055, wear: 6,  color: 0xe0301e },
+  { id: 'wide30', name: '30" wide-area mower',      like: 'a 30-inch wide-cut walk-behind, the kind small lawn crews use',
+    price: 950, deck: 30, speed: 132, tank: 2.0, burn: 0.009,  wear: 5,  color: 0x7a7f87 }
+];
+const BASE_MOWER = { speed: 120, deckRadius: 16 };   // medal times are set with this mower — better mowers make medals easier
+
+// ---- Running the business ----
+const BIZ = {
+  jobsPerDay: 2,        // morning and afternoon
+  readyDays: 3,         // grass needs this many days to grow back before a customer wants it mowed again
+  overdueDays: 5,       // after this many days the grass is overgrown: pay drops each day…
+  overduePenalty: 0.1,  // …by this much (10%)…
+  minPayFactor: 0.5,    // …down to half pay
+  rainChance: 0.2,      // chance of a rainy day (no mowing)
+  gasPrice: 1.70,       // dollars per liter
+  canSize: 5,           // liters in your gas can
+  tuneUp: 15,           // dollars to sharpen the blade, change the spark plug and clean the filter
+  medalBonus: { gold: 5, silver: 3, bronze: 1, none: 0 }
 };
-const BEST_KEY = 'lmg3d_yard1_best';
+const CAREER_KEY = 'lmg3d_career';
 
 // =====================================================================
 //  SOUND (same synthesizer as the 2D version)
@@ -265,18 +392,35 @@ const SFX = {
     this.noise.connect(hiss).connect(this.bladeGain).connect(this.master);
     [this.eng1, this.eng2, this.lfo, this.noise].forEach(o => o.start());
   },
-  engine(running, speed = 0, cutting = false, sputter = false) {
+  // cutting = how much fresh grass is going under the blade right now (0 = none)
+  engine(running, speed = 0, cutting = 0, sputter = false) {
     if (!this.ctx) return;
     const t = this.ctx.currentTime;
     let vol = running ? 0.22 : 0;
     if (running && sputter && Math.random() < 0.15) vol *= 0.15;
     this.engGain.gain.setTargetAtTime(vol, t, 0.06);
-    const f = 42 + 26 * speed;
+    const load = Math.min(1, cutting / 4);              // thick grass makes the engine work (and dip) a little
+    const f = 42 + 26 * speed - 5 * load;
     this.eng1.frequency.setTargetAtTime(f, t, 0.2);
     this.eng2.frequency.setTargetAtTime(f / 2 + 0.7, t, 0.2);
     this.lfo.frequency.setTargetAtTime(10 + 8 * speed, t, 0.2);
-    this.bladeGain.gain.setTargetAtTime(running && cutting ? 0.045 : 0, t, 0.05);
+    this.bladeGain.gain.setTargetAtTime(running && cutting > 0 ? 0.03 + 0.035 * load : 0, t, 0.05);
   },
+  // a short burst of noise (knocks, cord pulls)
+  noiseHit(dur, freq, vol, delay = 0) {
+    if (!this.ctx) return;
+    const c = this.ctx, t = c.currentTime + delay, src = c.createBufferSource(), f = c.createBiquadFilter(), g = c.createGain();
+    src.buffer = this.noise.buffer; f.type = 'bandpass'; f.frequency.value = freq; f.Q.value = 1.2;
+    g.gain.setValueAtTime(vol, t); g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
+    src.connect(f).connect(g).connect(this.master); src.start(t, Math.random() * 0.5); src.stop(t + dur + 0.05);
+  },
+  bonk()       { this.tone(110, 0.18, 'square', 0.1, 0, 55); this.noiseHit(0.12, 500, 0.35); },
+  tick()       { this.tone(1400, 0.05, 'square', 0.05); },
+  medalGone()  { this.tone(440, 0.25, 'triangle', 0.13, 0, 300); this.tone(300, 0.35, 'triangle', 0.12, 0.18, 200); },
+  chime(level) { [0, 4, 7].forEach((s, i) => this.tone(523 * Math.pow(2, (s + level * 2) / 12), 0.3, 'sine', 0.11, i * 0.07)); },
+  pull()       { this.noiseHit(0.22, 900, 0.3); this.tone(70, 0.2, 'sawtooth', 0.08, 0.05, 140); },
+  startUp()    { this.tone(55, 0.5, 'sawtooth', 0.14, 0, 110); this.noiseHit(0.3, 300, 0.2); },
+  cash()       { this.tone(1318, 0.08, 'square', 0.07); this.tone(1760, 0.25, 'triangle', 0.1, 0.07); },
   tone(freq, dur, type = 'sine', vol = 0.2, delay = 0, slideTo = null) {
     if (!this.ctx) return;
     const c = this.ctx, t = c.currentTime + delay;
@@ -601,8 +745,10 @@ function stampMask(x, y, light, ghost) {
 //  cut mask for each tuft, so when you mow over it, it shrinks to stubble.
 // ---------------------------------------------------------------------
 const timeU = { value: 0 };
+const grassLen = { value: 1 };   // 1 = normal; bigger when the customer waited too long and the grass is long
 let grassMesh = null, tuftCount = 0;
 function buildGrass(cells) {
+  if (grassMesh) { scene.remove(grassMesh); grassMesh.geometry.dispose(); grassMesh.material.dispose(); grassMesh.dispose(); }
   const rnd = seeded(77);
   // one tuft = 4 thin, curved, pointed blades
   const pos = [], col = [], idx = [];
@@ -633,16 +779,17 @@ function buildGrass(cells) {
   gm.onBeforeCompile = (sh) => {
     sh.uniforms.grassMask = { value: maskTex };
     sh.uniforms.time = timeU;
+    sh.uniforms.grassLen = grassLen;
     sh.vertexShader = sh.vertexShader
       .replace('#include <common>', `#include <common>
-        uniform sampler2D grassMask; uniform float time; varying float vCut; varying float vLight;`)
+        uniform sampler2D grassMask; uniform float time; uniform float grassLen; varying float vCut; varying float vLight;`)
       .replace('#include <begin_vertex>', `#include <begin_vertex>
         vec4 tuftW = instanceMatrix * vec4(0.0, 0.0, 0.0, 1.0);
         vec4 mk = texture2D(grassMask, vec2(tuftW.x / ${YARD_W}.0, 1.0 - tuftW.z / ${YARD_H}.0));
         vCut = smoothstep(0.35, 0.75, mk.r);
         vLight = mk.g;
         float hgt = position.y / 8.0;
-        transformed.y *= mix(1.0, 0.13, vCut);                       // mowed: short stubble
+        transformed.y *= mix(grassLen, 0.13, vCut);                  // mowed: short stubble
         float sway = sin(time * 1.7 + tuftW.x * 0.045 + tuftW.z * 0.06) + 0.5 * sin(time * 3.1 + tuftW.z * 0.11);
         transformed.x += sway * 0.6 * hgt * hgt * (1.0 - vCut);       // a gentle breeze
       `);
@@ -753,15 +900,14 @@ function buildHouse(r, o) {
     addMesh(new THREE.BoxGeometry(18, 46, 18), brick, r.x + o.chimney[0], wallH + 40, r.y + o.chimney[1], g);
     addMesh(new THREE.BoxGeometry(12, 2, 12), dark, r.x + o.chimney[0], wallH + 63.5, r.y + o.chimney[1], g);
   }
-  scene.add(g);
+  (o.parent || scene).add(g);
   return { group: g, mats, box: new THREE.Box3().setFromObject(g) };
 }
 
-// Mrs. Peterson's house: garage door at the end of the driveway, front door, windows
-fadeables.push(buildHouse(YARD.house, {
-  wall: 0xf3e6c9, roof: '#c4603a', garage: 100, door: 185, chimney: [158, 34],
-  windows: [[30, 's'], [40, 'n'], [110, 'n'], [180, 'n'], [45, 'e'], [105, 'e'], [45, 'w'], [105, 'w']]
-}));
+// Everything that belongs to the customer's yard goes in this group, so we can
+// throw it all away and build the next customer's yard (see loadYard further down).
+const yardGroup = new THREE.Group();
+scene.add(yardGroup);
 
 // Trees: a ring of mulch, a trunk with branches and a soft, lumpy leafy crown
 const barkTex = stripeTex(64, 128, '#7a5636', [['#5e4128', 18, 2], ['#8c6643', 10, 1.5]], true, seeded(4), [2, 3]);
@@ -785,7 +931,7 @@ function leafBlob(s, seed, base) {
   geo.computeVertexNormals();
   return geo;
 }
-function buildTree(x, z, r, rnd, mulch, fade) {
+function buildTree(x, z, r, rnd, mulch, fade, parent = scene) {
   const g = new THREE.Group();
   if (mulch) {
     const m = addMesh(new THREE.CylinderGeometry(r, r + 1.5, 2.4, 40), mat(0x4e341d, { roughness: 1 }), x, 1.2, z, g);
@@ -807,46 +953,46 @@ function buildTree(x, z, r, rnd, mulch, fade) {
     addMesh(leafBlob(s, rnd() * 100, base), leaf,
       x + Math.cos(a) * d, trunkH + r * 0.3 + (k === 0 ? r * 0.35 : rnd() * r * 0.4), z + Math.sin(a) * d, g);
   }
-  scene.add(g);
+  parent.add(g);
   if (fade) fadeables.push({ group: g, mats: [leaf], box: new THREE.Box3().setFromObject(g) });
 }
 {
+  // neighborhood trees outside the fence (the same for every yard)
   const rnd = seeded(5);
-  for (const t of YARD.trees) buildTree(t.x, t.y, t.r, rnd, true, true);
-  // neighborhood trees outside the fence
   const spots = [[-70, 60, 30], [-90, 300, 34], [-60, 420, 24], [720, 40, 32], [700, 250, 26], [740, 400, 36],
                  [150, -80, 30], [420, -90, 36], [600, -70, 26], [-160, -120, 40], [860, -60, 38],
                  [60, 700, 34], [380, 720, 30], [640, 690, 40]];
   for (const [x, z, r] of spots) buildTree(x, z, r, rnd, false, false);
 }
 
-// Flower bed: stone edging, mulch, little plants with flowers
-{
+// Flower beds: stone edging, mulch, little plants with flowers
+function buildBeds() {
   const rnd = seeded(9);
   const petals = [0xff6b9a, 0xffd23f, 0xffffff, 0xb57cff, 0xff8a4c].map(c => mat(c));
-  const leaf = mat(0x2f7024), leaf2 = mat(0x3f8a2e), centre = mat(0xffe27a);
+  const leaf = mat(0x2f7024), leaf2 = mat(0x3f8a2e), centre = mat(0xffe27a), P = yardGroup;
   for (const b of YARD.beds) {
-    addMesh(new RoundedBoxGeometry(b.w + 8, 8, b.h + 8, 3, 3), mat(0xa29d92, { roughness: 0.95 }), b.x + b.w / 2, 4, b.y + b.h / 2);
+    addMesh(new RoundedBoxGeometry(b.w + 8, 8, b.h + 8, 3, 3), mat(0xa29d92, { roughness: 0.95 }), b.x + b.w / 2, 4, b.y + b.h / 2, P);
     const mc = canvas2d(128, 64), mx = mc.getContext('2d');
     mx.fillStyle = '#5a3c22'; mx.fillRect(0, 0, 128, 64);
     for (let i = 0; i < 900; i++) { mx.fillStyle = rnd.pick(['#6d4a2b', '#48301a', '#7a5532']); mx.fillRect(rnd() * 128, rnd() * 64, 1.5, 1.5); }
     const mulchTop = new THREE.PlaneGeometry(b.w, b.h); mulchTop.rotateX(-Math.PI / 2);
-    addMesh(mulchTop, mat(0xffffff, { map: texFrom(mc), roughness: 1 }), b.x + b.w / 2, 8.3, b.y + b.h / 2).castShadow = false;
-    for (let i = 0; i < 16; i++) {
+    addMesh(mulchTop, mat(0xffffff, { map: texFrom(mc), roughness: 1 }), b.x + b.w / 2, 8.3, b.y + b.h / 2, P).castShadow = false;
+    const plants = Math.max(4, Math.round(b.w * b.h / 430));   // bigger beds get more plants
+    for (let i = 0; i < plants; i++) {
       const px = b.x + 9 + rnd() * (b.w - 18), pz = b.y + 9 + rnd() * (b.h - 18);
-      addMesh(new THREE.SphereGeometry(6, 20, 14), rnd() < 0.5 ? leaf : leaf2, px, 11, pz);
+      addMesh(new THREE.SphereGeometry(6, 20, 14), rnd() < 0.5 ? leaf : leaf2, px, 11, pz, P);
       const pm = rnd.pick(petals);
       for (let k = 0; k < 5; k++) {
         const a = k / 5 * Math.PI * 2;
-        addMesh(new THREE.SphereGeometry(2, 12, 8), pm, px + Math.cos(a) * 2.6, 17, pz + Math.sin(a) * 2.6);
+        addMesh(new THREE.SphereGeometry(2, 12, 8), pm, px + Math.cos(a) * 2.6, 17, pz + Math.sin(a) * 2.6, P);
       }
-      addMesh(new THREE.SphereGeometry(1.4, 12, 8), centre, px, 17.8, pz);
+      addMesh(new THREE.SphereGeometry(1.4, 12, 8), centre, px, 17.8, pz, P);
     }
   }
 }
 
 // Driveway (concrete with joints), running out to the street
-{
+function buildDriveway() {
   const d = YARD.driveway, len = d.h + 40, S = 4;
   const c = canvas2d(d.w * S, len * S), ctx = c.getContext('2d'), rnd = seeded(3);
   ctx.scale(S, S);
@@ -862,22 +1008,23 @@ function buildTree(x, z, r, rnd, mulch, fade) {
   const m = new THREE.Mesh(geo, new THREE.MeshLambertMaterial({ map: texFrom(c) }));
   m.position.set(d.x + d.w / 2, 0.6, d.y + len / 2);
   m.receiveShadow = true;
-  scene.add(m);
+  yardGroup.add(m);
 }
 
 // Wooden fence with a gap for the driveway
-{
+function buildFence() {
+  const P = yardGroup;
   const grainV = stripeTex(32, 128, '#ffffff', [['rgba(90,60,30,0.25)', 10, 1], ['rgba(255,255,255,0.2)', 6, 1]], true, seeded(12), [1, 1]);
   const grainH = stripeTex(128, 32, '#ffffff', [['rgba(90,60,30,0.25)', 10, 1], ['rgba(255,255,255,0.2)', 6, 1]], false, seeded(13), [1, 1]);
   const wood = mat(0xa68558, { map: grainV }), railX = mat(0xdcc9a0, { map: grainH }), railZ = mat(0xdcc9a0, { map: grainV });
   const d = YARD.driveway;
   const F = 3, R = YARD_W - 3, B = YARD_H - 3, H = 46;
   const postGeo = new RoundedBoxGeometry(6, H, 6, 2, 1.2);
-  const post = (x, z) => addMesh(postGeo, wood, x, H / 2, z);
+  const post = (x, z) => addMesh(postGeo, wood, x, H / 2, z, P);
   const rails = (x0, z0, x1, z1) => {
     const len = Math.hypot(x1 - x0, z1 - z0), alongX = z0 === z1;
     for (const y of [17, 38]) {
-      addMesh(new RoundedBoxGeometry(alongX ? len : 3, 5, alongX ? 3 : len, 2, 1), alongX ? railX : railZ, (x0 + x1) / 2, y, (z0 + z1) / 2);
+      addMesh(new RoundedBoxGeometry(alongX ? len : 3, 5, alongX ? 3 : len, 2, 1), alongX ? railX : railZ, (x0 + x1) / 2, y, (z0 + z1) / 2, P);
     }
   };
   rails(F, F, R, F); rails(F, F, F, B); rails(R, F, R, B); rails(F, B, d.x, B); rails(d.x + d.w, B, R, B);
@@ -920,7 +1067,11 @@ function buildMower(ghost) {
   const g = new THREE.Group();
   const ghostMat = new THREE.MeshBasicMaterial({ color: 0x8fcaff, transparent: true, opacity: 0.4, depthWrite: false });
   const M = ghost ? () => ghostMat : (c, e) => mat(c, e);
-  const add = (geo, m, x, y, z) => addMesh(geo, m, x, y, z, g, !ghost);
+  // two parts: the mower (mg — it vibrates, and gets wider with a bigger deck) and the worker (wg — he bobs as he walks)
+  const mg = new THREE.Group(), wg = new THREE.Group();
+  g.add(mg, wg);
+  let part = mg;
+  const add = (geo, m, x, y, z) => addMesh(geo, m, x, y, z, part, !ghost);
   const sh = !ghost;
 
   // ---- the mower ----
@@ -940,16 +1091,18 @@ function buildMower(ghost) {
     const cap = add(new THREE.CylinderGeometry(2.6, 2.6, 2.6, 20), hub, x, 5, z);
     cap.rotation.x = Math.PI / 2;
   }
-  barC([-12, 9, -9.5], [-34, 44, -10.5], 1.1, metal, g, sh);                                // handle
-  barC([-12, 9, 9.5], [-34, 44, 10.5], 1.1, metal, g, sh);
-  barC([-34, 44, -12], [-34, 44, 12], 1.9, black, g, sh);                                    // grip
+  barC([-12, 9, -9.5], [-34, 44, -10.5], 1.1, metal, mg, sh);                               // handle
+  barC([-12, 9, 9.5], [-34, 44, 10.5], 1.1, metal, mg, sh);
+  barC([-34, 44, -12], [-34, 44, 12], 1.9, black, mg, sh);                                   // grip
+  g.userData.paint = [red, darkRed];
 
   // ---- the worker ----
+  part = wg;
   const skin = M(0xf0c08a, { roughness: 0.7 }), shirt = M(0xff7a3d, { roughness: 0.9 }), jeans = M(0x3a5590, { roughness: 0.95 });
   const capM = M(0x2f5fb3, { roughness: 0.8 }), shoe = M(0x4a3426, { roughness: 0.8 }), hair = M(0x5a3a22, { roughness: 0.9 });
   const legs = [];
   for (const z of [-4.6, 4.6]) {
-    const hip = new THREE.Group(); hip.position.set(-47, 34, z); g.add(hip);
+    const hip = new THREE.Group(); hip.position.set(-47, 34, z); wg.add(hip);
     addMesh(new THREE.CapsuleGeometry(3.6, 24, 6, 14), jeans, 0, -14, 0, hip, sh);
     const foot = addMesh(new THREE.CapsuleGeometry(3, 5, 6, 12), shoe, 2.5, -30, 0, hip, sh);
     foot.rotation.z = Math.PI / 2;
@@ -967,11 +1120,13 @@ function buildMower(ghost) {
   add(new THREE.CylinderGeometry(6.8, 6.8, 1, 28, 1, false, 0, Math.PI), capM, -44.5, 70.3, 0);  // brim (half circle, forward)
   for (const z of [-10, 10]) {
     const s = Math.sign(z);
-    barC([-45, 57, z], [-41.5, 49.5, z + s * 1.2], 2.9, shirt, g, sh);                       // upper arm (sleeve)
-    barC([-41.5, 49.5, z + s * 1.2], [-35.5, 44.5, z - s * 0.5], 2.2, skin, g, sh);         // forearm
+    barC([-45, 57, z], [-41.5, 49.5, z + s * 1.2], 2.9, shirt, wg, sh);                      // upper arm (sleeve)
+    barC([-41.5, 49.5, z + s * 1.2], [-35.5, 44.5, z - s * 0.5], 2.2, skin, wg, sh);        // forearm
     add(new THREE.SphereGeometry(2.6, 16, 12), skin, -34.5, 44, z - s * 1);                  // hand
   }
   g.userData.legs = legs;
+  g.userData.mower = mg;
+  g.userData.worker = wg;
   if (ghost) g.traverse(o => { o.castShadow = false; o.receiveShadow = false; });
   scene.add(g);
   return g;
@@ -980,44 +1135,121 @@ const mowerMesh = buildMower(false);
 const ghostMesh = buildMower(true);
 ghostMesh.visible = false;
 
-// Grass clippings: a pool of little flying bits
-const CLIP_N = 300;
+// Grass clippings: a pool of little blade pieces that spray out of the side chute,
+// tumble through the air, land on the lawn and lie there for a moment before fading.
+const CLIP_N = 600;
 const clipPos = new Float32Array(CLIP_N * 3), clipVel = new Float32Array(CLIP_N * 3), clipLife = new Float32Array(CLIP_N);
-const clipCol = new Float32Array(CLIP_N * 3);
-const clipGeo = new THREE.BufferGeometry();
-clipGeo.setAttribute('position', new THREE.BufferAttribute(clipPos, 3));
-clipGeo.setAttribute('color', new THREE.BufferAttribute(clipCol, 3));
-const clips = new THREE.Points(clipGeo, new THREE.PointsMaterial({ size: 2.6, vertexColors: true, sizeAttenuation: true }));
+const clipSpin = new Float32Array(CLIP_N * 3), clipRot = new Float32Array(CLIP_N * 3), clipMax = new Float32Array(CLIP_N);
+const clipGeo = new THREE.PlaneGeometry(2.6, 0.8);
+const clips = new THREE.InstancedMesh(clipGeo, new THREE.MeshStandardMaterial({ side: THREE.DoubleSide, roughness: 1, envMapIntensity: ENV }), CLIP_N);
 clips.frustumCulled = false;
 scene.add(clips);
 let clipNext = 0;
-const clipColors = [0x9ad873, 0x7cc257, 0xb8e892, 0x5e9e3e].map(c => new THREE.Color(c));
-function resetClips() { clipLife.fill(0); for (let i = 0; i < CLIP_N; i++) clipPos[i * 3 + 1] = -100; }
-resetClips();
-function emitClips(x, y, rot, count) {
-  const cs = Math.cos(rot), sn = Math.sin(rot);
-  const px = x + 2 * cs - 19 * sn, pz = y + 2 * sn + 19 * cs;     // the chute on the right side
+const clipColors = [0x9ad873, 0x7cc257, 0xb8e892, 0x5e9e3e, 0x6fae48].map(c => new THREE.Color(c));
+const _m4 = new THREE.Matrix4(), _q = new THREE.Quaternion(), _e = new THREE.Euler(), _v = new THREE.Vector3(), _s = new THREE.Vector3();
+const HIDE = new THREE.Matrix4().makeScale(0, 0, 0);
+for (let i = 0; i < CLIP_N; i++) { clips.setMatrixAt(i, HIDE); clips.setColorAt(i, clipColors[i % clipColors.length]); }
+function resetClips() { clipLife.fill(0); for (let i = 0; i < CLIP_N; i++) clips.setMatrixAt(i, HIDE); clips.instanceMatrix.needsUpdate = true; }
+// count = how many pieces; power = how hard they shoot out (more for thick, long grass)
+function emitClips(x, y, rot, count, power = 1) {
+  const cs = Math.cos(rot), sn = Math.sin(rot), side = MOWER.deckRadius + 3;
+  const px = x + 2 * cs - side * sn, pz = y + 2 * sn + side * cs;     // the chute on the right side
   for (let k = 0; k < count; k++) {
     const i = clipNext; clipNext = (clipNext + 1) % CLIP_N;
-    clipPos.set([px, 6, pz], i * 3);
-    const out = 30 + Math.random() * 50, back = (Math.random() - 0.5) * 40;
-    clipVel.set([-sn * out + cs * back, 30 + Math.random() * 50, cs * out + sn * back], i * 3);
-    clipLife[i] = 0.5 + Math.random() * 0.4;
-    clipCol.set(clipColors[Math.floor(Math.random() * 4)].toArray(), i * 3);
+    clipPos.set([px + (Math.random() - 0.5) * 4, 6, pz + (Math.random() - 0.5) * 4], i * 3);
+    const out = (35 + Math.random() * 60) * power, back = (Math.random() - 0.5) * 50;
+    clipVel.set([-sn * out + cs * back, (35 + Math.random() * 55) * power, cs * out + sn * back], i * 3);
+    clipSpin.set([(Math.random() - 0.5) * 24, (Math.random() - 0.5) * 24, (Math.random() - 0.5) * 24], i * 3);
+    clipRot.set([Math.random() * 6, Math.random() * 6, Math.random() * 6], i * 3);
+    clipMax[i] = clipLife[i] = 1.2 + Math.random() * 1.2;
+    clips.setColorAt(i, clipColors[Math.floor(Math.random() * clipColors.length)]);
   }
-  clipGeo.attributes.color.needsUpdate = true;
+  clips.instanceColor.needsUpdate = true;
 }
 function updateClips(dt) {
   for (let i = 0; i < CLIP_N; i++) {
     if (clipLife[i] <= 0) continue;
     clipLife[i] -= dt;
-    clipVel[i * 3 + 1] -= 260 * dt;
-    for (let k = 0; k < 3; k++) clipPos[i * 3 + k] += clipVel[i * 3 + k] * dt;
-    if (clipPos[i * 3 + 1] < 0.5) { clipPos[i * 3 + 1] = 0.5; clipVel.fill(0, i * 3, i * 3 + 3); }
-    if (clipLife[i] <= 0) clipPos[i * 3 + 1] = -100;
+    const j = i * 3;
+    if (clipLife[i] <= 0) { clips.setMatrixAt(i, HIDE); continue; }
+    const flying = clipPos[j + 1] > 0.6;
+    if (flying) {
+      clipVel[j + 1] -= 240 * dt;
+      for (let k = 0; k < 3; k++) { clipVel[j + k] *= 1 - 1.2 * dt; clipPos[j + k] += clipVel[j + k] * dt; clipRot[j + k] += clipSpin[j + k] * dt; }
+      if (clipPos[j + 1] <= 0.6) { clipPos[j + 1] = 0.6; clipRot[j] = -Math.PI / 2; clipRot[j + 2] = 0; }   // landed: lie flat
+    }
+    const fade = Math.min(1, clipLife[i] / 0.4);   // shrink away at the end
+    _e.set(clipRot[j], clipRot[j + 1], clipRot[j + 2]);
+    _m4.compose(_v.set(clipPos[j], clipPos[j + 1], clipPos[j + 2]), _q.setFromEuler(_e), _s.set(fade, fade, fade));
+    clips.setMatrixAt(i, _m4);
   }
-  clipGeo.attributes.position.needsUpdate = true;
+  clips.instanceMatrix.needsUpdate = true;
 }
+
+// A gold ring that spreads over the lawn when you finish a clean stripe
+const rings = [];
+function ringBurst(x, y, color = 0xffd84a) {
+  const m = new THREE.Mesh(new THREE.RingGeometry(14, 18, 48), new THREE.MeshBasicMaterial({ color, transparent: true, depthWrite: false }));
+  m.rotation.x = -Math.PI / 2; m.position.set(x, 2, y);
+  scene.add(m); rings.push({ m, t: 0 });
+}
+function updateRings(dt) {
+  for (let k = rings.length - 1; k >= 0; k--) {
+    const r = rings[k]; r.t += dt;
+    const s = 1 + r.t * 9; r.m.scale.set(s, s, s); r.m.material.opacity = Math.max(0, 1 - r.t / 0.7);
+    if (r.t > 0.7) { scene.remove(r.m); r.m.geometry.dispose(); r.m.material.dispose(); rings.splice(k, 1); }
+  }
+}
+
+// An arrow on the ground that points to the nearest grass you missed (shows up near the end)
+const finder = new THREE.Group();
+{
+  const shape = new THREE.Shape();
+  shape.moveTo(14, 0); shape.lineTo(-6, -10); shape.lineTo(-2, 0); shape.lineTo(-6, 10); shape.closePath();
+  const geo = new THREE.ShapeGeometry(shape); geo.rotateX(-Math.PI / 2);
+  // drawn on top of everything (depthTest off) so trees can't hide it
+  const arrow = new THREE.Mesh(geo, new THREE.MeshBasicMaterial({ color: 0xffd84a, transparent: true, opacity: 0.95, depthWrite: false, depthTest: false }));
+  arrow.position.x = 48;
+  arrow.scale.setScalar(1.3);
+  arrow.renderOrder = 10;
+  finder.add(arrow);
+  finder.visible = false;
+  scene.add(finder);
+}
+
+// Rain (only on rainy days): lots of short falling streaks
+const RAIN_N = 2500;
+const rainGeo = new THREE.BufferGeometry();
+{
+  const p = new Float32Array(RAIN_N * 6);
+  for (let i = 0; i < RAIN_N; i++) {
+    const x = -400 + Math.random() * 1440, y = Math.random() * 700, z = -300 + Math.random() * 1100;
+    p.set([x, y, z, x - 2, y - 14, z], i * 6);
+  }
+  rainGeo.setAttribute('position', new THREE.BufferAttribute(p, 3));
+}
+const rain = new THREE.LineSegments(rainGeo, new THREE.LineBasicMaterial({ color: 0xcfe0f0, transparent: true, opacity: 0.55 }));
+rain.frustumCulled = false; rain.visible = false;
+scene.add(rain);
+function updateRain(dt) {
+  if (!rain.visible) return;
+  const p = rainGeo.attributes.position.array;
+  for (let i = 0; i < p.length; i += 6) {
+    p[i + 1] -= 700 * dt; p[i + 4] -= 700 * dt;
+    if (p[i + 4] < 0) { p[i + 1] += 700; p[i + 4] += 700; }
+  }
+  rainGeo.attributes.position.needsUpdate = true;
+}
+function setWeather(w) {
+  const wet = w === 'rain';
+  rain.visible = wet;
+  sun.intensity = wet ? 0.9 : 2.4;
+  renderer.toneMappingExposure = wet ? 0.7 : 0.9;
+  scene.fog.color.set(wet ? 0x9aa6b0 : 0xd5ecfa);
+}
+
+// a little buzz on phones that support it (Android)
+const buzz = (ms) => { try { if (navigator.vibrate) navigator.vibrate(ms); } catch (e) {} };
 
 // White line showing your route (appears at the end)
 let routeLine = null;
@@ -1029,23 +1261,26 @@ const mini = document.getElementById('mini'), mctx = mini.getContext('2d');
 const miniLawn = canvas2d(YARD_W, YARD_H), mlctx = miniLawn.getContext('2d');
 const miniGhost = canvas2d(YARD_W, YARD_H), mgctx = miniGhost.getContext('2d');
 const miniStatic = canvas2d(YARD_W, YARD_H);
-{
-  const c = miniStatic.getContext('2d'), d = YARD.driveway, rnd = seeded(9);
+// make a color lighter (f > 1) or darker (f < 1), for the roof on the minimap
+const shade = (hex, f) => '#' + new THREE.Color(hex).multiplyScalar(f).getHexString();
+function drawMiniStatic() {
+  const c = miniStatic.getContext('2d'), d = YARD.driveway, rnd = seeded(9), roof = YARD.look.roof;
+  c.clearRect(0, 0, YARD_W, YARD_H);
   c.fillStyle = '#bab7ad'; c.fillRect(d.x, d.y, d.w, d.h);
   for (const b of YARD.beds) {
     c.fillStyle = '#9a958a'; c.fillRect(b.x - 3, b.y - 3, b.w + 6, b.h + 6);
     c.fillStyle = '#5a3c22'; c.fillRect(b.x, b.y, b.w, b.h);
-    for (let i = 0; i < 16; i++) {
+    for (let i = 0; i < Math.max(4, Math.round(b.w * b.h / 430)); i++) {
       c.fillStyle = '#2f7024'; c.beginPath(); c.arc(b.x + 9 + rnd() * (b.w - 18), b.y + 9 + rnd() * (b.h - 18), 5, 0, 7); c.fill();
     }
   }
   const h = YARD.house, x0 = h.x, x1 = h.x + h.w, y0 = h.y, y1 = h.y + h.h, cy = h.y + h.h / 2, i = h.h / 2;
   const poly = (col, pts) => { c.fillStyle = col; c.beginPath(); pts.forEach(([x, y], k) => k ? c.lineTo(x, y) : c.moveTo(x, y)); c.fill(); };
   c.fillStyle = 'rgba(0,0,0,0.2)'; c.fillRect(x0 + 6, y0 + 7, h.w, h.h);
-  poly('#c4603a', [[x0, y0], [x1, y0], [x1 - i, cy], [x0 + i, cy]]);
-  poly('#9a4426', [[x0, y1], [x1, y1], [x1 - i, cy], [x0 + i, cy]]);
-  poly('#d4724a', [[x0, y0], [x0, y1], [x0 + i, cy]]);
-  poly('#84381d', [[x1, y0], [x1, y1], [x1 - i, cy]]);
+  poly(roof, [[x0, y0], [x1, y0], [x1 - i, cy], [x0 + i, cy]]);
+  poly(shade(roof, 0.75), [[x0, y1], [x1, y1], [x1 - i, cy], [x0 + i, cy]]);
+  poly(shade(roof, 1.12), [[x0, y0], [x0, y1], [x0 + i, cy]]);
+  poly(shade(roof, 0.62), [[x1, y0], [x1, y1], [x1 - i, cy]]);
   for (const t of YARD.trees) {
     c.fillStyle = 'rgba(0,0,0,0.2)'; c.beginPath(); c.arc(t.x + 6, t.y + 7, t.r * 1.2, 0, 7); c.fill();
     c.fillStyle = '#2e6a20'; c.beginPath(); c.arc(t.x, t.y, t.r * 1.2, 0, 7); c.fill();
@@ -1075,6 +1310,13 @@ function drawMini() {
     mctx.beginPath(); mctx.moveTo(18, 0); mctx.lineTo(-12, -12); mctx.lineTo(-6, 0); mctx.lineTo(-12, 12); mctx.closePath();
     mctx.fill(); mctx.stroke(); mctx.restore();
   };
+  // near the end: the last uncut patches blink on the minimap
+  if (G.hunting && !G.finished) {
+    mctx.fillStyle = `rgba(255, 233, 120, ${0.45 + 0.45 * Math.sin(performance.now() / 160)})`;
+    for (let i = 0; i < G.cells.length; i++) if (G.cells[i] === 1) {
+      mctx.beginPath(); mctx.arc((i % COLS) * CELL + CELL / 2, Math.floor(i / COLS) * CELL + CELL / 2, 7, 0, 7); mctx.fill();
+    }
+  }
   if (G.ghostShown && G.ghostData && ghostMesh.visible) arrow(ghostMesh.position.x, ghostMesh.position.z, -ghostMesh.rotation.y, 'rgba(90,170,255,0.8)');
   arrow(m.x, m.y, m.rot, '#d83a2c');
 }
@@ -1083,30 +1325,69 @@ function drawMini() {
 //  GAME STATE
 // =====================================================================
 const cellsTemplate = new Uint8Array(COLS * ROWS);
-let grassTotal = 0;
-for (let row = 0; row < ROWS; row++) {
-  for (let col = 0; col < COLS; col++) {
-    const cx = col * CELL + CELL / 2, cy = row * CELL + CELL / 2;
-    if (obstacleHit(cx, cy, 0) || inRect(cx, cy, YARD.driveway)) continue;
-    cellsTemplate[row * COLS + col] = 1;
-    grassTotal++;
-  }
-}
-const perfectT = grassTotal * CELL * CELL / (2 * MOWER.deckRadius) / MOWER.speed;
-const medalT = {
-  gold: Math.round(perfectT * MEDALS.gold),
-  silver: Math.round(perfectT * MEDALS.silver),
-  bronze: Math.round(perfectT * MEDALS.bronze)
-};
-const fuelMax = perfectT * FUEL_TANK;
-buildGrass(cellsTemplate);
+let grassTotal = 0, perfectT = 0, fuelMax = 0;
+const medalT = { gold: 0, silver: 0, bronze: 0 };
 
-const G = { cells: new Uint8Array(COLS * ROWS), ghostShown: true };
+// Throw away the old customer's yard and build a new one
+function loadYard(id) {
+  YARD = YARDS.find(y => y.id === id) || YARDS[0];
+  document.title = `Lawn Mower Game 3D — ${YARD.name}`;
+  // 1. clear out the old house, trees, beds, driveway and fence
+  yardGroup.traverse(o => {
+    if (o.geometry) o.geometry.dispose();
+    const ms = o.material ? [].concat(o.material) : [];
+    for (const m of ms) { if (m.map && m.map !== barkTex) m.map.dispose(); m.dispose(); }
+  });
+  yardGroup.clear();
+  fadeables.length = 0;
+  // 2. build the new ones
+  fadeables.push(buildHouse(YARD.house, { ...YARD.look, parent: yardGroup }));
+  const rnd = seeded(5 + YARDS.indexOf(YARD));
+  for (const t of YARD.trees) buildTree(t.x, t.y, t.r, rnd, true, true, yardGroup);
+  buildBeds(); buildDriveway(); buildFence(); drawMiniStatic();
+  // 3. work out which cells are grass, and the medal times
+  cellsTemplate.fill(0); grassTotal = 0;
+  for (let row = 0; row < ROWS; row++) {
+    for (let col = 0; col < COLS; col++) {
+      const cx = col * CELL + CELL / 2, cy = row * CELL + CELL / 2;
+      if (obstacleHit(cx, cy, 0) || inRect(cx, cy, YARD.driveway)) continue;
+      cellsTemplate[row * COLS + col] = 1;
+      grassTotal++;
+    }
+  }
+  perfectT = grassTotal * CELL * CELL / (2 * BASE_MOWER.deckRadius) / BASE_MOWER.speed;
+  for (const k of ['gold', 'silver', 'bronze']) medalT[k] = Math.round(perfectT * MEDALS[k]);
+  buildGrass(cellsTemplate);
+  grassMesh.count = Math.floor(tuftCount * QUALITY[qLevel].grass);   // (QUALITY is set up further down)
+}
+
+const G = { cells: new Uint8Array(COLS * ROWS), ghostShown: true, inHub: true, mower: { x: 0, y: 0, rot: 0 } };
 let camMode = (() => { try { return localStorage.getItem('lmg3d_cam') || 'turning'; } catch (e) { return 'turning'; } })();
 let camYaw = YARD.start.angle;
 const camPos = new THREE.Vector3(), camLook = new THREE.Vector3();
 
+// What kind of run this is: paid = a real job for money; otherwise it's practice (no pay, no wear, free gas)
+let RUN = { paid: false, tall: false, payFactor: 1 };
+
+// paint the mower and make the deck wider for bigger mowers
+function styleMower(mw) {
+  const [red, darkRed] = mowerMesh.userData.paint;
+  red.color.set(mw.color); darkRed.color.set(mw.color).multiplyScalar(0.7);
+  mowerMesh.userData.mower.scale.z = mw.deck / 20;
+}
+
 function newRun() {
+  G.inHub = false;
+  document.body.classList.remove('inhub');
+  $('hub').classList.add('hidden');
+  const mw = currentMower();
+  MOWER.speed = mw.speed * (RUN.tall ? 0.9 : 1);    // long grass slows you down a little
+  MOWER.deckRadius = mw.deck * 0.8;
+  styleMower(mw);
+  grassLen.value = RUN.tall ? 1.5 : 1;
+  fuelMax = mw.tank / mw.burn;                      // gas measured in "seconds of full-throttle mowing"
+  let fuel = fuelMax;
+  if (RUN.paid) { topUpTank(); fuel = career.tank / mw.burn; }
   G.cells.set(cellsTemplate);
   G.cutCount = 0;
   maskData.fill(0); maskTex.needsUpdate = true;
@@ -1116,11 +1397,17 @@ function newRun() {
   Object.assign(G, {
     started: false, finished: false, elapsed: 0, distance: 0, walk: 0,
     trail: [{ x: YARD.start.x, y: YARD.start.y }], rec: [], recTimer: 0,
-    fuel: fuelMax, style: 0, combo: 1, bestCombo: 1, cleanStripes: 0,
-    run: null, overlapRun: 0, overlapWarned: false, wasted: 0, sinceFresh: 0
+    fuel, style: 0, combo: 1, bestCombo: 1, cleanStripes: 0,
+    run: null, overlapRun: 0, overlapWarned: false, wasted: 0, sinceFresh: 0,
+    throttle: 0, bumpCD: 0, shake: 0, milestone: 0, medalStage: 0, lastTick: -1,
+    hunting: false, finderT: 0, target: null, stalled: null, ghostCut: null,
+    // a worn-out mower might die halfway through the job (paid jobs only)
+    stallAt: RUN.paid && Math.random() < getWear() / 100 ? perfectT * (0.25 + Math.random() * 0.5) : null
   });
+  $('pullBtn').classList.add('hidden');
+  finder.visible = false;
   G.best = null;
-  try { G.best = JSON.parse(localStorage.getItem(BEST_KEY)); } catch (e) {}
+  try { G.best = JSON.parse(localStorage.getItem(bestKey())); } catch (e) {}
   G.ghostData = G.best && G.best.ghost && G.best.ghost.length > 1 ? G.best.ghost : null;
   G.ghostIndex = 0;
   ghostMesh.visible = !!G.ghostData && G.ghostShown;
@@ -1144,7 +1431,17 @@ window.addEventListener('keydown', (e) => {
   if (['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', 'Space'].includes(e.code)) e.preventDefault();
   if (e.repeat) return;
   keys.add(e.code);
-  if (e.code === 'KeyR') newRun();
+  if (G.inHub) return;
+  const midJob = RUN.paid && G.started && !G.finished;
+  if (e.code === 'KeyR') {
+    if (midJob) pop(G.mower.x, G.mower.y, 'Paid job — no do-overs! Press Finish when done', '#ffab7a');
+    else if (!RUN.paid || !G.finished) newRun();
+  }
+  if (e.code === 'Escape') {
+    if (midJob) pop(G.mower.x, G.mower.y, 'Finish the job first (Finish ✓)', '#ffab7a');
+    else showHub();
+  }
+  if (e.code === 'Space' && G.stalled) pullCord();
   if (e.code === 'Enter' && !G.finished) finish();
   if (e.code === 'KeyH' && G.finished) document.getElementById('results').classList.toggle('hidden');
   if (e.code === 'KeyM') { const on = SFX.toggle(); pop(G.mower.x, G.mower.y, on ? 'Sound on' : 'Sound off', '#e8f5e0'); }
@@ -1178,10 +1475,16 @@ function updateCamButton() {
 }
 const clickBtn = (id, fn) => document.getElementById(id).addEventListener('click', (e) => { e.currentTarget.blur(); fn(); });
 clickBtn('camBtn', toggleCamera);
+clickBtn('hubBtn', () => {
+  if (RUN.paid && G.started && !G.finished) pop(G.mower.x, G.mower.y, 'Finish the job first (Finish ✓)', '#ffab7a');
+  else showHub();
+});
 clickBtn('finishBtn', () => {
+  if (G.inHub) return;
   if (G.finished) document.getElementById('results').classList.toggle('hidden');
   else finish();
 });
+document.getElementById('pullBtn').addEventListener('pointerdown', (e) => { e.preventDefault(); pullCord(); });
 
 // =====================================================================
 //  TILT TO DRIVE (phones)
@@ -1413,7 +1716,7 @@ function applyQuality() {
   const q = QUALITY[qLevel];
   renderer.setPixelRatio(q.pr);
   resize();
-  grassMesh.count = Math.floor(tuftCount * q.grass);
+  if (grassMesh) grassMesh.count = Math.floor(tuftCount * q.grass);
 }
 applyQuality();
 const fpsMeter = { t: 0, frames: 0 };
@@ -1449,6 +1752,8 @@ function frame(now) {
   checkSpeed((now - (frame.prev || now)) / 1000); frame.prev = now;
   update(dt);
   updateClips(dt);
+  updateRings(dt);
+  updateRain(dt);
   updateCamera(dt, false);
   updateFading(dt);
   updateTiltDbg();
@@ -1458,7 +1763,7 @@ function frame(now) {
 }
 
 function update(dt) {
-  if (G.finished) return;
+  if (G.finished || G.inHub) return;
   const m = G.mower;
 
   let turn = 0, drive = 0;
@@ -1483,10 +1788,11 @@ function update(dt) {
     }
   }
 
-  if ((turn !== 0 || drive !== 0) && !G.started) { G.started = true; hideIntro(); }
+  if ((turn !== 0 || drive !== 0) && !G.started) { G.started = true; hideIntro(); SFX.startUp(); }
   if (G.started) {
     G.elapsed += dt;
-    G.fuel -= dt * (IDLE_BURN + (1 - IDLE_BURN) * Math.min(1, Math.abs(drive)));
+    if (G.stallAt && G.elapsed >= G.stallAt) stall();
+    if (!G.stalled) G.fuel -= dt * (IDLE_BURN + (1 - IDLE_BURN) * Math.min(1, Math.abs(G.throttle)));
     if (G.fuel <= 0) {
       G.fuel = 0;
       pop(m.x, m.y, 'Out of gas!', '#ff8a6b', 24);
@@ -1494,7 +1800,14 @@ function update(dt) {
       finish('gas');
       return;
     }
+    checkMedalClock();
   }
+  if (G.stalled) { turn = 0; drive = 0; }
+
+  // the mower has a bit of weight: it takes a moment to get going and to stop
+  G.throttle += (drive - G.throttle) * (1 - Math.exp(-dt / 0.09));
+  if (Math.abs(G.throttle) < 0.01 && drive === 0) G.throttle = 0;
+  const th = G.throttle;
   const prevX = m.x, prevY = m.y;
 
   m.rot += turn * MOWER.turnSpeed * dt;
@@ -1504,13 +1817,17 @@ function update(dt) {
     const off = wrapAngle(straightA - m.rot);
     if (Math.abs(off) < STEERING.assistAngle * toRad) m.rot += clamp(off, -1.2 * dt, 1.2 * dt);
   }
-  if (drive !== 0) {
-    const sp = drive > 0 ? MOWER.speed * drive : MOWER.reverseSpeed * drive;   // drive can be in-between (tilting)
+  G.bumpCD -= dt;
+  if (th !== 0) {
+    const sp = th > 0 ? MOWER.speed * th : MOWER.reverseSpeed * th;   // can be in-between (tilting, speeding up)
+    const want = Math.abs(sp * dt);
     let nx = m.x + Math.cos(m.rot) * sp * dt, ny = m.y + Math.sin(m.rot) * sp * dt;
     if (collides(nx, ny)) {
       if (!collides(nx, m.y)) ny = m.y;
       else if (!collides(m.x, ny)) nx = m.x;
       else { nx = m.x; ny = m.y; }
+      // ran into something head-on? Bonk!
+      if (Math.hypot(nx - m.x, ny - m.y) < want * 0.35 && Math.abs(th) > 0.5) bump(m, th);
     }
     G.distance += Math.hypot(nx - m.x, ny - m.y);
     m.x = nx; m.y = ny;
@@ -1518,19 +1835,33 @@ function update(dt) {
   const moved = Math.hypot(m.x - prevX, m.y - prevY);
 
   let newlyCut = 0;
-  if (G.started) {
+  if (G.started && !G.stalled) {
     newlyCut = mowAt(m.x, m.y, m.rot);
-    if (newlyCut > 0) emitClips(m.x, m.y, m.rot, Math.min(3, newlyCut));
+    if (newlyCut > 0) {
+      // more grass = more clippings; long grass really sprays
+      const n = Math.min(8, Math.round(newlyCut * (RUN.tall ? 2.5 : 1.6)));
+      emitClips(m.x, m.y, m.rot, n, RUN.tall ? 1.3 : 1);
+    }
     trackStyle(drive, moved, newlyCut);
+    checkMilestones();
   }
-  SFX.engine(G.started, Math.min(1, Math.abs(drive)), newlyCut > 0, G.fuel / fuelMax < 0.2);
+  const running = G.started && !G.stalled;
+  SFX.engine(running, Math.min(1, Math.abs(th)), newlyCut, G.fuel / fuelMax < 0.2);
 
-  // move the 3D model, and swing the worker's legs as he walks
+  // move the 3D model, swing the worker's legs as he walks, bob him up and down,
+  // and make the mower shake from the engine (more when it's chewing through grass)
   placeModel(mowerMesh, m.x, m.y, m.rot);
-  G.walk += moved * (drive < 0 ? -1 : 1);
+  G.walk += moved * (th < 0 ? -1 : 1);
   const swing = moved > 0.1 ? Math.sin(G.walk * 0.12) * 0.45 : 0;
   mowerMesh.userData.legs[0].rotation.z = swing;
   mowerMesh.userData.legs[1].rotation.z = -swing;
+  mowerMesh.userData.worker.position.y = moved > 0.1 ? Math.abs(Math.cos(G.walk * 0.12)) * 1.1 : 0;
+  const t = performance.now() / 1000, rumble = running ? 0.18 + (newlyCut > 0 ? 0.22 : 0) : 0;
+  const mg = mowerMesh.userData.mower;
+  mg.position.y = Math.sin(t * 71) * rumble;
+  mg.rotation.x = Math.sin(t * 53) * rumble * 0.012;
+  mg.rotation.z = Math.sin(t * 61) * rumble * 0.01 + (G.bumpWobble || 0);
+  G.bumpWobble = (G.bumpWobble || 0) * Math.exp(-dt * 8);
 
   const last = G.trail[G.trail.length - 1];
   if (Math.hypot(m.x - last.x, m.y - last.y) > 6) G.trail.push({ x: m.x, y: m.y });
@@ -1539,25 +1870,120 @@ function update(dt) {
     G.recTimer -= dt;
     if (G.recTimer <= 0) { G.recTimer = 0.05; recordSample(); }
   }
+  updateFinder(dt);
   updateGhost();
   updateHud();
   if (G.cutCount >= grassTotal) finish();
 }
 
+// Ran into the fence, the house or a tree
+function bump(m, th) {
+  if (G.bumpCD > 0) return;
+  G.bumpCD = 0.6;
+  SFX.bonk();
+  buzz(35);
+  G.shake = 1;
+  G.bumpWobble = 0.12 * Math.sign(th);
+  // bounce back a little
+  const bx = m.x - Math.cos(m.rot) * 4 * Math.sign(th), by = m.y - Math.sin(m.rot) * 4 * Math.sign(th);
+  if (!collides(bx, by)) { m.x = bx; m.y = by; }
+  G.throttle = -0.15 * Math.sign(th);
+  if (Math.random() < 0.5) pop(m.x, m.y, Math.random() < 0.5 ? 'Bonk!' : 'Oof!', '#ffffff', 16);
+}
+
+// A worn-out mower can die in the middle of a job. Pull the cord to restart it!
+function stall() {
+  G.stallAt = null;
+  G.stalled = { need: 3 + Math.floor(Math.random() * 3), done: 0 };
+  SFX.sputterOut();
+  buzz([80, 60, 160]);
+  pop(G.mower.x, G.mower.y, 'The engine died!', '#ff8a6b', 24);
+  setTimeout(() => { if (G.stalled) $('pullBtn').classList.remove('hidden'); }, 500);
+}
+function pullCord() {
+  const s = G.stalled;
+  if (!s || G.finished) return;
+  s.done++;
+  SFX.pull();
+  buzz(25);
+  const b = $('pullBtn');
+  b.classList.add('yank'); setTimeout(() => b.classList.remove('yank'), 90);
+  G.bumpWobble = 0.08;
+  if (s.done >= s.need) {
+    G.stalled = null;
+    b.classList.add('hidden');
+    SFX.startUp();
+    pop(G.mower.x, G.mower.y, 'Vroom! Back to work', '#9be37a', 20);
+  } else pop(G.mower.x, G.mower.y, ['Pull!', 'Again!', 'Come on…', 'Almost!'][Math.min(3, s.done - 1)], '#ffffff', 16);
+}
+
+// The medal clock: ticks in the last 5 seconds before a medal time, and a sad sound when it's gone
+function checkMedalClock() {
+  const order = ['gold', 'silver', 'bronze'];
+  const next = order[G.medalStage];
+  if (!next) return;
+  const left = medalT[next] - G.elapsed;
+  if (left <= 5 && left > 0 && Math.ceil(left) !== G.lastTick) { G.lastTick = Math.ceil(left); SFX.tick(); }
+  if (left <= 0) {
+    G.medalStage++;
+    SFX.medalGone();
+    pop(G.mower.x, G.mower.y, `${MEDAL_NAME[next]} time is gone`, '#ffab7a', 17);
+    const icon = $('medalNext');
+    icon.classList.remove('shake'); void icon.offsetWidth; icon.classList.add('shake');
+  }
+  $('timer').classList.toggle('hurry', left <= 5 && left > 0);
+}
+
+// Little celebrations at 50%, 75% and 90% — and at 95%, help finding the last bits
+function checkMilestones() {
+  const f = G.cutCount / grassTotal;
+  const marks = [0.5, 0.75, 0.9, 0.95];
+  while (G.milestone < marks.length && f >= marks[G.milestone]) {
+    const k = G.milestone++;
+    if (k < 3) { SFX.chime(k); pop(G.mower.x, G.mower.y, `${Math.round(marks[k] * 100)}% done!`, '#c6f0a8', 18); }
+    else { G.hunting = true; SFX.chime(3); pop(G.mower.x, G.mower.y, 'Almost! Find the last bits →', '#fff3a0', 18); }
+  }
+}
+
+// Point the ground arrow at the nearest uncut grass (checked a few times a second)
+function updateFinder(dt) {
+  if (!G.hunting) { finder.visible = false; return; }
+  const m = G.mower;
+  G.finderT -= dt;
+  if (G.finderT <= 0) {
+    G.finderT = 0.25;
+    let best = null, bd = Infinity;
+    for (let i = 0; i < G.cells.length; i++) {
+      if (G.cells[i] !== 1) continue;
+      const x = (i % COLS) * CELL + CELL / 2, y = Math.floor(i / COLS) * CELL + CELL / 2, d = (x - m.x) ** 2 + (y - m.y) ** 2;
+      if (d < bd) { bd = d; best = { x, y }; }
+    }
+    G.target = best;
+  }
+  const tg = G.target;
+  finder.visible = !!tg && Math.hypot(tg.x - m.x, tg.y - m.y) > MOWER.deckRadius + 10;
+  if (!finder.visible) return;
+  finder.position.set(m.x, 3 + Math.sin(performance.now() / 150) * 1.5, m.y);
+  finder.rotation.y = -Math.atan2(tg.y - m.y, tg.x - m.x);
+}
+
 function recordSample() {
   const m = G.mower;
-  G.rec.push([+G.elapsed.toFixed(2), Math.round(m.x), Math.round(m.y), +m.rot.toFixed(2)]);
+  G.rec.push([+G.elapsed.toFixed(2), Math.round(m.x), Math.round(m.y), +m.rot.toFixed(2), +(G.cutCount / grassTotal).toFixed(4)]);
 }
 
 function updateGhost() {
+  G.ghostCut = null;
   if (!G.ghostData) return;
   const d = G.ghostData, t = G.elapsed, lastS = d[d.length - 1];
-  if (t >= lastS[0]) { placeModel(ghostMesh, lastS[1], lastS[2], lastS[3]); return; }
+  if (t >= lastS[0]) { placeModel(ghostMesh, lastS[1], lastS[2], lastS[3]); G.ghostCut = lastS[4] ?? null; return; }
   while (G.ghostIndex < d.length - 2 && d[G.ghostIndex + 1][0] <= t) G.ghostIndex++;
   const a = d[G.ghostIndex], b = d[G.ghostIndex + 1];
   const f = b[0] > a[0] ? clamp((t - a[0]) / (b[0] - a[0]), 0, 1) : 0;
   const gx = a[1] + (b[1] - a[1]) * f, gy = a[2] + (b[2] - a[2]) * f;
   placeModel(ghostMesh, gx, gy, a[3] + wrapAngle(b[3] - a[3]) * f);
+  // how much the ghost had cut at this moment (older ghosts didn't record this)
+  if (a[4] !== undefined && b[4] !== undefined) G.ghostCut = a[4] + (b[4] - a[4]) * f;
   if (G.started) {
     // (the ghost's path is only drawn on the minimap, not on the 3D lawn)
     mgctx.fillStyle = '#4aa8ff'; mgctx.beginPath(); mgctx.arc(gx, gy, MOWER.deckRadius, 0, 7); mgctx.fill();
@@ -1602,6 +2028,7 @@ function trackStyle(drive, moved, fresh) {
         G.overlapWarned = true;
         pop(m.x, m.y, G.combo > 1 ? 'Combo lost!' : 'Overlap!', '#ffab7a');
         SFX.thud();
+        if (G.combo > 1) { flash('red'); buzz(60); }
         G.combo = 1;
       }
     }
@@ -1625,10 +2052,21 @@ function endStripe() {
   const pts = Math.round(r.len / 10) * G.combo;
   G.style += pts;
   G.cleanStripes++;
-  pop(G.mower.x, G.mower.y, `Clean stripe! +${pts}` + (G.combo > 1 ? `  ×${G.combo}` : ''), '#fff3a0');
+  pop(G.mower.x, G.mower.y, `Clean stripe! +${pts}` + (G.combo > 1 ? `  ×${G.combo}` : ''), '#fff3a0', 19 + G.combo * 2);
   SFX.ding(G.combo);
+  ringBurst(G.mower.x, G.mower.y, G.combo >= 3 ? 0xffb43a : 0xffd84a);
+  buzz(20);
+  if (G.combo >= 3) flash('gold');
   G.combo = Math.min(MAX_COMBO, G.combo + 1);
   G.bestCombo = Math.max(G.bestCombo, G.combo);
+  const c = $('combo'); c.classList.remove('pulse'); void c.offsetWidth; c.classList.add('pulse');
+}
+
+// a quick colored glow around the edge of the screen
+function flash(kind) {
+  const f = $('flash');
+  f.className = kind + ' on';
+  requestAnimationFrame(() => requestAnimationFrame(() => { f.className = kind; }));
 }
 
 // =====================================================================
@@ -1637,8 +2075,8 @@ function endStripe() {
 function updateCamera(dt, snap) {
   const m = G.mower;
   let pos, look;
-  if (G.finished) {
-    // at the end, rise up for a view of the whole lawn
+  if (G.finished || G.inHub) {
+    // at the end (and on the clipboard), rise up for a view of the whole lawn
     pos = new THREE.Vector3(320, 640, 760);
     look = new THREE.Vector3(320, 0, 215);
   } else {
@@ -1649,11 +2087,17 @@ function updateCamera(dt, snap) {
     pos = new THREE.Vector3(m.x - fx * cfg.dist + rx * cfg.side, cfg.height, m.y - fz * cfg.dist + rz * cfg.side);
     look = new THREE.Vector3(m.x + fx * cfg.ahead, 0, m.y + fz * cfg.ahead);
   }
-  const k = snap ? 1 : 1 - Math.exp(-dt * (G.finished ? 1.8 : 7));
+  const k = snap ? 1 : 1 - Math.exp(-dt * (G.finished || G.inHub ? 1.8 : 7));
   camPos.lerp(pos, k);
   camLook.lerp(look, k);
   camera.position.copy(camPos);
+  // a shake when you bump into something
+  G.shake = (G.shake || 0) * Math.exp(-dt * 7);
+  if (G.shake > 0.01) camera.position.add(tmpV.set(Math.random() - 0.5, Math.random() - 0.5, Math.random() - 0.5).multiplyScalar(G.shake * 7));
   camera.lookAt(camLook);
+  // the view widens a touch when you go full speed, which makes it feel faster
+  const fov = CAMERA.fov + (G.finished || G.inHub ? 0 : 4 * Math.max(0, G.throttle || 0));
+  if (Math.abs(camera.fov - fov) > 0.01) { camera.fov = fov; camera.updateProjectionMatrix(); }
 }
 
 // Make the house or a tree see-through when it's between the camera and you
@@ -1698,6 +2142,20 @@ function updateHud() {
   $('medalTxt').textContent = next === 'none' ? '—' : `${medalT[next]}s`;
   $('style').textContent = `★ ${G.style}`;
   $('combo').textContent = G.combo > 1 ? `×${G.combo}` : '';
+  // stripe meter: fills as your current straight line grows. Gold = it will count as a clean stripe.
+  const r = G.run, sf = $('stripeFill');
+  if (r && !G.finished) {
+    const fresh = r.len > 50 ? r.cells / (r.len * 2 * MOWER.deckRadius / (CELL * CELL)) : 1;
+    sf.style.width = Math.min(100, r.len / STRIPE_MIN * 100) + '%';
+    sf.className = fresh < STRIPE_FRESH ? 'bad' : r.len >= STRIPE_MIN ? 'ready' : '';
+  } else { sf.style.width = '0%'; sf.className = ''; }
+  // racing your ghost: how much more (or less) you've cut than your best run had at this time
+  const gd = $('ghostDelta');
+  if (G.ghostCut !== null && G.started && !G.finished) {
+    const d = (f - G.ghostCut) * 100;
+    gd.textContent = Math.abs(d) < 0.5 ? '👻 even' : d > 0 ? `👻 ▲${d.toFixed(0)}%` : `👻 ▼${(-d).toFixed(0)}%`;
+    gd.className = Math.abs(d) < 0.5 ? '' : d > 0 ? 'ahead' : 'behind';
+  } else gd.textContent = '';
 }
 
 // Floating text that rises from a spot in the yard
@@ -1718,6 +2176,9 @@ function showIntro() {
   const el = $('intro');
   el.innerHTML = `
     <h1>${YARD.name}</h1>
+    <p class="small" style="margin:4px 0 0">${RUN.paid
+      ? `Day ${career.day} · paid job · up to $${jobPay(YARD).toFixed(2)}${RUN.tall ? ' · <span style="color:#ffab7a">long grass — slower going!</span>' : ''}`
+      : 'Practice run · no pay · free gas'} · ${currentMower().name}</p>
     <p class="small sub" style="color:#c9dcbf;margin:6px 0 0">Finish the lawn fast for a medal:</p>
     <div class="medals">
       ${['gold', 'silver', 'bronze'].map(k => `<span class="m ${k}"><span class="medal ${k}"></span>${medalT[k]}s</span>`).join('')}
@@ -1742,25 +2203,32 @@ function showIntro() {
 function hideIntro() { $('intro').classList.add('hidden'); }
 
 function finish(reason) {
-  if (G.finished) return;
+  if (G.finished || G.inHub) return;
   endStripe();
   G.finished = true;
+  G.stalled = null;
   hideIntro();
+  $('pullBtn').classList.add('hidden');
+  $('timer').classList.remove('hurry');
+  finder.visible = false;
   SFX.engine(false);
 
-  const cut = G.cutCount / grassTotal, t = G.elapsed;
+  const cut = G.cutCount / grassTotal, t = G.elapsed, done = cut >= 0.95;
   let medal = 'none';
-  if (cut >= 0.95) medal = t <= medalT.gold ? 'gold' : t <= medalT.silver ? 'silver' : t <= medalT.bronze ? 'bronze' : 'none';
+  if (done) medal = t <= medalT.gold ? 'gold' : t <= medalT.silver ? 'silver' : t <= medalT.bronze ? 'bronze' : 'none';
   const comment =
-    reason === 'gas' && cut < 0.95 ? '"Out of gas? Oh dear… you missed a bit."' :
-    cut < 0.95         ? '"You missed some spots, dear."' :
+    reason === 'gas' && !done ? '"Out of gas? Oh dear… you missed a bit."' :
+    !done              ? '"You missed some spots."' :
     medal === 'gold'   ? '"Perfect lines! Like a golf course."' :
     medal === 'silver' ? '"Looks lovely, thank you!"' :
     medal === 'bronze' ? '"Took you a while, but it looks fine."' :
                          '"Finally! I nearly called someone else."';
-  let pay = PAY_FULL * cut;
-  if (cut < 0.95) pay *= 0.5;
+  // the money: the customer's price × how long the grass was, half price if you left a mess, + medal bonus + tips
+  let pay = YARD.pay * RUN.payFactor * cut;
+  if (!done) pay *= 0.5;
+  const bonus = done ? BIZ.medalBonus[medal] : 0;
   const tips = G.style / TIP_RATE;
+  const total = pay + bonus + tips;
   setTimeout(() => SFX.medal(medal), 250);
 
   // white route line over the lawn
@@ -1769,22 +2237,52 @@ function finish(reason) {
   scene.add(routeLine);
 
   const prev = G.best;
-  const ghostLine = prev && prev.time && cut >= 0.95 && (prev.cut || 0) >= 0.95
+  const ghostLine = prev && prev.time && done && (prev.cut || 0) >= 0.95
     ? `Ghost time: ${prev.time.toFixed(1)}s (you were ${Math.abs(t - prev.time).toFixed(1)}s ${t <= prev.time ? 'faster' : 'slower'})` : '';
   let best = prev;
-  const done = cut >= 0.95, bestDone = best && (best.cut || 0) >= 0.95;
+  const bestDone = best && (best.cut || 0) >= 0.95;
   const isBest = !best || !best.ghost || (done !== bestDone ? done : done ? t < best.time : cut > best.cut);
   if (isBest) {
     recordSample();
     best = { cut, time: t, medal, ghost: G.rec };
-    try { localStorage.setItem(BEST_KEY, JSON.stringify(best)); } catch (e) {}
+    try { localStorage.setItem(bestKey(), JSON.stringify(best)); } catch (e) {}
   }
+
+  // ---- paid job: update the business ----
+  let bizLines = [], news = '';
+  if (RUN.paid) {
+    const mw = currentMower();
+    career.money += total;
+    career.earned += total;
+    career.lastMowed[YARD.id] = career.day;
+    career.slot++;
+    career.jobsDone++;
+    career.tank = Math.max(0, G.fuel * mw.burn);
+    career.wearOf[mw.id] = Math.min(90, getWear() + mw.wear);
+    const stars = done ? (medal !== 'none' ? 2 : 1) : 0;
+    career.rep += stars;
+    if (stars) bizLines.push(`<span style="color:#ffe9a3">+${stars} ★ reputation</span> (you have ${career.rep} ★)`);
+    else bizLines.push(`<span style="color:#ffab7a">No ★ — finish at least 95% to earn reputation</span>`);
+    for (const y of YARDS) {
+      if (career.unlocked.includes(y.id) || career.rep < y.stars) continue;
+      career.unlocked.push(y.id);
+      career.lastMowed[y.id] = career.day - BIZ.readyDays - 1;   // their grass is ready right away
+      news += `<div class="note" style="text-align:left">📞 <b>New customer: ${y.name}!</b> ${y.story}</div>`;
+    }
+    saveCareer();
+  }
+
   const pct = (v) => (v * 100).toFixed(1) + '%';
+  const money = (v) => '$' + v.toFixed(2);
   const lines = [
     `Time: ${t.toFixed(1)}s &nbsp;·&nbsp; Cut: ${pct(cut)} &nbsp;·&nbsp; Skipped: ${pct(1 - cut)}`,
     `Clean stripes: ${G.cleanStripes} &nbsp;·&nbsp; Best combo: ×${G.bestCombo}`,
     `Overlap: ${Math.round(G.wasted / Math.max(1, G.distance) * 100)}% of your driving was over cut grass`,
-    `Paid $${pay.toFixed(2)} + tips $${tips.toFixed(2)} = <b>$${(pay + tips).toFixed(2)}</b>`,
+    RUN.paid
+      ? `Paid ${money(pay)}${RUN.payFactor < 1 ? ` (grass was overgrown: ${Math.round(RUN.payFactor * 100)}%)` : ''}`
+        + (bonus ? ` + medal bonus ${money(bonus)}` : '') + ` + tips ${money(tips)} = <b id="payTotal" style="color:#9be37a">$0.00</b>`
+      : `Practice — a paid job would have earned ${money(total)}`,
+    ...bizLines,
     ghostLine, comment,
     isBest ? '★ New personal best!' : (bestDone ? `Your best: ${best.time.toFixed(1)}s` : '')
   ].filter(Boolean);
@@ -1793,20 +2291,205 @@ function finish(reason) {
   const el = $('results');
   el.innerHTML = `
     <div class="head"><span class="medal big ${medal}"></span><h1 class="${medal}">${title}</h1></div>
-    <p>${lines.join('<br>')}</p>
-    <div class="btns"><button id="againBtn">Mow again</button><button id="routeBtn" class="quiet">See route</button></div>`;
+    <p>${lines.join('<br>')}</p>${news}
+    <div class="btns">${RUN.paid
+      ? `<button id="hubBtn2">📋 Back to the clipboard</button>`
+      : `<button id="againBtn">Mow again</button><button id="hubBtn2" class="quiet">📋 Clipboard</button>`}
+      <button id="routeBtn" class="quiet">See route</button></div>`;
   el.classList.remove('hidden');
-  clickBtn('againBtn', newRun);
+  if (!RUN.paid) clickBtn('againBtn', newRun);
+  clickBtn('hubBtn2', showHub);
   clickBtn('routeBtn', () => el.classList.add('hidden'));
   $('finishBtn').textContent = 'Results';
   updateHud();
+  // count the money up, with a "ka-ching"
+  if (RUN.paid) {
+    const pt = $('payTotal'), t0 = performance.now(), dur = 900;
+    const step = (now) => {
+      const k = Math.min(1, (now - t0) / dur);
+      pt.textContent = money(total * (1 - Math.pow(1 - k, 3)));
+      if (k < 1) requestAnimationFrame(step); else SFX.cash();
+    };
+    setTimeout(() => requestAnimationFrame(step), 500);
+  }
+}
+
+// =====================================================================
+//  THE BUSINESS: money, days, gas, wear and tear, customers
+//  Everything is saved in the browser (localStorage), so you can come back tomorrow.
+// =====================================================================
+function newCareer() {
+  return {
+    v: 1, day: 1, slot: 0, weather: 'sun', money: 0, earned: 0, rep: 0, jobsDone: 0,
+    gasCan: 2, tank: MOWERS[0].tank,          // liters of gas in the can and in the mower
+    owned: ['old'], mower: 'old', wearOf: { old: 20 },
+    unlocked: ['peterson'], lastMowed: { peterson: -3 },
+    seen: {}, notes: []
+  };
+}
+function loadCareer() {
+  try { const c = JSON.parse(localStorage.getItem(CAREER_KEY)); if (c && c.v === 1) return c; } catch (e) {}
+  return null;
+}
+let career = loadCareer() || newCareer();
+function saveCareer() { try { localStorage.setItem(CAREER_KEY, JSON.stringify(career)); } catch (e) {} }
+function currentMower() { return MOWERS.find(m => m.id === career.mower) || MOWERS[0]; }
+function getWear() { return career.wearOf[career.mower] || 0; }
+const grassDays = (y) => career.day - career.lastMowed[y.id];
+const payFactor = (days) => days <= BIZ.overdueDays ? 1 : Math.max(BIZ.minPayFactor, 1 - (days - BIZ.overdueDays) * BIZ.overduePenalty);
+const jobPay = (y) => y.pay * payFactor(grassDays(y));
+// before a paid job you fill the mower's tank from your gas can
+function topUpTank() {
+  const mw = currentMower();
+  career.tank = Math.min(career.tank, mw.tank);
+  const take = Math.min(mw.tank - career.tank, career.gasCan);
+  if (take > 0) { career.tank += take; career.gasCan -= take; }
+}
+
+function startJob(id, paid) {
+  const y = YARDS.find(v => v.id === id);
+  if (YARD !== y || !yardGroup.children.length) loadYard(id);
+  career.lastYard = id;
+  const days = grassDays(y);
+  RUN = paid ? { paid: true, tall: days > BIZ.overdueDays, payFactor: payFactor(days) } : { paid: false, tall: false, payFactor: 1 };
+  setWeather(paid ? 'sun' : career.weather);
+  saveCareer();
+  newRun();
+}
+
+function nextDay() {
+  career.day++;
+  career.slot = 0;
+  career.weather = career.day > 2 && Math.random() < BIZ.rainChance ? 'rain' : 'sun';
+  saveCareer();
+  showHub();
+}
+
+// ---- the clipboard: pick a job, buy gas, fix or buy mowers, go to bed ----
+let resetArmed = false;
+function showHub() {
+  G.inHub = true;
+  document.body.classList.add('inhub');
+  ['results', 'intro'].forEach(id => $(id).classList.add('hidden'));
+  $('pullBtn').classList.add('hidden');
+  finder.visible = false;
+  ghostMesh.visible = false;
+  SFX.engine(false);
+  styleMower(currentMower());
+  setWeather(career.weather);
+  resetArmed = false;
+
+  const c = career, mw = currentMower(), wet = c.weather === 'rain';
+  const left = BIZ.jobsPerDay - c.slot;
+  const money = (v) => '$' + v.toFixed(2);
+  const notes = [];
+  if (!c.seen.welcome) {
+    c.seen.welcome = true;
+    notes.push(`👋 <b>Welcome to your summer job!</b> ${YARDS[0].story}<br>
+      Lawns need ${BIZ.readyDays} days to grow back. You can do ${BIZ.jobsPerDay} jobs a day. Good jobs earn ★ reputation,
+      and word gets around — new neighbors will call. Keep gas in your can and your mower tuned up!`);
+  }
+  // nearly broke and out of gas? Mom helps out
+  if (c.money < BIZ.gasPrice && c.gasCan + c.tank < 0.3) {
+    c.gasCan += 1;
+    notes.push('⛽ Mom put a liter of gas in your can. "Pay me back when you\'re rich!"');
+  }
+  if (wet) notes.push('🌧️ <b>It\'s raining.</b> Nobody wants their lawn mowed in the rain. The grass keeps growing, though! Go shopping, practice, or skip to tomorrow.');
+  else if (left <= 0) notes.push('🌇 That\'s enough work for today. Tap <b>Next day</b> to rest — the grass will keep growing overnight.');
+  if (c.gasCan + c.tank < mw.tank * 0.6) notes.push('⛽ You\'re low on gas — fill up your gas can before your next job.');
+
+  // jobs
+  const jobRows = [];
+  for (const y of YARDS) {
+    let best = null;
+    try { best = JSON.parse(localStorage.getItem(y.id === 'peterson' ? 'lmg3d_yard1_best' : 'lmg3d_best_' + y.id)); } catch (e) {}
+    const bestTxt = best && best.time && (best.cut || 0) >= 0.95
+      ? ` · best ${best.time.toFixed(1)}s <span class="medal ${best.medal || 'none'}" style="width:11px;height:11px"></span>` : '';
+    if (!c.unlocked.includes(y.id)) {
+      jobRows.push(`<div class="row locked"><div class="info"><div class="name">🔒 ${y.name}</div>
+        <div class="sub2">Will call when you have ${y.stars} ★ (you have ${c.rep})</div></div></div>`);
+      break;   // only show the next one coming up
+    }
+    const d = grassDays(y), ready = d >= BIZ.readyDays, over = d > BIZ.overdueDays;
+    const status = !ready ? `Mowed ${d === 0 ? 'today' : d === 1 ? 'yesterday' : d + ' days ago'} — ready in ${BIZ.readyDays - d} day${BIZ.readyDays - d > 1 ? 's' : ''}`
+      : over ? `<span class="warn">Overgrown! (${d} days) — pay down to ${Math.round(payFactor(d) * 100)}%, long grass is slower</span>`
+      : `<span class="good">Grass is ready</span> (${d} days)`;
+    const can = ready && !wet && left > 0;
+    jobRows.push(`<div class="row"><div class="info"><div class="name">${y.name}</div>
+      <div class="sub2">${status}${bestTxt}</div></div>
+      <button data-job="${y.id}" ${can ? '' : 'disabled'}>Mow · ${money(jobPay(y))}</button>
+      <button class="quiet" data-practice="${y.id}">Practice</button></div>`);
+  }
+
+  // gear and shop
+  const wear = getWear();
+  const cond = wear < 25 ? '<span class="good">Runs well</span>' : wear < 50 ? 'A bit worn' : '<span class="warn">Needs a tune-up — it may stall!</span>';
+  const meter = (f) => `<span class="meter"><i style="width:${Math.round(clamp(f, 0, 1) * 100)}%"></i></span>`;
+  const fillL = BIZ.canSize - c.gasCan, fillCost = Math.min(fillL * BIZ.gasPrice, c.money);
+  const shopRows = MOWERS.filter(m => m.id !== mw.id).map(m => {
+    const own = c.owned.includes(m.id);
+    return `<div class="row"><div class="info"><div class="name">${m.name}</div>
+      <div class="sub2">${m.like} · ${m.deck}" cut · tank ${m.tank} L</div></div>
+      ${own ? `<button data-use="${m.id}">Use it</button>`
+            : `<button data-buy="${m.id}" ${c.money >= m.price ? '' : 'disabled'}>Buy · $${m.price}</button>`}</div>`;
+  }).join('');
+
+  const el = $('hub');
+  el.innerHTML = `
+    <h1>📋 My Mowing Business</h1>
+    <div class="top"><span>Day <b>${c.day}</b></span><span>${wet ? '🌧️ Rain' : '☀️ Sunny'}</span>
+      <span>${left > 0 ? (c.slot === 0 ? 'Morning' : 'Afternoon') + ` · ${left} job${left > 1 ? 's' : ''} left` : 'Evening'}</span>
+      <span>💵 <b>${money(c.money)}</b></span><span>★ <b>${c.rep}</b></span></div>
+    ${notes.map(n => `<div class="note">${n}</div>`).join('')}
+    <h2>Customers</h2>${jobRows.join('')}
+    <h2>Your gear</h2>
+    <div class="row"><div class="info"><div class="name">${mw.name}</div>
+      <div class="sub2">${cond} · chance of stalling ${Math.round(wear)}%</div></div>
+      <button data-tune ${wear > 0 && c.money >= BIZ.tuneUp ? '' : 'disabled'}>Tune-up · $${BIZ.tuneUp}</button></div>
+    <div class="row"><div class="info"><div class="name">Gas</div>
+      <div class="sub2">Mower tank ${meter(c.tank / mw.tank)} ${c.tank.toFixed(2)} L &nbsp; Gas can ${meter(c.gasCan / BIZ.canSize)} ${c.gasCan.toFixed(1)} of ${BIZ.canSize} L · $${BIZ.gasPrice.toFixed(2)}/L</div></div>
+      <button data-gas ${fillL > 0.05 && c.money >= 0.5 ? '' : 'disabled'}>Fill can · ${money(fillCost)}</button></div>
+    <h2>Mower shop</h2>${shopRows}
+    <div class="foot"><button class="quiet" data-reset>Start over</button>
+      <span class="sub2" style="font-size:12px;color:#c9dcbf">Earned so far: ${money(c.earned)} · ${c.jobsDone} jobs</span>
+      <button data-next>${left > 0 && !wet ? 'Skip to tomorrow ➜' : 'Next day ➜'}</button></div>`;
+  el.classList.remove('hidden');
+  el.scrollTop = 0;
+  saveCareer();
+
+  const on = (sel, fn) => el.querySelectorAll(sel).forEach(b => b.addEventListener('click', (e) => { e.stopPropagation(); b.blur(); fn(b); }));
+  on('[data-job]', b => startJob(b.dataset.job, true));
+  on('[data-practice]', b => startJob(b.dataset.practice, false));
+  on('[data-next]', nextDay);
+  on('[data-tune]', () => { c.money -= BIZ.tuneUp; c.wearOf[c.mower] = 0; SFX.cash(); showHub(); });
+  on('[data-gas]', () => {
+    const liters = Math.min(fillL, c.money / BIZ.gasPrice);
+    c.gasCan += liters; c.money = Math.max(0, c.money - liters * BIZ.gasPrice); SFX.cash(); showHub();
+  });
+  on('[data-buy]', b => {
+    const m = MOWERS.find(v => v.id === b.dataset.buy);
+    c.money -= m.price; c.owned.push(m.id); c.mower = m.id; c.wearOf[m.id] = 0;
+    c.tank = Math.min(c.tank, m.tank);
+    SFX.medal('gold'); showHub();
+  });
+  on('[data-use]', b => { c.mower = b.dataset.use; c.tank = Math.min(c.tank, currentMower().tank); showHub(); });
+  on('[data-reset]', b => {
+    if (!resetArmed) { resetArmed = true; b.textContent = 'Tap again to erase everything'; return; }
+    career = newCareer(); saveCareer(); showHub();
+  });
 }
 
 // ---- go! ----
 updateCamButton();
-newRun();
+loadYard(career.lastYard || 'peterson');
+placeModel(mowerMesh, YARD.start.x, YARD.start.y, YARD.start.angle);
+G.mower = { x: YARD.start.x, y: YARD.start.y, rot: YARD.start.angle };
+mlctx.drawImage(uncutCanvas, 0, 0, YARD_W, YARD_H);
+showHub();
+updateCamera(0, true);
 requestAnimationFrame(frame);
-window.__game = { G, keys, CAMERA, tilt, readTilt, ctrl, touch, setMode, finish, newRun, mowAt, update, updateCamera, get camMode() { return camMode; }, toggleCamera };   // for testing
+window.__game = { G, keys, CAMERA, tilt, readTilt, ctrl, touch, setMode, finish, newRun, mowAt, update, updateCamera,
+  get camMode() { return camMode; }, toggleCamera, get career() { return career; }, startJob, showHub, nextDay, loadYard, pullCord, MOWERS, YARDS };   // for testing
 </script>
 </body>
 </html>
