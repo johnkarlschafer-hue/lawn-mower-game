@@ -295,7 +295,7 @@ const STEERING = {
 //  bottom edge (that's where the street is). house.look = colors, door/garage/window spots.
 //  pay = what they pay for a full mow. stars = reputation (★) you need before they ask you.
 const YARDS = [
-  { id: 'peterson', name: 'Mrs. Peterson', pay: 20, stars: 0,
+  { id: 'peterson', name: 'Mrs. Peterson', pay: 25, stars: 0,
     story: 'Mrs. Peterson next door needs her lawn mowed every few days. Dad gave you his old push mower. Time to start a business!',
     house:    { x: 30,  y: 20,  w: 220, h: 150 },
     look:     { wall: 0xf3e6c9, roof: '#c4603a', garage: 100, door: 185, chimney: [158, 34],
@@ -304,7 +304,7 @@ const YARDS = [
     beds:     [ { x: 460, y: 24, w: 150, h: 46 } ],
     trees:    [ { x: 420, y: 150, r: 26 }, { x: 545, y: 330, r: 22 }, { x: 300, y: 365, r: 18 } ],
     start:    { x: 130, y: 415, angle: -Math.PI / 2 } },
-  { id: 'alvarez', name: 'Mr. Alvarez', pay: 24, stars: 2,
+  { id: 'alvarez', name: 'Mr. Alvarez', pay: 30, stars: 1,
     story: 'Mr. Alvarez saw your stripes from across the street. "Can you do mine too? Watch out for my roses."',
     house:    { x: 380, y: 20,  w: 230, h: 140 },
     look:     { wall: 0xdfe9d4, roof: '#4f6b8a', garage: 125, door: 200, chimney: [60, 30],
@@ -313,7 +313,7 @@ const YARDS = [
     beds:     [ { x: 36, y: 30, w: 46, h: 150 } ],
     trees:    [ { x: 210, y: 120, r: 30 }, { x: 130, y: 335, r: 20 }, { x: 330, y: 270, r: 16 } ],
     start:    { x: 505, y: 415, angle: -Math.PI / 2 } },
-  { id: 'kowalski', name: 'The Kowalskis', pay: 28, stars: 5,
+  { id: 'kowalski', name: 'The Kowalskis', pay: 36, stars: 4,
     story: 'The Kowalskis heard about you from Mrs. Peterson. Their driveway cuts the lawn right down the middle — plan your route!',
     house:    { x: 200, y: 20,  w: 240, h: 130 },
     look:     { wall: 0xf6f0e4, roof: '#6d4c3d', garage: 120, door: 195, chimney: [40, 30],
@@ -322,7 +322,7 @@ const YARDS = [
     beds:     [ { x: 30, y: 30, w: 120, h: 40 }, { x: 490, y: 30, w: 120, h: 40 } ],
     trees:    [ { x: 110, y: 260, r: 28 }, { x: 530, y: 250, r: 28 }, { x: 190, y: 390, r: 16 }, { x: 450, y: 390, r: 16 } ],
     start:    { x: 320, y: 415, angle: -Math.PI / 2 } },
-  { id: 'daniels', name: 'Coach Daniels', pay: 34, stars: 9,
+  { id: 'daniels', name: 'Coach Daniels', pay: 45, stars: 8,
     story: 'Coach Daniels has lots of trees and not much patience. "Make it look like a ball field, kid." He pays well, though.',
     house:    { x: 30,  y: 20,  w: 180, h: 120 },
     look:     { wall: 0xcfe0ee, roof: '#8a3b32', garage: 60, door: 140, chimney: [40, 30],
@@ -342,28 +342,33 @@ const bestKey = () => YARD.id === 'peterson' ? 'lmg3d_yard1_best' : 'lmg3d_best_
 //  (20 inches of cutting width = 32 units in the game.)
 const MOWERS = [
   { id: 'old',    name: 'Dad\'s old 20" push mower', like: 'a tired old side-discharge push mower from the garage',
-    price: 0,   deck: 20, speed: 120, tank: 0.9, burn: 0.006,  wear: 16, color: 0xb5523f },
+    price: 0,   deck: 20, speed: 120, tank: 0.9, burn: 0.006,  wear: 12, color: 0xb5523f },
   { id: 'used21', name: 'Used 21" self-propelled',  like: 'a second-hand 21-inch self-propelled mower — it pulls itself along',
-    price: 180, deck: 21, speed: 128, tank: 1.0, burn: 0.006,  wear: 10, color: 0x3d8b37 },
+    price: 120, deck: 21, speed: 128, tank: 1.0, burn: 0.006,  wear: 10, color: 0x3d8b37 },
   { id: 'new22',  name: 'New 22" self-propelled',   like: 'a brand-new 22-inch self-propelled mower with a variable-speed drive',
-    price: 420, deck: 22, speed: 138, tank: 1.1, burn: 0.0055, wear: 6,  color: 0xe0301e },
+    price: 300, deck: 22, speed: 138, tank: 1.1, burn: 0.0055, wear: 6,  color: 0xe0301e },
   { id: 'wide30', name: '30" wide-area mower',      like: 'a 30-inch wide-cut walk-behind, the kind small lawn crews use',
-    price: 950, deck: 30, speed: 132, tank: 2.0, burn: 0.009,  wear: 5,  color: 0x7a7f87 }
+    price: 700, deck: 30, speed: 132, tank: 2.0, burn: 0.009,  wear: 5,  color: 0x7a7f87 }
 ];
 const BASE_MOWER = { speed: 120, deckRadius: 16 };   // medal times are set with this mower — better mowers make medals easier
 
 // ---- Running the business ----
 const BIZ = {
   jobsPerDay: 2,        // morning and afternoon
-  readyDays: 3,         // grass needs this many days to grow back before a customer wants it mowed again
-  overdueDays: 5,       // after this many days the grass is overgrown: pay drops each day…
+  readyDays: 2,         // grass needs this many days to grow back before a customer wants it mowed again
+  overdueDays: 4,       // after this many days the grass is overgrown: pay drops each day…
   overduePenalty: 0.1,  // …by this much (10%)…
   minPayFactor: 0.5,    // …down to half pay
   rainChance: 0.2,      // chance of a rainy day (no mowing)
   gasPrice: 1.70,       // dollars per liter
   canSize: 5,           // liters in your gas can
-  tuneUp: 15,           // dollars to sharpen the blade, change the spark plug and clean the filter
-  medalBonus: { gold: 5, silver: 3, bronze: 1, none: 0 }
+  tuneUp: 10,           // dollars to sharpen the blade, change the spark plug and clean the filter
+  medalBonus: { gold: 6, silver: 4, bronze: 2, none: 0 },
+  firstJobTip: 10,      // a new customer tips you extra the first time you mow for them
+  starCut: 0.9,         // cut at least this much to earn a ★ (a medal earns one more)
+  fullPayCut: 0.95,     // cut at least this much for full pay…
+  okPayCut: 0.85,       // …at least this much for 85% pay; less than that is half pay
+  startMoney: 15, startGas: 3
 };
 const CAREER_KEY = 'lmg3d_career';
 
@@ -683,7 +688,8 @@ const cutDarkTex = texFrom(makeCutLawn(TEX, 22, '#4f9433', 'rgba(220,255,200,',
   [['#5ea63c', 9000, 0.8], ['#44842b', 9000, 0.8], ['#6bb447', 6000, 0.7], ['#3b7524', 5000, 0.7], ['#78c052', 2500, 0.6]],
   [['#a9c86e', 500], ['#b8d585', 300]]));
 
-// The mask: one pixel per 2×2 units. Red = how cut, green = light/dark stripe, blue = ghost's path.
+// The mask: one pixel per 2×2 units. Red = how cut, green = light/dark stripe, blue = ghost's path,
+// alpha = how many grass clippings are lying there.
 const MW = YARD_W / 2, MH = YARD_H / 2;
 const maskData = new Uint8Array(MW * MH * 4);
 const maskTex = new THREE.DataTexture(maskData, MW, MH);
@@ -714,6 +720,15 @@ groundMat.onBeforeCompile = (sh) => {
       cutCol *= 1.0 - 0.38 * shade;
       vec3 g = mix(unc.rgb, cutCol, cut);
       g = mix(g, vec3(0.29, 0.66, 1.0), mk.b * 0.33 * ghostOn);
+      // clippings: little scattered bits of fresh-cut grass. More clippings = more bits.
+      vec2 cc = floor(vMapUv * vec2(${YARD_W}.0, ${YARD_H}.0) * 1.3);      // tiny cells, about 0.8 units each
+      float h1 = fract(sin(dot(cc, vec2(12.9898, 78.233))) * 43758.5453);
+      float h2 = fract(sin(dot(cc, vec2(39.3468, 11.135))) * 24634.6345);
+      float pile = clamp(mk.a / 0.4, 0.0, 1.0);
+      float bits = step(1.0 - pile * 0.8, h1);
+      vec3 clipCol = mix(vec3(0.24, 0.40, 0.07), vec3(0.40, 0.44, 0.12), h2);   // fresh green to a bit straw-like
+      g = mix(g, g * vec3(0.8, 0.86, 0.66), pile * 0.6);                  // a soft darker band under the pile
+      g = mix(g, clipCol, bits);
       diffuseColor.rgb *= g;
     `);
 };
@@ -2061,7 +2076,49 @@ function mowAt(x, y, rot) {
       if ((ccx - x) ** 2 + (ccy - y) ** 2 <= r * r) { G.cells[i] = 2; G.cutCount++; n++; }
     }
   }
+  windrow(x, y, rot, n);
   return n;
+}
+
+// ---- Lines of clippings ("windrows") ----
+//  The mower sucks up any clippings under the deck, chops them finer, and blows
+//  them out of the side chute together with the grass it just cut. So a line of
+//  clippings forms on the right-hand side; mow over it again and it disappears,
+//  leaving a thinner, finer line beside you.
+const CLIPPINGS = {
+  fresh: 26,     // how much one freshly cut cell adds to the line
+  reCut: 0.4,    // how much of the clippings you mow over come back out (finer, so less)
+  width: 3.5,    // half-width of the line, in mask pixels (1 pixel = 2 units)
+  side: 7        // how far out to the side of the deck the line lands, in units
+};
+function windrow(x, y, rot, fresh) {
+  const cs = Math.cos(rot), sn = Math.sin(rot);
+  // 1. pick up whatever is lying under the deck
+  const r = MOWER.deckRadius / 2, cx = x / 2, cy = y / 2;
+  let picked = 0;
+  for (let ty = Math.max(0, Math.floor(cy - r)); ty <= Math.min(MH - 1, Math.ceil(cy + r)); ty++) {
+    for (let tx = Math.max(0, Math.floor(cx - r)); tx <= Math.min(MW - 1, Math.ceil(cx + r)); tx++) {
+      const cov = clamp(r - Math.hypot(tx + 0.5 - cx, ty + 0.5 - cy) + 0.5, 0, 1);
+      if (cov <= 0) continue;
+      const i = ((MH - 1 - ty) * MW + tx) * 4 + 3, take = maskData[i] * cov;
+      picked += take; maskData[i] -= take;
+    }
+  }
+  // 2. blow fresh + re-cut clippings out of the chute on the right
+  const W = CLIPPINGS.width, area = Math.PI * W * W;
+  const amount = fresh * CLIPPINGS.fresh + picked * CLIPPINGS.reCut / area;
+  if (amount < 0.5) return;
+  const along = (Math.random() - 0.5) * 3, out = MOWER.deckRadius + CLIPPINGS.side + (Math.random() - 0.5) * 3;
+  const px = (x + cs * along - sn * out) / 2, py = (y + sn * along + cs * out) / 2;
+  for (let ty = Math.max(0, Math.floor(py - W)); ty <= Math.min(MH - 1, Math.ceil(py + W)); ty++) {
+    for (let tx = Math.max(0, Math.floor(px - W)); tx <= Math.min(MW - 1, Math.ceil(px + W)); tx++) {
+      const d = Math.hypot(tx + 0.5 - px, ty + 0.5 - py) / W;
+      if (d >= 1) continue;
+      const i = ((MH - 1 - ty) * MW + tx) * 4 + 3;
+      maskData[i] = Math.min(230, maskData[i] + amount * (1 - d * d));
+    }
+  }
+  maskTex.needsUpdate = true;
 }
 
 // Clean stripes, combos and overlap (same rules as the 2D version)
@@ -2277,8 +2334,10 @@ function finish(reason) {
                          '"Finally! I nearly called someone else."';
   // the money: the customer's price × how long the grass was, half price if you left a mess, + medal bonus + tips
   let pay = YARD.pay * RUN.payFactor * cut;
-  if (!done) pay *= 0.5;
-  const bonus = done ? BIZ.medalBonus[medal] : 0;
+  const payRate = cut >= BIZ.fullPayCut ? 1 : cut >= BIZ.okPayCut ? 0.85 : 0.5;
+  pay *= payRate;
+  const firstTip = RUN.paid && !(career.firstDone || {})[YARD.id] ? BIZ.firstJobTip : 0;
+  const bonus = (done ? BIZ.medalBonus[medal] : 0) + firstTip;
   const tips = G.style / TIP_RATE;
   const total = pay + bonus + tips;
   setTimeout(() => SFX.medal(medal), 250);
@@ -2311,16 +2370,12 @@ function finish(reason) {
     career.jobsDone++;
     career.tank = Math.max(0, G.fuel * mw.burn);
     career.wearOf[mw.id] = Math.min(90, getWear() + mw.wear);
-    const stars = done ? (medal !== 'none' ? 2 : 1) : 0;
+    const stars = (cut >= BIZ.starCut ? 1 : 0) + (medal !== 'none' ? 1 : 0);
     career.rep += stars;
+    (career.firstDone = career.firstDone || {})[YARD.id] = true;
     if (stars) bizLines.push(`<span style="color:#ffe9a3">+${stars} ★ reputation</span> (you have ${career.rep} ★)`);
-    else bizLines.push(`<span style="color:#ffab7a">No ★ — finish at least 95% to earn reputation</span>`);
-    for (const y of YARDS) {
-      if (career.unlocked.includes(y.id) || career.rep < y.stars) continue;
-      career.unlocked.push(y.id);
-      career.lastMowed[y.id] = career.day - BIZ.readyDays - 1;   // their grass is ready right away
-      news += `<div class="note" style="text-align:left">📞 <b>New customer: ${y.name}!</b> ${y.story}</div>`;
-    }
+    else bizLines.push(`<span style="color:#ffab7a">No ★ — cut at least ${Math.round(BIZ.starCut * 100)}% to earn reputation</span>`);
+    news = checkUnlocks().map(y => `<div class="note" style="text-align:left">📞 <b>New customer: ${y.name}!</b> ${y.story}</div>`).join('');
     saveCareer();
   }
 
@@ -2332,7 +2387,10 @@ function finish(reason) {
     `Overlap: ${Math.round(G.wasted / Math.max(1, G.distance) * 100)}% of your driving was over cut grass`,
     RUN.paid
       ? `Paid ${money(pay)}${RUN.payFactor < 1 ? ` (grass was overgrown: ${Math.round(RUN.payFactor * 100)}%)` : ''}`
-        + (bonus ? ` + medal bonus ${money(bonus)}` : '') + ` + tips ${money(tips)} = <b id="payTotal" style="color:#9be37a">$0.00</b>`
+        + (payRate < 1 ? ` (${Math.round(payRate * 100)}% — you missed spots)` : '')
+        + (bonus - firstTip ? ` + medal bonus ${money(bonus - firstTip)}` : '')
+        + (firstTip ? ` + first-job tip ${money(firstTip)}` : '')
+        + ` + tips ${money(tips)} = <b id="payTotal" style="color:#9be37a">$0.00</b>`
       : `Practice — a paid job would have earned ${money(total)}`,
     ...bizLines,
     ghostLine, comment,
@@ -2372,12 +2430,23 @@ function finish(reason) {
 // =====================================================================
 function newCareer() {
   return {
-    v: 1, day: 1, slot: 0, weather: 'sun', money: 0, earned: 0, rep: 0, jobsDone: 0,
-    gasCan: 2, tank: MOWERS[0].tank,          // liters of gas in the can and in the mower
-    owned: ['old'], mower: 'old', wearOf: { old: 20 },
+    v: 1, day: 1, slot: 0, weather: 'sun', money: BIZ.startMoney, earned: 0, rep: 0, jobsDone: 0,
+    gasCan: BIZ.startGas, tank: MOWERS[0].tank,          // liters of gas in the can and in the mower
+    owned: ['old'], mower: 'old', wearOf: { old: 15 },
     unlocked: ['peterson'], lastMowed: { peterson: -3 },
     seen: {}, notes: []
   };
+}
+// new neighbors call once you have enough ★ — returns the ones who just called
+function checkUnlocks() {
+  const fresh = [];
+  for (const y of YARDS) {
+    if (career.unlocked.includes(y.id) || career.rep < y.stars) continue;
+    career.unlocked.push(y.id);
+    career.lastMowed[y.id] = career.day - BIZ.readyDays - 1;   // their grass is ready right away
+    fresh.push(y);
+  }
+  return fresh;
 }
 function loadCareer() {
   try { const c = JSON.parse(localStorage.getItem(CAREER_KEY)); if (c && c.v === 1) return c; } catch (e) {}
@@ -2418,7 +2487,20 @@ function nextDay() {
 }
 
 // ---- the clipboard: pick a job, buy gas, fix or buy mowers, go to bed ----
-let resetArmed = false;
+let resetArmed = false, titleTaps = 0, lastTitleTap = 0;
+function toggleCheats() {
+  career.seen.cheats = !career.seen.cheats;
+  saveCareer();
+  showHub();
+  if (career.seen.cheats) $('hub').scrollTop = $('hub').scrollHeight;   // scroll down to the new buttons
+}
+// on a keyboard: type the word "cheat" while the clipboard is open
+let typed = '';
+window.addEventListener('keydown', (e) => {
+  if (!G.inHub || e.key.length !== 1) return;
+  typed = (typed + e.key.toLowerCase()).slice(-5);
+  if (typed === 'cheat') { typed = ''; toggleCheats(); }
+});
 function showHub() {
   G.inHub = true;
   document.body.classList.add('inhub');
@@ -2447,6 +2529,7 @@ function showHub() {
     c.gasCan += 1;
     notes.push('⛽ Mom put a liter of gas in your can. "Pay me back when you\'re rich!"');
   }
+  for (const y of checkUnlocks()) notes.push(`📞 <b>New customer: ${y.name}!</b> ${y.story}`);
   if (wet) notes.push('🌧️ <b>It\'s raining.</b> Nobody wants their lawn mowed in the rain. The grass keeps growing, though! Go shopping, practice, or skip to tomorrow.');
   else if (left <= 0) notes.push('🌇 That\'s enough work for today. Tap <b>Next day</b> to rest — the grass will keep growing overnight.');
   if (c.gasCan + c.tank < mw.tank * 0.6) notes.push('⛽ You\'re low on gas — fill up your gas can before your next job.');
@@ -2489,7 +2572,7 @@ function showHub() {
 
   const el = $('hub');
   el.innerHTML = `
-    <h1>📋 My Mowing Business</h1>
+    <h1 id="hubTitle" style="user-select:none">📋 My Mowing Business</h1>
     <div class="top"><span>Day <b>${c.day}</b></span><span>${wet ? '🌧️ Rain' : '☀️ Sunny'}</span>
       <span>${left > 0 ? (c.slot === 0 ? 'Morning' : 'Afternoon') + ` · ${left} job${left > 1 ? 's' : ''} left` : 'Evening'}</span>
       <span>💵 <b>${money(c.money)}</b></span><span>★ <b>${c.rep}</b></span></div>
@@ -2503,6 +2586,15 @@ function showHub() {
       <div class="sub2">Mower tank ${meter(c.tank / mw.tank)} ${c.tank.toFixed(2)} L &nbsp; Gas can ${meter(c.gasCan / BIZ.canSize)} ${c.gasCan.toFixed(1)} of ${BIZ.canSize} L · $${BIZ.gasPrice.toFixed(2)}/L</div></div>
       <button data-gas ${fillL > 0.05 && c.money >= 0.5 ? '' : 'disabled'}>Fill can · ${money(fillCost)}</button></div>
     <h2>Mower shop</h2>${shopRows}
+    ${c.seen.cheats ? `<h2>🛠 Practice tools</h2>
+    <div class="sub2" style="font-size:12px;color:#c9dcbf;margin-bottom:4px">For testing. Tap the title 5 times (or type "cheat") to hide these.</div>
+    <div style="display:flex;flex-wrap:wrap;gap:6px">
+      <button data-cheat="money100">+ $100</button><button data-cheat="money1000">+ $1,000</button>
+      <button data-cheat="stars">+ 3 ★</button><button data-cheat="unlock">Unlock all customers</button>
+      <button data-cheat="ready">All lawns ready</button><button data-cheat="gas">Free full gas</button>
+      <button data-cheat="worn">Wear out mower (test stalls)</button><button data-cheat="jobs">More jobs today</button>
+      <button data-cheat="sun">Make it sunny</button><button data-cheat="rain">Make it rain</button>
+    </div>` : ''}
     <div class="foot"><button class="quiet" data-reset>Start over</button>
       <span class="sub2" style="font-size:12px;color:#c9dcbf">Earned so far: ${money(c.earned)} · ${c.jobsDone} jobs</span>
       <button data-next>${left > 0 && !wet ? 'Skip to tomorrow ➜' : 'Next day ➜'}</button></div>`;
@@ -2526,6 +2618,27 @@ function showHub() {
     SFX.medal('gold'); showHub();
   });
   on('[data-use]', b => { c.mower = b.dataset.use; c.tank = Math.min(c.tank, currentMower().tank); showHub(); });
+  // secret: tap the title 5 times to show or hide the practice tools
+  $('hubTitle').addEventListener('click', () => {
+    const now = performance.now();
+    titleTaps = now - lastTitleTap < 1200 ? titleTaps + 1 : 1;
+    lastTitleTap = now;
+    if (titleTaps >= 5) { titleTaps = 0; toggleCheats(); }
+  });
+  on('[data-cheat]', b => {
+    const k = b.dataset.cheat;
+    if (k === 'money100') c.money += 100;
+    if (k === 'money1000') c.money += 1000;
+    if (k === 'stars') c.rep += 3;
+    if (k === 'unlock') c.rep = Math.max(c.rep, ...YARDS.map(y => y.stars));
+    if (k === 'ready') for (const id of c.unlocked) c.lastMowed[id] = c.day - BIZ.readyDays;
+    if (k === 'gas') { c.gasCan = BIZ.canSize; c.tank = currentMower().tank; }
+    if (k === 'worn') c.wearOf[c.mower] = 90;
+    if (k === 'jobs') c.slot = 0;
+    if (k === 'sun' || k === 'rain') c.weather = k;
+    SFX.cash();
+    showHub();
+  });
   on('[data-reset]', b => {
     if (!resetArmed) { resetArmed = true; b.textContent = 'Tap again to erase everything'; return; }
     career = newCareer(); saveCareer(); showHub();
@@ -2542,7 +2655,8 @@ showHub();
 updateCamera(0, true);
 requestAnimationFrame(frame);
 window.__game = { G, keys, CAMERA, tilt, readTilt, ctrl, touch, setMode, finish, newRun, mowAt, update, updateCamera,
-  get camMode() { return camMode; }, toggleCamera, get career() { return career; }, startJob, showHub, nextDay, loadYard, pullCord, MOWERS, YARDS, guide };   // for testing
+  get camMode() { return camMode; }, toggleCamera, get career() { return career; }, startJob, showHub, nextDay, loadYard, pullCord, MOWERS, YARDS, guide,
+  maskA: (tx, ty) => maskData[((MH - 1 - ty) * MW + tx) * 4 + 3] };   // for testing
 </script>
 </body>
 </html>
