@@ -161,6 +161,8 @@
   #hub .row .sub2 { font-size: 13px; color: #c9dcbf; }
   #hub .row button { font-size: 14px; padding: 6px 12px; white-space: nowrap; }
   #hub .row.locked { opacity: 0.55; }
+  #hub .row img.pic { width: 96px; height: 60px; object-fit: contain; flex: none; border-radius: 8px;
+    background: radial-gradient(ellipse at 50% 70%, rgba(255,255,255,0.16), rgba(255,255,255,0.02) 70%); }
   #hub button:disabled { background: #3c4637; box-shadow: 0 3px 0 #1b2117; color: #9aa592; cursor: default; }
   #hub .warn { color: #ffab7a; } #hub .good { color: #9be37a; }
   #hub .note { margin: 8px 0; padding: 8px 12px; border-radius: 10px; background: rgba(255, 233, 163, 0.12);
@@ -175,6 +177,7 @@
     #hub h2 { margin: 8px 0 4px; font-size: 13px; }
     #hub .row { padding: 4px 8px; margin: 3px 0; }
     #hub .row .sub2 { font-size: 11px; }
+    #hub .row img.pic { width: 72px; height: 45px; }
     #hub .top { font-size: 13px; }
     #pullBtn { font-size: 20px; padding: 12px 24px; }
   }
@@ -233,8 +236,13 @@ import { mergeVertices } from 'three/addons/utils/BufferGeometryUtils.js';
 //  (1 unit in the 3D world = 1 pixel of the old overhead map)
 // =====================================================================
 const CELL = 8;                       // size of one "grass cell" (used for scoring)
-const YARD_W = 640, YARD_H = 448;
-const COLS = YARD_W / CELL, ROWS = YARD_H / CELL;
+// The yard size changes with each customer (set in loadYard). The lawn pictures are drawn
+// as one 640 × 448 "tile" that repeats seamlessly across bigger yards.
+let YARD_W = 640, YARD_H = 448;
+let COLS = YARD_W / CELL, ROWS = YARD_H / CELL;
+const TILE_W = 640, TILE_H = 448;
+const yardSizeU = { value: new THREE.Vector2(YARD_W, YARD_H) };     // the yard size, for the graphics card
+const tileRepU = { value: new THREE.Vector2(1, 1) };                // how many lawn tiles fit across the yard
 
 const MOWER = {
   speed: 120,         // forward speed (units per second)
@@ -313,7 +321,7 @@ const YARDS = [
     beds:     [ { x: 36, y: 30, w: 46, h: 150 } ],
     trees:    [ { x: 210, y: 120, r: 30 }, { x: 130, y: 335, r: 20 }, { x: 330, y: 270, r: 16 } ],
     start:    { x: 505, y: 415, angle: -Math.PI / 2 } },
-  { id: 'kowalski', name: 'The Kowalskis', pay: 36, stars: 4,
+  { id: 'kowalski', name: 'The Kowalskis', pay: 36, stars: 3,
     story: 'The Kowalskis heard about you from Mrs. Peterson. Their driveway cuts the lawn right down the middle — plan your route!',
     house:    { x: 200, y: 20,  w: 240, h: 130 },
     look:     { wall: 0xf6f0e4, roof: '#6d4c3d', garage: 120, door: 195, chimney: [40, 30],
@@ -322,35 +330,81 @@ const YARDS = [
     beds:     [ { x: 30, y: 30, w: 120, h: 40 }, { x: 490, y: 30, w: 120, h: 40 } ],
     trees:    [ { x: 110, y: 260, r: 28 }, { x: 530, y: 250, r: 28 }, { x: 190, y: 390, r: 16 }, { x: 450, y: 390, r: 16 } ],
     start:    { x: 320, y: 415, angle: -Math.PI / 2 } },
-  { id: 'daniels', name: 'Coach Daniels', pay: 45, stars: 8,
-    story: 'Coach Daniels has lots of trees and not much patience. "Make it look like a ball field, kid." He pays well, though.',
+  { id: 'daniels', name: 'Coach Daniels', pay: 55, stars: 6, w: 800, h: 560, ref: 'walk36',
+    story: 'Coach Daniels has a big lot, lots of trees and not much patience. "Make it look like a ball field, kid." He pays well, though.',
     house:    { x: 30,  y: 20,  w: 180, h: 120 },
     look:     { wall: 0xcfe0ee, roof: '#8a3b32', garage: 60, door: 140, chimney: [40, 30],
                 windows: [[45, 'n'], [135, 'n'], [40, 'e'], [90, 'e'], [40, 'w'], [90, 'w']] },
-    driveway: { x: 55,  y: 140, w: 70,  h: 308 },
+    driveway: { x: 55,  y: 140, w: 70,  h: 420 },
     beds:     [ { x: 228, y: 196, w: 44, h: 44 } ],
-    trees:    [ { x: 340, y: 90, r: 24 }, { x: 480, y: 170, r: 20 }, { x: 585, y: 85, r: 18 },
-                { x: 330, y: 330, r: 22 }, { x: 470, y: 365, r: 26 }, { x: 585, y: 290, r: 16 } ],
-    start:    { x: 90, y: 415, angle: -Math.PI / 2 } }
+    trees:    [ { x: 340, y: 90, r: 24 }, { x: 480, y: 170, r: 20 }, { x: 600, y: 85, r: 18 }, { x: 720, y: 200, r: 26 },
+                { x: 330, y: 330, r: 22 }, { x: 490, y: 380, r: 26 }, { x: 650, y: 330, r: 16 }, { x: 260, y: 480, r: 18 },
+                { x: 700, y: 480, r: 22 } ],
+    start:    { x: 90, y: 527, angle: -Math.PI / 2 } },
+  { id: 'henderson', name: 'The Hendersons', pay: 85, stars: 10, w: 960, h: 640, ref: 'tractor42', medalEase: 1.15,
+    story: 'The Hendersons have the biggest lot on the street — and a garden shed in the corner. "We\'re told you\'re the best in town."',
+    house:    { x: 330, y: 20,  w: 300, h: 160 },
+    look:     { wall: 0xf1e7d0, roof: '#3f5a3c', garage: 150, door: 250, chimney: [60, 40],
+                windows: [[40, 's'], [60, 'n'], [150, 'n'], [240, 'n'], [50, 'e'], [110, 'e'], [50, 'w'], [110, 'w']] },
+    driveway: { x: 440, y: 180, w: 80,  h: 460 },
+    beds:     [ { x: 700, y: 30, w: 200, h: 40 }, { x: 60, y: 300, w: 40, h: 140 } ],
+    trees:    [ { x: 240, y: 250, r: 30 }, { x: 760, y: 240, r: 28 }, { x: 640, y: 450, r: 22 }, { x: 300, y: 520, r: 26 },
+                { x: 870, y: 520, r: 20 }, { x: 150, y: 570, r: 18 } ],
+    props:    [ { kind: 'shed', x: 60, y: 40, w: 90, h: 70, wall: 0xb9603f, roof: '#5a4636' } ],
+    start:    { x: 480, y: 607, angle: -Math.PI / 2 } },
+  { id: 'church', name: 'Grace Church', pay: 130, stars: 15, w: 1120, h: 720, ref: 'standon48',
+    story: 'Pastor Ruth needs the church lawn perfect for weddings every weekend. "Mind the benches and the old oaks, please."',
+    house:    { x: 380, y: 30,  w: 360, h: 180 },
+    look:     { wall: 0xe9e4d8, roof: '#4a4f5c', door: 180, wallH: 125,
+                windows: [[60, 's'], [120, 's'], [240, 's'], [300, 's'], [60, 'n'], [180, 'n'], [300, 'n'], [60, 'e'], [120, 'e'], [60, 'w'], [120, 'w']] },
+    driveway: { x: 520, y: 210, w: 160, h: 510 },
+    beds:     [ { x: 395, y: 222, w: 110, h: 30 }, { x: 695, y: 222, w: 40, h: 30 } ],
+    trees:    [ { x: 120, y: 120, r: 34 }, { x: 260, y: 340, r: 28 }, { x: 120, y: 560, r: 30 }, { x: 370, y: 620, r: 22 },
+                { x: 860, y: 300, r: 30 }, { x: 1000, y: 140, r: 26 }, { x: 990, y: 520, r: 32 }, { x: 820, y: 630, r: 20 } ],
+    props:    [ { kind: 'steeple', x: 745, y: 75, w: 56, h: 56 },
+                { kind: 'bench', x: 200, y: 210, w: 46, h: 14 }, { kind: 'bench', x: 880, y: 420, w: 46, h: 14 },
+                { kind: 'bench', x: 400, y: 450, w: 14, h: 46 } ],
+    start:    { x: 600, y: 687, angle: -Math.PI / 2 } },
+  { id: 'school', name: 'Oakridge School field', pay: 180, stars: 21, w: 1280, h: 800, ref: 'zt54',
+    story: 'The school wants its playing field cut before Saturday\'s big game. Huge, flat and open — this is what a zero-turn is for.',
+    house:    { x: 40,  y: 20,  w: 420, h: 150 },
+    look:     { wall: 0xc98d6c, roof: '#5b5f66', door: 210, wallH: 110,
+                windows: [[50, 's'], [110, 's'], [170, 's'], [250, 's'], [310, 's'], [370, 's'], [80, 'n'], [210, 'n'], [340, 'n'], [50, 'e'], [100, 'e'], [50, 'w'], [100, 'w']] },
+    driveway: { x: 215, y: 170, w: 70,  h: 630 },
+    beds:     [ { x: 60, y: 190, w: 120, h: 30 }, { x: 320, y: 190, w: 120, h: 30 } ],
+    trees:    [ { x: 90, y: 430, r: 30 }, { x: 120, y: 690, r: 26 }, { x: 1200, y: 90, r: 30 }, { x: 700, y: 80, r: 24 },
+                { x: 1190, y: 715, r: 28 }, { x: 560, y: 740, r: 18 } ],
+    props:    [ { kind: 'goal', x: 470, y: 400, w: 14, h: 84 }, { kind: 'goal', x: 1096, y: 400, w: 14, h: 84, flip: true },
+                { kind: 'bench', x: 820, y: 210, w: 60, h: 14 }, { kind: 'bench', x: 900, y: 210, w: 60, h: 14 } ],
+    start:    { x: 250, y: 767, angle: -Math.PI / 2 } }
 ];
 let YARD = YARDS[0];
 const bestKey = () => YARD.id === 'peterson' ? 'lmg3d_yard1_best' : 'lmg3d_best_' + YARD.id;
 
 // ---- Mowers you can own ----
-//  Modelled on real walk-behind mowers. deck = cutting width in inches, speed = walking speed,
-//  tank = liters of gas, burn = liters per second at full throttle, wear = how much each job wears it out.
-//  (20 inches of cutting width = 32 units in the game.)
+//  Modelled on real mowers. deck = cutting width in inches, speed/reverse = units per second,
+//  turn = how fast it turns, body = how big it is for bumping into things, tank = liters of gas,
+//  burn = liters per second at full throttle, wear = how much each job wears it out,
+//  cam = how far back the camera sits. (20 inches of cutting width = 32 units in the game.)
+//  type: walk = walk-behind, tractor = riding lawn tractor, standon = stand-on, zt = zero-turn rider
 const MOWERS = [
-  { id: 'old',    name: 'Dad\'s old 20" push mower', like: 'a tired old side-discharge push mower from the garage',
-    price: 0,   deck: 20, speed: 120, tank: 0.9, burn: 0.006,  wear: 12, color: 0xb5523f },
-  { id: 'used21', name: 'Used 21" self-propelled',  like: 'a second-hand 21-inch self-propelled mower — it pulls itself along',
-    price: 120, deck: 21, speed: 128, tank: 1.0, burn: 0.006,  wear: 10, color: 0x3d8b37 },
-  { id: 'new22',  name: 'New 22" self-propelled',   like: 'a brand-new 22-inch self-propelled mower with a variable-speed drive',
-    price: 300, deck: 22, speed: 138, tank: 1.1, burn: 0.0055, wear: 6,  color: 0xe0301e },
-  { id: 'wide30', name: '30" wide-area mower',      like: 'a 30-inch wide-cut walk-behind, the kind small lawn crews use',
-    price: 700, deck: 30, speed: 132, tank: 2.0, burn: 0.009,  wear: 5,  color: 0x7a7f87 }
+  { id: 'walk30', type: 'walk', name: 'Dad\'s 30" wide-area mower', price: 0,
+    like: 'a heavy 30-inch walk-behind from the garage — a wide cut, but you still walk',
+    deck: 30, speed: 125, reverse: 60, turn: 3.0, body: 20, tank: 1.4, burn: 0.0075, wear: 12, color: 0xb5523f, cam: 1.0 },
+  { id: 'walk36', type: 'walk', name: '36" commercial walk-behind', price: 450,
+    like: 'the hydro-drive walk-behind lawn crews use — faster, and built to work every day',
+    deck: 36, speed: 140, reverse: 70, turn: 2.9, body: 24, tank: 2.5, burn: 0.011, wear: 8, color: 0x3d8b37, cam: 1.06 },
+  { id: 'tractor42', type: 'tractor', name: '42" riding lawn tractor', price: 1400,
+    like: 'sit down and steer with a wheel — fast, but it can only turn while it\'s rolling',
+    deck: 42, speed: 170, reverse: 80, turn: 1.9, body: 32, tank: 4, burn: 0.02, wear: 7, color: 0x2f7d32, cam: 1.15 },
+  { id: 'standon48', type: 'standon', name: '48" stand-on mower', price: 3200,
+    like: 'you ride standing at the back — quick, nimble and great around trees',
+    deck: 48, speed: 180, reverse: 90, turn: 3.3, body: 36, tank: 6, burn: 0.03, wear: 6, color: 0xe36a1e, cam: 1.2 },
+  { id: 'zt54', type: 'zt', name: '54" zero-turn rider', price: 5500,
+    like: 'the pro\'s machine: each lever drives one back wheel, so it spins on the spot',
+    deck: 54, speed: 200, reverse: 100, turn: 4.2, body: 40, tank: 8, burn: 0.04, wear: 5, color: 0xd62828, cam: 1.26 }
 ];
-const BASE_MOWER = { speed: 120, deckRadius: 16 };   // medal times are set with this mower — better mowers make medals easier
+const mowerById = (id) => MOWERS.find(m => m.id === id) || MOWERS[0];
 
 // ---- Running the business ----
 const BIZ = {
@@ -361,7 +415,7 @@ const BIZ = {
   minPayFactor: 0.5,    // …down to half pay
   rainChance: 0.2,      // chance of a rainy day (no mowing)
   gasPrice: 1.70,       // dollars per liter
-  canSize: 5,           // liters in your gas can
+  canSize: 5,           // liters in your gas can (bigger machines come with a bigger can: 2½ tanks)
   tuneUp: 10,           // dollars to sharpen the blade, change the spark plug and clean the filter
   medalBonus: { gold: 6, silver: 4, bronze: 2, none: 0 },
   firstJobTip: 10,      // a new customer tips you extra the first time you mow for them
@@ -480,6 +534,7 @@ function obstacleHit(x, y, rad) {
   const rectHit = (r) => rad === 0 ? inRect(x, y, r) : circleHitsRect(x, y, rad, r);
   if (rectHit(YARD.house)) return true;
   for (const b of YARD.beds) if (rectHit(b)) return true;
+  for (const p of YARD.props || []) if (rectHit(p)) return true;
   for (const t of YARD.trees) if (Math.hypot(x - t.x, y - t.y) < t.r + rad) return true;
   return false;
 }
@@ -506,16 +561,30 @@ const canvas2d = (w, h) => { const c = document.createElement('canvas'); c.width
 // =====================================================================
 //  GRASS PICTURES (drawn with the browser's canvas, like the 2D version)
 // =====================================================================
+// draw something at (x, y), and again on the other side of the tile if it pokes over an edge,
+// so the picture repeats without visible seams
+function wrapped(x, y, r, draw) {
+  for (const dx of [-TILE_W, 0, TILE_W]) for (const dy of [-TILE_H, 0, TILE_H]) {
+    const px = x + dx, py = y + dy;
+    if (px + r > 0 && px - r < TILE_W && py + r > 0 && py - r < TILE_H) draw(px, py);
+  }
+}
+function softBlob(ctx, x, y, r, rgba0, rgba1) {
+  wrapped(x, y, r, (px, py) => {
+    const g = ctx.createRadialGradient(px, py, 0, px, py, r);
+    g.addColorStop(0, rgba0); g.addColorStop(1, rgba1);
+    ctx.fillStyle = g; ctx.fillRect(px - r, py - r, r * 2, r * 2);
+  });
+}
 function makeUncutGrass(S) {
+  const YARD_W = TILE_W, YARD_H = TILE_H;
   const rnd = seeded(11), c = canvas2d(YARD_W * S, YARD_H * S), ctx = c.getContext('2d');
   ctx.scale(S, S);
   ctx.fillStyle = '#3a7228'; ctx.fillRect(0, 0, YARD_W, YARD_H);
   for (let i = 0; i < 45; i++) {
     const x = rnd.range(0, YARD_W), y = rnd.range(0, YARD_H), r = rnd.range(30, 95);
     const col = rnd.pick(['74,134,48', '44,98,30', '88,142,52', '58,110,36']);
-    const g = ctx.createRadialGradient(x, y, 0, x, y, r);
-    g.addColorStop(0, `rgba(${col},0.55)`); g.addColorStop(1, `rgba(${col},0)`);
-    ctx.fillStyle = g; ctx.fillRect(x - r, y - r, r * 2, r * 2);
+    softBlob(ctx, x, y, r, `rgba(${col},0.55)`, `rgba(${col},0)`);
   }
   ctx.lineCap = 'round';
   for (const color of ['#2b5c1d', '#336b22', '#3f7d2b', '#4c8c33', '#5a9a3b', '#284f1a']) {
@@ -535,18 +604,16 @@ function makeUncutGrass(S) {
 }
 
 function makeCutLawn(S, seed, base, sheen, grains, clips) {
+  const YARD_W = TILE_W, YARD_H = TILE_H;
   const rnd = seeded(seed), c = canvas2d(YARD_W * S, YARD_H * S), ctx = c.getContext('2d');
   ctx.scale(S, S);
   ctx.fillStyle = base; ctx.fillRect(0, 0, YARD_W, YARD_H);
-  const lg = ctx.createLinearGradient(0, 0, YARD_W, YARD_H);
-  lg.addColorStop(0, sheen + '0.16)'); lg.addColorStop(0.5, sheen + '0)'); lg.addColorStop(1, sheen + '0.10)');
-  ctx.fillStyle = lg; ctx.fillRect(0, 0, YARD_W, YARD_H);
+  // a few big soft patches of sheen (instead of one gradient across the whole tile, which would show a seam)
+  for (let i = 0; i < 8; i++) softBlob(ctx, rnd.range(0, YARD_W), rnd.range(0, YARD_H), rnd.range(120, 220), sheen + '0.12)', sheen + '0)');
   for (let i = 0; i < 60; i++) {
     const x = rnd.range(0, YARD_W), y = rnd.range(0, YARD_H), r = rnd.range(20, 70);
     const col = rnd.pick(['255,255,220', '20,60,10']);
-    const g = ctx.createRadialGradient(x, y, 0, x, y, r);
-    g.addColorStop(0, `rgba(${col},0.07)`); g.addColorStop(1, `rgba(${col},0)`);
-    ctx.fillStyle = g; ctx.fillRect(x - r, y - r, r * 2, r * 2);
+    softBlob(ctx, x, y, r, `rgba(${col},0.07)`, `rgba(${col},0)`);
   }
   ctx.lineCap = 'round';
   for (const [color, n, w] of grains) {
@@ -679,7 +746,7 @@ function stripeTex(w, h, base, lines, vertical, rnd, repeat) {
 //  long grass, light stripes and dark stripes using a cut "mask"
 // =====================================================================
 const uncutCanvas = makeUncutGrass(TEX);
-const uncutTex = texFrom(uncutCanvas);
+const uncutTex = texFrom(uncutCanvas, [1, 1]);   // (RepeatWrapping; the shader does the tiling)
 uncutTex.wrapS = uncutTex.wrapT = THREE.RepeatWrapping;   // so we can also use it as a noise pattern
 const cutLightTex = texFrom(makeCutLawn(TEX, 21, '#8fcf60', 'rgba(255,255,210,',
   [['#a0db70', 9000, 0.8], ['#7fbd52', 9000, 0.8], ['#b0e483', 6000, 0.7], ['#72ad48', 5000, 0.7], ['#c2ec97', 2500, 0.6]],
@@ -690,29 +757,41 @@ const cutDarkTex = texFrom(makeCutLawn(TEX, 22, '#4f9433', 'rgba(220,255,200,',
 
 // The mask: one pixel per 2×2 units. Red = how cut, green = light/dark stripe, blue = ghost's path,
 // alpha = how many grass clippings are lying there.
-const MW = YARD_W / 2, MH = YARD_H / 2;
-const maskData = new Uint8Array(MW * MH * 4);
-const maskTex = new THREE.DataTexture(maskData, MW, MH);
-maskTex.magFilter = maskTex.minFilter = THREE.LinearFilter;
-maskTex.needsUpdate = true;
+for (const t of [cutLightTex, cutDarkTex]) t.wrapS = t.wrapT = THREE.RepeatWrapping;
+let MW = YARD_W / 2, MH = YARD_H / 2, maskData, maskTex;
+const maskU = { value: null };            // shared by the lawn and the grass blades
+const shadowOffU = { value: new THREE.Vector2() };
+// make a fresh mask the size of the current yard
+function makeMask() {
+  if (maskTex) maskTex.dispose();
+  MW = YARD_W / 2; MH = YARD_H / 2;
+  maskData = new Uint8Array(MW * MH * 4);
+  maskTex = new THREE.DataTexture(maskData, MW, MH);
+  maskTex.magFilter = maskTex.minFilter = THREE.LinearFilter;
+  maskTex.needsUpdate = true;
+  maskU.value = maskTex;
+  shadowOffU.value.set(-2.5 / YARD_W, -3 / YARD_H);   // toward the sun
+}
+makeMask();
 const ghostOn = { value: 1 };
 
 const groundMat = new THREE.MeshStandardMaterial({ map: uncutTex, roughness: 1, metalness: 0, envMapIntensity: ENV });
 groundMat.onBeforeCompile = (sh) => {
   Object.assign(sh.uniforms, {
-    cutLight: { value: cutLightTex }, cutDark: { value: cutDarkTex }, mask: { value: maskTex }, ghostOn,
-    shadowOff: { value: new THREE.Vector2(-2.5 / YARD_W, -3 / YARD_H) }   // toward the sun
+    cutLight: { value: cutLightTex }, cutDark: { value: cutDarkTex }, mask: maskU, ghostOn,
+    shadowOff: shadowOffU, yardSize: yardSizeU, tileRep: tileRepU
   });
   sh.fragmentShader = sh.fragmentShader
     .replace('#include <map_pars_fragment>', `#include <map_pars_fragment>
       uniform sampler2D cutLight; uniform sampler2D cutDark; uniform sampler2D mask;
-      uniform float ghostOn; uniform vec2 shadowOff;`)
+      uniform float ghostOn; uniform vec2 shadowOff; uniform vec2 yardSize; uniform vec2 tileRep;`)
     .replace('#include <map_fragment>', `
-      vec4 unc = texture2D(map, vMapUv);
-      vec3 cl = texture2D(cutLight, vMapUv).rgb;
-      vec3 cd = texture2D(cutDark, vMapUv).rgb;
-      vec4 mk = texture2D(mask, vMapUv);
-      float n = texture2D(map, vMapUv * 9.0).g;                 // a bit of noise for tufty edges
+      vec2 tuv = vMapUv * tileRep;                               // the lawn pictures repeat across big yards
+      vec4 unc = texture2D(map, tuv);
+      vec3 cl = texture2D(cutLight, tuv).rgb;
+      vec3 cd = texture2D(cutDark, tuv).rgb;
+      vec4 mk = texture2D(mask, vMapUv);                         // the mask covers the whole yard once
+      float n = texture2D(map, tuv * 9.0).g;                     // a bit of noise for tufty edges
       float cut = smoothstep(0.42, 0.58, mk.r + (n - 0.45) * 0.3);
       vec3 cutCol = mix(cd, cl, smoothstep(0.35, 0.65, mk.g));
       float upwind = texture2D(mask, vMapUv + shadowOff).r;      // long grass next to us casts a shadow
@@ -721,7 +800,7 @@ groundMat.onBeforeCompile = (sh) => {
       vec3 g = mix(unc.rgb, cutCol, cut);
       g = mix(g, vec3(0.29, 0.66, 1.0), mk.b * 0.33 * ghostOn);
       // clippings: little scattered bits of fresh-cut grass. More clippings = more bits.
-      vec2 cc = floor(vMapUv * vec2(${YARD_W}.0, ${YARD_H}.0) * 1.3);      // tiny cells, about 0.8 units each
+      vec2 cc = floor(vMapUv * yardSize * 1.3);                   // tiny cells, about 0.8 units each
       float h1 = fract(sin(dot(cc, vec2(12.9898, 78.233))) * 43758.5453);
       float h2 = fract(sin(dot(cc, vec2(39.3468, 11.135))) * 24634.6345);
       float pile = clamp(mk.a / 0.4, 0.0, 1.0);
@@ -732,13 +811,16 @@ groundMat.onBeforeCompile = (sh) => {
       diffuseColor.rgb *= g;
     `);
 };
-{
-  const geo = new THREE.PlaneGeometry(YARD_W, YARD_H);
-  geo.rotateX(-Math.PI / 2);
-  const ground = new THREE.Mesh(geo, groundMat);
+const ground = new THREE.Mesh(new THREE.PlaneGeometry(1, 1), groundMat);
+ground.rotation.x = -Math.PI / 2;
+ground.receiveShadow = true;
+scene.add(ground);
+// stretch the lawn to the yard's size
+function sizeGround() {
+  ground.scale.set(YARD_W, YARD_H, 1);
   ground.position.set(YARD_W / 2, 0, YARD_H / 2);
-  ground.receiveShadow = true;
-  scene.add(ground);
+  yardSizeU.value.set(YARD_W, YARD_H);
+  tileRepU.value.set(YARD_W / TILE_W, YARD_H / TILE_H);
 }
 
 function stampMask(x, y, light, ghost) {
@@ -797,15 +879,16 @@ function buildGrass(cells) {
 
   const gm = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 1, metalness: 0, side: THREE.DoubleSide, envMapIntensity: ENV });
   gm.onBeforeCompile = (sh) => {
-    sh.uniforms.grassMask = { value: maskTex };
+    sh.uniforms.grassMask = maskU;
+    sh.uniforms.yardSize = yardSizeU;
     sh.uniforms.time = timeU;
     sh.uniforms.grassLen = grassLen;
     sh.vertexShader = sh.vertexShader
       .replace('#include <common>', `#include <common>
-        uniform sampler2D grassMask; uniform float time; uniform float grassLen; varying float vCut; varying float vLight;`)
+        uniform sampler2D grassMask; uniform vec2 yardSize; uniform float time; uniform float grassLen; varying float vCut; varying float vLight;`)
       .replace('#include <begin_vertex>', `#include <begin_vertex>
         vec4 tuftW = instanceMatrix * vec4(0.0, 0.0, 0.0, 1.0);
-        vec4 mk = texture2D(grassMask, vec2(tuftW.x / ${YARD_W}.0, 1.0 - tuftW.z / ${YARD_H}.0));
+        vec4 mk = texture2D(grassMask, vec2(tuftW.x / yardSize.x, 1.0 - tuftW.z / yardSize.y));
         vCut = smoothstep(0.35, 0.75, mk.r);
         vLight = mk.g;
         float hgt = position.y / 8.0;
@@ -976,13 +1059,36 @@ function buildTree(x, z, r, rnd, mulch, fade, parent = scene) {
   parent.add(g);
   if (fade) fadeables.push({ group: g, mats: [leaf], box: new THREE.Box3().setFromObject(g) });
 }
-{
-  // neighborhood trees outside the fence (the same for every yard)
+// The neighborhood around the yard (street, sidewalk, neighbors' houses, trees) is rebuilt
+// for each yard, because yards come in different sizes.
+const hoodGroup = new THREE.Group();
+scene.add(hoodGroup);
+function buildHood() {
+  const W = YARD_W, H = YARD_H, P = hoodGroup;
+  // trees outside the fence: spread along the sides and the back, wherever the yard ends
   const rnd = seeded(5);
-  const spots = [[-70, 60, 30], [-90, 300, 34], [-60, 420, 24], [720, 40, 32], [700, 250, 26], [740, 400, 36],
-                 [150, -80, 30], [420, -90, 36], [600, -70, 26], [-160, -120, 40], [860, -60, 38],
-                 [60, 700, 34], [380, 720, 30], [640, 690, 40]];
-  for (const [x, z, r] of spots) buildTree(x, z, r, rnd, false, false);
+  const spots = [[-70, 60, 30], [-90, H * 0.67, 34], [-60, H - 28, 24], [W + 80, 40, 32], [W + 60, H * 0.56, 26], [W + 100, H - 48, 36],
+                 [W * 0.23, -80, 30], [W * 0.66, -90, 36], [W * 0.94, -70, 26], [-160, -120, 40], [W + 220, -60, 38],
+                 [60, H + 252, 34], [W * 0.6, H + 272, 30], [W, H + 242, 40]];
+  for (let x = W * 0.4; x < W * 0.9 && W > 700; x += 260) spots.push([x, -85 - rnd() * 20, 30 + rnd() * 8]);
+  for (const [x, z, r] of spots) buildTree(x, z, r, rnd, false, false, P);
+  const flat = (w, d, color, x, y, z) => {
+    const p = new THREE.PlaneGeometry(w, d); p.rotateX(-Math.PI / 2);
+    const m = new THREE.Mesh(p, mat(color)); m.position.set(x, y, z); m.receiveShadow = true; P.add(m); return m;
+  };
+  flat(6000, 34, 0xcdc9bf, W / 2, 0.3, H + 21);        // sidewalk
+  addMesh(new THREE.BoxGeometry(6000, 4, 4), mat(0xb5b1a7), W / 2, 1.5, H + 40, P, false);   // curb
+  flat(6000, 110, 0x4a4d52, W / 2, 0.2, H + 97);       // street
+  for (let x = -2600; x < 3200 + W; x += 60) flat(30, 3, 0xf2d05c, x, 0.35, H + 97);   // center line
+  buildHouse({ x: -330, y: 40, w: 230, h: 160 }, { parent: P, wall: 0xd9e7f2, roof: '#5f6f86', windows: [[60, 's'], [170, 's'], [60, 'e'], [120, 'e']] });
+  buildHouse({ x: W + 150, y: 60, w: 210, h: 150 }, { parent: P, wall: 0xf6d9c2, roof: '#7a5240', windows: [[50, 's'], [150, 's'], [50, 'w'], [110, 'w']] });
+  // the sun's shadows have to cover the whole yard
+  const k = Math.max(W / 640, H / 448);
+  sun.position.set(W / 2 - 380 * k, 720 * k, H / 2 + 460 * k);
+  sun.target.position.set(W / 2, 0, H / 2);
+  Object.assign(sun.shadow.camera, { left: -560 * k, right: 560 * k, top: 560 * k, bottom: -560 * k, near: 100, far: 2200 * k });
+  sun.shadow.camera.updateProjectionMatrix();
+  scene.fog.near = 900 * k; scene.fog.far = 2600 * k;
 }
 
 // Flower beds: stone edging, mulch, little plants with flowers
@@ -1053,6 +1159,41 @@ function buildFence() {
   post(R, F); post(F, B); post(R, B); post(d.x, B); post(d.x + d.w, B);
 }
 
+// Extra things in some yards: a garden shed, a church steeple, park benches, soccer goals
+function buildProps() {
+  const P = yardGroup, white = mat(0xf4f4f0, { roughness: 0.5 }), wood = mat(0x9a6b3f), iron = mat(0x2d3033, { roughness: 0.5, metalness: 0.4 });
+  for (const p of YARD.props || []) {
+    const cx = p.x + p.w / 2, cz = p.y + p.h / 2, along = p.w >= p.h;
+    if (p.kind === 'shed') {
+      fadeables.push(buildHouse(p, { parent: P, wall: p.wall, roof: p.roof, wallH: 60, door: p.w / 2, windows: [[22, 'e']] }));
+    } else if (p.kind === 'steeple') {
+      const g = new THREE.Group(), stone = mat(0xe2ddd0), slate = mat(0x41464f, { roughness: 0.7 });
+      addMesh(new THREE.BoxGeometry(p.w, 170, p.h), stone, cx, 85, cz, g);
+      addMesh(new THREE.ConeGeometry(p.w * 0.75, 110, 4), slate, cx, 225, cz, g).rotation.y = Math.PI / 4;
+      addMesh(new THREE.BoxGeometry(3, 26, 3), white, cx, 292, cz, g);
+      addMesh(new THREE.BoxGeometry(14, 3, 3), white, cx, 296, cz, g);
+      for (const [dx, dz] of [[0, p.h / 2 + 0.5], [p.w / 2 + 0.5, 0]]) addMesh(new THREE.BoxGeometry(dz ? 18 : 2, 30, dz ? 2 : 18), mat(0x5d7ea8), cx + dx, 130, cz + dz, g);
+      P.add(g);
+      fadeables.push({ group: g, mats: [stone, slate], box: new THREE.Box3().setFromObject(g) });
+    } else if (p.kind === 'bench') {
+      const L = along ? p.w : p.h, g = new THREE.Group();
+      for (const y of [13, 15.5]) addMesh(new RoundedBoxGeometry(L, 2, 4, 1, 0.8), wood, 0, y, y === 13 ? -2.5 : 2.5, g);   // seat slats
+      addMesh(new RoundedBoxGeometry(L, 6, 2, 1, 0.8), wood, 0, 24, -6, g);                                                // backrest
+      for (const x of [-L / 2 + 4, L / 2 - 4]) addMesh(new THREE.BoxGeometry(2.5, 24, 12), iron, x, 12, -1, g);             // legs
+      g.position.set(cx, 0, cz); g.rotation.y = along ? 0 : Math.PI / 2;
+      P.add(g);
+    } else if (p.kind === 'goal') {
+      // a soccer goal: two posts and a crossbar on the field side, and a net behind
+      const g = new THREE.Group(), H = 48, W = p.h, D = p.w, net = new THREE.MeshStandardMaterial({ color: 0xffffff, transparent: true, opacity: 0.35, side: THREE.DoubleSide });
+      for (const z of [-W / 2, W / 2]) { barC([0, 0, z], [0, H, z], 1.8, white, g); barC([D, 0, z], [D, H * 0.7, z], 1.2, white, g); barC([0, H, z], [D, H * 0.7, z], 1.2, white, g); }
+      barC([0, H, -W / 2], [0, H, W / 2], 1.8, white, g);
+      addMesh(new THREE.PlaneGeometry(W, H * 0.75), net, D, H * 0.35, 0, g, false).rotation.y = Math.PI / 2;
+      g.position.set(p.flip ? p.x : p.x + p.w, 0, cz); g.rotation.y = p.flip ? 0 : Math.PI;
+      P.add(g);
+    }
+  }
+}
+
 // The neighborhood: grass all around, a sidewalk and a street, two neighbor houses
 {
   const rnd = seeded(7), c = canvas2d(256, 256), ctx = c.getContext('2d');
@@ -1066,38 +1207,42 @@ function buildFence() {
   g.position.set(320, -0.3, 224);
   g.receiveShadow = true;
   scene.add(g);
-
-  const flat = (w, d, color, x, y, z) => {
-    const p = new THREE.PlaneGeometry(w, d); p.rotateX(-Math.PI / 2);
-    const m = new THREE.Mesh(p, mat(color)); m.position.set(x, y, z); m.receiveShadow = true; scene.add(m); return m;
-  };
-  flat(6000, 34, 0xcdc9bf, 320, 0.3, 469);        // sidewalk
-  addMesh(new THREE.BoxGeometry(6000, 4, 4), mat(0xb5b1a7), 320, 1.5, 488, scene, false);   // curb
-  flat(6000, 110, 0x4a4d52, 320, 0.2, 545);       // street
-  for (let x = -2600; x < 3200; x += 60) flat(30, 3, 0xf2d05c, x, 0.35, 545);   // center line
-
-  buildHouse({ x: -330, y: 40, w: 230, h: 160 }, { wall: 0xd9e7f2, roof: '#5f6f86', windows: [[60, 's'], [170, 's'], [60, 'e'], [120, 'e']] });
-  buildHouse({ x: 790, y: 60, w: 210, h: 150 }, { wall: 0xf6d9c2, roof: '#7a5240', windows: [[50, 's'], [150, 's'], [50, 'w'], [110, 'w']] });
 }
 
 // =====================================================================
 //  THE MOWER AND THE WORKER (built facing +x)
 // =====================================================================
-function buildMower(ghost) {
+// type: 'walk' (walk-behind), 'tractor' (riding lawn tractor), 'standon' (stand-on), 'zt' (zero-turn rider)
+// parent: where to put it (the game scene, or the little scene that takes the clipboard pictures)
+function buildMower(ghost, type = 'walk', parent = scene) {
   const g = new THREE.Group();
   const ghostMat = new THREE.MeshBasicMaterial({ color: 0x8fcaff, transparent: true, opacity: 0.4, depthWrite: false });
   const M = ghost ? () => ghostMat : (c, e) => mat(c, e);
-  // two parts: the mower (mg — it vibrates, and gets wider with a bigger deck) and the worker (wg — he bobs as he walks)
+  // two parts: the machine (mg — it vibrates, and walk-behinds get wider with a bigger deck) and the worker (wg)
   const mg = new THREE.Group(), wg = new THREE.Group();
   g.add(mg, wg);
   let part = mg;
   const add = (geo, m, x, y, z) => addMesh(geo, m, x, y, z, part, !ghost);
   const sh = !ghost;
-
-  // ---- the mower ----
-  const red = M(0xd8342a, { roughness: 0.4 }), darkRed = M(0x9e281e, { roughness: 0.6 }), engine = M(0x2a2a2a, { roughness: 0.45 });
-  const metal = M(0xc4c8ce, { roughness: 0.35, metalness: 0.25 }), black = M(0x151515, { roughness: 0.9 });
+  const black = M(0x151515, { roughness: 0.9 }), metal = M(0xc4c8ce, { roughness: 0.35, metalness: 0.25 });
   const hub = M(0xdedede, { roughness: 0.35, metalness: 0.4 }), yellow = M(0xf2c230, { roughness: 0.5 });
+  const engine = M(0x2a2a2a, { roughness: 0.45 }), deckM = M(0x3a3d42, { roughness: 0.55, metalness: 0.2 });
+  // a wheel: tire + hub, axle along z
+  const wheel = (x, y, z, r, w) => {
+    const t = add(new THREE.CylinderGeometry(r, r, w, 28), black, x, y, z); t.rotation.x = Math.PI / 2;
+    const h = add(new THREE.CylinderGeometry(r * 0.55, r * 0.55, w + 0.6, 20), hub, x, y, z); h.rotation.x = Math.PI / 2;
+  };
+  // a flat cutting deck under a riding mower, R = half the cutting width
+  const ridingDeck = (x, R, len) => {
+    add(new RoundedBoxGeometry(len, 6, R * 2, 3, 2.5), deckM, x, 7, 0);
+    add(new RoundedBoxGeometry(12, 5, 9, 2, 1.8), deckM, x, 6.5, R + 3);                    // side chute
+    for (const z of [-R + 4, R - 4]) wheel(x + len / 2 - 3, 3, z, 2.6, 2.4);              // little anti-scalp rollers
+  };
+  let pose;
+
+  if (type === 'walk') {
+  // ---- the mower ----
+  var red = M(0xd8342a, { roughness: 0.4 }), darkRed = M(0x9e281e, { roughness: 0.6 });
   add(new THREE.CylinderGeometry(15.5, 16, 5, 48), red, 0, 6.5, 0);                         // deck
   add(new THREE.SphereGeometry(15.5, 48, 12, 0, Math.PI * 2, 0, Math.PI / 2), red, 0, 9, 0).scale.y = 0.28;   // domed top
   add(new THREE.TorusGeometry(15.9, 1.3, 10, 48), darkRed, 0, 4.3, 0).rotation.x = Math.PI / 2;               // rim
@@ -1114,46 +1259,123 @@ function buildMower(ghost) {
   barC([-12, 9, -9.5], [-34, 44, -10.5], 1.1, metal, mg, sh);                               // handle
   barC([-12, 9, 9.5], [-34, 44, 10.5], 1.1, metal, mg, sh);
   barC([-34, 44, -12], [-34, 44, 12], 1.9, black, mg, sh);                                   // grip
+    pose = { legs: 'walk', hip: [-47, 34], hands: [-34.5, 44, 9], lean: -0.12 };
+  } else if (type === 'tractor') {
+    // ---- riding lawn tractor: steering wheel, hood in front, seat over the back wheels ----
+    var red = M(0x2f7d32, { roughness: 0.4 }), darkRed = M(0x1f5a22, { roughness: 0.6 });
+    ridingDeck(2, 33.6, 52);
+    wheel(-30, 13, -25, 13, 9); wheel(-30, 13, 25, 13, 9);                                   // big back wheels
+    wheel(36, 8, -19, 8, 6); wheel(36, 8, 19, 8, 6);                                         // front wheels
+    add(new RoundedBoxGeometry(92, 7, 26, 2, 2), darkRed, 2, 17, 0);                         // frame
+    add(new RoundedBoxGeometry(42, 19, 30, 4, 6), red, 33, 28, 0);                           // hood
+    add(new RoundedBoxGeometry(3, 13, 22, 2, 1.2), black, 54.5, 26, 0);                      // grille
+    for (const z of [-9, 9]) add(new THREE.SphereGeometry(2.2, 12, 8), yellow, 55, 31, z);   // headlights
+    add(new RoundedBoxGeometry(40, 9, 56, 3, 3.5), red, -30, 25, 0);                         // rear body and fenders
+    add(new RoundedBoxGeometry(16, 4, 22, 2, 1.8), black, -24, 32, 0);                       // seat
+    add(new RoundedBoxGeometry(4, 15, 22, 2, 1.8), black, -32.5, 40, 0).rotation.z = 0.18;   // seat back
+    barC([12, 34, 0], [3, 46, 0], 1.4, black, mg, sh);                                       // steering column
+    const sw = add(new THREE.TorusGeometry(6, 1.1, 10, 28), black, 2.5, 47, 0);              // steering wheel
+    sw.rotation.y = Math.PI / 2; sw.rotation.x = 0; sw.rotation.z = 0.5;
+    add(new THREE.CylinderGeometry(1.8, 1.8, 2, 12), yellow, 14, 38, 8);                     // gas cap
+    pose = { legs: 'sit', hip: [-21, 38], knee: [-5, 40], foot: [3, 21], hands: [3.5, 46, 5], lean: 0.02 };
+  } else if (type === 'standon') {
+    // ---- stand-on mower: deck in front, engine in the middle, you stand on a platform at the back ----
+    var red = M(0xe36a1e, { roughness: 0.4 }), darkRed = M(0xa84a12, { roughness: 0.6 });
+    ridingDeck(6, 38.4, 58);
+    add(new RoundedBoxGeometry(56, 3, 76.8, 2, 1.4), red, 6, 10.5, 0);                       // painted deck top
+    for (const z of [-30, 30]) { wheel(40, 5, z, 5, 4); add(new THREE.CylinderGeometry(1, 1, 8, 8), metal, 40, 11, z); }   // casters
+    wheel(-34, 12, -27, 12, 8); wheel(-34, 12, 27, 12, 8);                                    // drive wheels
+    add(new RoundedBoxGeometry(34, 20, 38, 3, 4), red, -32, 24, 0);                          // body
+    add(new RoundedBoxGeometry(22, 9, 26, 3, 3), engine, -32, 38, 0);                        // engine
+    add(new RoundedBoxGeometry(18, 3, 30, 2, 1.2), black, -58, 9, 0);                        // standing platform
+    for (const z of [-10, 10]) {
+      barC([-44, 30, z], [-45, 53, z], 1.3, metal, mg, sh);                                  // control towers
+      barC([-45, 53, z], [-48, 54, z * 0.5], 1.6, black, mg, sh);                            // levers
+    }
+    pose = { legs: 'stand', hip: [-60, 42], hands: [-47, 53, 8], lean: 0.05 };
+  } else {
+    // ---- zero-turn rider: big back wheels, little front casters, two lap-bar levers ----
+    var red = M(0xd62828, { roughness: 0.4 }), darkRed = M(0x8e1717, { roughness: 0.6 });
+    ridingDeck(6, 43.2, 60);
+    add(new RoundedBoxGeometry(58, 3, 86.4, 2, 1.4), red, 6, 10.5, 0);                       // painted deck top
+    wheel(-30, 14, -33, 14, 10); wheel(-30, 14, 33, 14, 10);                                 // drive wheels
+    for (const z of [-27, 27]) { wheel(42, 6, z, 6, 5); barC([42, 6, z], [40, 22, z], 1.3, metal, mg, sh); }   // casters on forks
+    for (const z of [-15, 15]) barC([40, 22, z], [-44, 20, z], 1.8, darkRed, mg, sh);       // frame rails
+    add(new RoundedBoxGeometry(26, 4, 30, 2, 1.6), black, 20, 21, 0);                        // foot plate
+    add(new RoundedBoxGeometry(30, 10, 44, 3, 3), red, -30, 25, 0);                          // body over the wheels
+    add(new RoundedBoxGeometry(22, 22, 30, 3, 4), engine, -52, 33, 0);                       // engine at the back
+    add(new RoundedBoxGeometry(18, 5, 24, 2, 2), black, -24, 33, 0);                         // seat
+    add(new RoundedBoxGeometry(5, 24, 24, 2, 2), black, -34, 46, 0).rotation.z = 0.15;       // high seat back
+    for (const z of [-16, 16]) {
+      barC([-20, 30, z], [-7, 45, z], 1.4, metal, mg, sh);                                   // lap bars
+      barC([-7, 45, z], [-7, 45, z * 0.4], 1.8, black, mg, sh);
+    }
+    pose = { legs: 'sit', hip: [-22, 39], knee: [-4, 41], foot: [10, 23], hands: [-7, 45, 9], lean: 0 };
+  }
   g.userData.paint = [red, darkRed];
+  g.userData.type = type;
 
   // ---- the worker ----
   part = wg;
   const skin = M(0xf0c08a, { roughness: 0.7 }), shirt = M(0xff7a3d, { roughness: 0.9 }), jeans = M(0x3a5590, { roughness: 0.95 });
   const capM = M(0x2f5fb3, { roughness: 0.8 }), shoe = M(0x4a3426, { roughness: 0.8 }), hair = M(0x5a3a22, { roughness: 0.9 });
-  const legs = [];
+  const [hx, hy] = pose.hip, legs = [];
   for (const z of [-4.6, 4.6]) {
-    const hip = new THREE.Group(); hip.position.set(-47, 34, z); wg.add(hip);
-    addMesh(new THREE.CapsuleGeometry(3.6, 24, 6, 14), jeans, 0, -14, 0, hip, sh);
-    const foot = addMesh(new THREE.CapsuleGeometry(3, 5, 6, 12), shoe, 2.5, -30, 0, hip, sh);
-    foot.rotation.z = Math.PI / 2;
-    legs.push(hip);
+    if (pose.legs === 'sit') {
+      barC([hx, hy, z], [pose.knee[0], pose.knee[1], z], 3.7, jeans, wg, sh);              // thigh
+      barC([pose.knee[0], pose.knee[1], z], [pose.foot[0], pose.foot[1] + 3, z], 3.4, jeans, wg, sh);   // shin
+      add(new THREE.CapsuleGeometry(3, 5, 6, 12), shoe, pose.foot[0] + 2.5, pose.foot[1], z).rotation.z = Math.PI / 2;
+    } else {
+      const hip = new THREE.Group(); hip.position.set(hx, hy, z); wg.add(hip);
+      addMesh(new THREE.CapsuleGeometry(3.6, 24, 6, 14), jeans, 0, -14, 0, hip, sh);
+      const foot = addMesh(new THREE.CapsuleGeometry(3, 5, 6, 12), shoe, 2.5, -30, 0, hip, sh);
+      foot.rotation.z = Math.PI / 2;
+      legs.push(hip);
+    }
   }
-  add(new THREE.SphereGeometry(8, 24, 16), jeans, -47, 35, 0).scale.set(0.72, 0.6, 1.08);   // hips
-  const torso = add(new THREE.CapsuleGeometry(8, 11, 8, 20), shirt, -46, 49, 0);
+  add(new THREE.SphereGeometry(8, 24, 16), jeans, hx, hy + 1, 0).scale.set(0.72, 0.6, 1.08);   // hips
+  const torso = add(new THREE.CapsuleGeometry(8, 11, 8, 20), shirt, hx + 1, hy + 15, 0);
   torso.scale.set(0.72, 1, 1.12);
-  torso.rotation.z = -0.12;
-  add(new THREE.CylinderGeometry(2.6, 3, 5, 14), skin, -45, 61.5, 0);                        // neck
-  add(new THREE.SphereGeometry(6.8, 32, 24), skin, -45, 68.5, 0);                            // head
-  for (const z of [-6.5, 6.5]) add(new THREE.SphereGeometry(1.6, 12, 10), skin, -45.5, 68.5, z);   // ears
-  add(new THREE.SphereGeometry(6.95, 32, 16, 0, Math.PI * 2, Math.PI * 0.42, Math.PI * 0.2), hair, -45.3, 68.5, 0);
-  add(new THREE.SphereGeometry(7.3, 32, 16, 0, Math.PI * 2, 0, Math.PI / 2), capM, -45, 70, 0);          // cap
-  add(new THREE.CylinderGeometry(6.8, 6.8, 1, 28, 1, false, 0, Math.PI), capM, -44.5, 70.3, 0);  // brim (half circle, forward)
-  for (const z of [-10, 10]) {
-    const s = Math.sign(z);
-    barC([-45, 57, z], [-41.5, 49.5, z + s * 1.2], 2.9, shirt, wg, sh);                      // upper arm (sleeve)
-    barC([-41.5, 49.5, z + s * 1.2], [-35.5, 44.5, z - s * 0.5], 2.2, skin, wg, sh);        // forearm
-    add(new THREE.SphereGeometry(2.6, 16, 12), skin, -34.5, 44, z - s * 1);                  // hand
+  torso.rotation.z = pose.lean;
+  add(new THREE.CylinderGeometry(2.6, 3, 5, 14), skin, hx + 2, hy + 27.5, 0);                // neck
+  add(new THREE.SphereGeometry(6.8, 32, 24), skin, hx + 2, hy + 34.5, 0);                    // head
+  for (const z of [-6.5, 6.5]) add(new THREE.SphereGeometry(1.6, 12, 10), skin, hx + 1.5, hy + 34.5, z);   // ears
+  add(new THREE.SphereGeometry(6.95, 32, 16, 0, Math.PI * 2, Math.PI * 0.42, Math.PI * 0.2), hair, hx + 1.7, hy + 34.5, 0);
+  add(new THREE.SphereGeometry(7.3, 32, 16, 0, Math.PI * 2, 0, Math.PI / 2), capM, hx + 2, hy + 36, 0);          // cap
+  add(new THREE.CylinderGeometry(6.8, 6.8, 1, 28, 1, false, 0, Math.PI), capM, hx + 2.5, hy + 36.3, 0);  // brim (half circle, forward)
+  const [ax, ay, az] = pose.hands;
+  for (const s of [-1, 1]) {
+    const sx = hx + 2, sy = hy + 23, sz = s * 10;                                            // shoulder
+    const ex = (sx + ax) / 2 - 1, ey = (sy + ay) / 2 - 5, ez = (sz + s * az) / 2 + s * 1.5;  // elbow, a bit down and out
+    barC([sx, sy, sz], [ex, ey, ez], 2.9, shirt, wg, sh);                                    // upper arm (sleeve)
+    barC([ex, ey, ez], [ax, ay, s * az], 2.2, skin, wg, sh);                                 // forearm
+    add(new THREE.SphereGeometry(2.6, 16, 12), skin, ax, ay, s * az);                        // hand
   }
   g.userData.legs = legs;
   g.userData.mower = mg;
   g.userData.worker = wg;
   if (ghost) g.traverse(o => { o.castShadow = false; o.receiveShadow = false; });
-  scene.add(g);
+  parent.add(g);
   return g;
 }
-const mowerMesh = buildMower(false);
-const ghostMesh = buildMower(true);
+function disposeModel(obj) {
+  obj.parent && obj.parent.remove(obj);
+  obj.traverse(o => { if (o.geometry) o.geometry.dispose(); if (o.material) [].concat(o.material).forEach(m => m.dispose()); });
+}
+let mowerMesh = buildMower(false);
+let ghostMesh = buildMower(true);
 ghostMesh.visible = false;
+// swap the 3D model when you switch mowers (and the ghost to match)
+function setMowerModel(mw) {
+  if (mowerMesh.userData.type !== mw.type) {
+    const keep = { pos: mowerMesh.position.clone(), rot: mowerMesh.rotation.y, gv: ghostMesh.visible };
+    disposeModel(mowerMesh); disposeModel(ghostMesh);
+    mowerMesh = buildMower(false, mw.type);
+    ghostMesh = buildMower(true, mw.type);
+    mowerMesh.position.copy(keep.pos); mowerMesh.rotation.y = keep.rot; ghostMesh.visible = keep.gv;
+  }
+  styleMower(mw);
+}
 
 // Grass clippings: a pool of little blade pieces that spray out of the side chute,
 // tumble through the air, land on the lawn and lie there for a moment before fading.
@@ -1317,6 +1539,18 @@ const mini = document.getElementById('mini'), mctx = mini.getContext('2d');
 const miniLawn = canvas2d(YARD_W, YARD_H), mlctx = miniLawn.getContext('2d');
 const miniGhost = canvas2d(YARD_W, YARD_H), mgctx = miniGhost.getContext('2d');
 const miniStatic = canvas2d(YARD_W, YARD_H);
+let miniK = 1;   // bigger yards: draw the arrows and dots bigger so they're still easy to see
+const uncutMini = canvas2d(TILE_W, TILE_H);
+uncutMini.getContext('2d').drawImage(uncutCanvas, 0, 0, TILE_W, TILE_H);
+function sizeMini() {
+  for (const c of [mini, miniLawn, miniGhost, miniStatic]) { c.width = YARD_W; c.height = YARD_H; }
+  miniK = Math.max(YARD_W / 640, YARD_H / 448);
+}
+// paint the minimap lawn as all-uncut grass (the picture repeats like on the 3D lawn)
+function paintMiniUncut() {
+  mlctx.fillStyle = mlctx.createPattern(uncutMini, 'repeat');
+  mlctx.fillRect(0, 0, YARD_W, YARD_H);
+}
 // make a color lighter (f > 1) or darker (f < 1), for the roof on the minimap
 const shade = (hex, f) => '#' + new THREE.Color(hex).multiplyScalar(f).getHexString();
 function drawMiniStatic() {
@@ -1330,13 +1564,21 @@ function drawMiniStatic() {
       c.fillStyle = '#2f7024'; c.beginPath(); c.arc(b.x + 9 + rnd() * (b.w - 18), b.y + 9 + rnd() * (b.h - 18), 5, 0, 7); c.fill();
     }
   }
-  const h = YARD.house, x0 = h.x, x1 = h.x + h.w, y0 = h.y, y1 = h.y + h.h, cy = h.y + h.h / 2, i = h.h / 2;
   const poly = (col, pts) => { c.fillStyle = col; c.beginPath(); pts.forEach(([x, y], k) => k ? c.lineTo(x, y) : c.moveTo(x, y)); c.fill(); };
-  c.fillStyle = 'rgba(0,0,0,0.2)'; c.fillRect(x0 + 6, y0 + 7, h.w, h.h);
-  poly(roof, [[x0, y0], [x1, y0], [x1 - i, cy], [x0 + i, cy]]);
-  poly(shade(roof, 0.75), [[x0, y1], [x1, y1], [x1 - i, cy], [x0 + i, cy]]);
-  poly(shade(roof, 1.12), [[x0, y0], [x0, y1], [x0 + i, cy]]);
-  poly(shade(roof, 0.62), [[x1, y0], [x1, y1], [x1 - i, cy]]);
+  const drawRoof = (h, roof) => {
+    const x0 = h.x, x1 = h.x + h.w, y0 = h.y, y1 = h.y + h.h, cy = h.y + h.h / 2, i = Math.min(h.h, h.w) / 2;
+    c.fillStyle = 'rgba(0,0,0,0.2)'; c.fillRect(x0 + 6, y0 + 7, h.w, h.h);
+    poly(roof, [[x0, y0], [x1, y0], [x1 - i, cy], [x0 + i, cy]]);
+    poly(shade(roof, 0.75), [[x0, y1], [x1, y1], [x1 - i, cy], [x0 + i, cy]]);
+    poly(shade(roof, 1.12), [[x0, y0], [x0, y1], [x0 + i, cy]]);
+    poly(shade(roof, 0.62), [[x1, y0], [x1, y1], [x1 - i, cy]]);
+  };
+  drawRoof(YARD.house, roof);
+  for (const p of YARD.props || []) {
+    if (p.kind === 'shed') drawRoof(p, p.roof);
+    else if (p.kind === 'steeple') drawRoof(p, '#41464f');
+    else { c.fillStyle = p.kind === 'goal' ? '#f4f4f0' : '#9a6b3f'; c.fillRect(p.x, p.y, p.w, p.h); }
+  }
   for (const t of YARD.trees) {
     c.fillStyle = 'rgba(0,0,0,0.2)'; c.beginPath(); c.arc(t.x + 6, t.y + 7, t.r * 1.2, 0, 7); c.fill();
     c.fillStyle = '#2e6a20'; c.beginPath(); c.arc(t.x, t.y, t.r * 1.2, 0, 7); c.fill();
@@ -1351,17 +1593,17 @@ function drawMini() {
   mctx.drawImage(miniStatic, 0, 0);
   const m = G.mower;
   if (G.finished && G.trail.length > 1) {
-    mctx.strokeStyle = '#ffffff'; mctx.lineWidth = 3; mctx.lineJoin = 'round';
+    mctx.strokeStyle = '#ffffff'; mctx.lineWidth = 3 * miniK; mctx.lineJoin = 'round';
     mctx.beginPath(); G.trail.forEach((p, k) => k ? mctx.lineTo(p.x, p.y) : mctx.moveTo(p.x, p.y)); mctx.stroke();
   } else {
     // a soft wedge showing where the camera is looking
     const a = camYaw;
     mctx.fillStyle = 'rgba(255,255,255,0.18)';
     mctx.beginPath(); mctx.moveTo(m.x, m.y);
-    mctx.arc(m.x, m.y, 230, a - 0.55, a + 0.55); mctx.closePath(); mctx.fill();
+    mctx.arc(m.x, m.y, 230 * miniK, a - 0.55, a + 0.55); mctx.closePath(); mctx.fill();
   }
   const arrow = (x, y, rot, fill) => {
-    mctx.save(); mctx.translate(x, y); mctx.rotate(rot);
+    mctx.save(); mctx.translate(x, y); mctx.rotate(rot); mctx.scale(miniK, miniK);
     mctx.fillStyle = fill; mctx.strokeStyle = '#fff'; mctx.lineWidth = 3;
     mctx.beginPath(); mctx.moveTo(18, 0); mctx.lineTo(-12, -12); mctx.lineTo(-6, 0); mctx.lineTo(-12, 12); mctx.closePath();
     mctx.fill(); mctx.stroke(); mctx.restore();
@@ -1370,7 +1612,7 @@ function drawMini() {
   if (G.hunting && !G.finished) {
     mctx.fillStyle = `rgba(255, 233, 120, ${0.45 + 0.45 * Math.sin(performance.now() / 160)})`;
     for (let i = 0; i < G.cells.length; i++) if (G.cells[i] === 1) {
-      mctx.beginPath(); mctx.arc((i % COLS) * CELL + CELL / 2, Math.floor(i / COLS) * CELL + CELL / 2, 7, 0, 7); mctx.fill();
+      mctx.beginPath(); mctx.arc((i % COLS) * CELL + CELL / 2, Math.floor(i / COLS) * CELL + CELL / 2, 7 * miniK, 0, 7); mctx.fill();
     }
   }
   if (G.ghostShown && G.ghostData && ghostMesh.visible) arrow(ghostMesh.position.x, ghostMesh.position.z, -ghostMesh.rotation.y, 'rgba(90,170,255,0.8)');
@@ -1380,7 +1622,7 @@ function drawMini() {
 // =====================================================================
 //  GAME STATE
 // =====================================================================
-const cellsTemplate = new Uint8Array(COLS * ROWS);
+let cellsTemplate = new Uint8Array(COLS * ROWS);
 let grassTotal = 0, perfectT = 0, fuelMax = 0;
 const medalT = { gold: 0, silver: 0, bronze: 0 };
 
@@ -1388,19 +1630,27 @@ const medalT = { gold: 0, silver: 0, bronze: 0 };
 function loadYard(id) {
   YARD = YARDS.find(y => y.id === id) || YARDS[0];
   document.title = `Lawn Mower Game 3D — ${YARD.name}`;
-  // 1. clear out the old house, trees, beds, driveway and fence
-  yardGroup.traverse(o => {
-    if (o.geometry) o.geometry.dispose();
-    const ms = o.material ? [].concat(o.material) : [];
-    for (const m of ms) { if (m.map && m.map !== barkTex) m.map.dispose(); m.dispose(); }
-  });
-  yardGroup.clear();
+  // 0. the yard's size: everything that depends on it gets resized
+  YARD_W = YARD.w || 640; YARD_H = YARD.h || 448;
+  COLS = YARD_W / CELL; ROWS = YARD_H / CELL;
+  cellsTemplate = new Uint8Array(COLS * ROWS);
+  G.cells = new Uint8Array(COLS * ROWS);
+  makeMask(); sizeGround(); sizeMini();
+  // 1. clear out the old house, trees, beds, driveway, fence and neighborhood
+  for (const grp of [yardGroup, hoodGroup]) {
+    grp.traverse(o => {
+      if (o.geometry) o.geometry.dispose();
+      const ms = o.material ? [].concat(o.material) : [];
+      for (const m of ms) { if (m.map && m.map !== barkTex) m.map.dispose(); m.dispose(); }
+    });
+    grp.clear();
+  }
   fadeables.length = 0;
   // 2. build the new ones
   fadeables.push(buildHouse(YARD.house, { ...YARD.look, parent: yardGroup }));
   const rnd = seeded(5 + YARDS.indexOf(YARD));
   for (const t of YARD.trees) buildTree(t.x, t.y, t.r, rnd, true, true, yardGroup);
-  buildBeds(); buildDriveway(); buildFence(); drawMiniStatic();
+  buildBeds(); buildDriveway(); buildFence(); buildProps(); buildHood(); drawMiniStatic();
   // 3. work out which cells are grass, and the medal times
   cellsTemplate.fill(0); grassTotal = 0;
   for (let row = 0; row < ROWS; row++) {
@@ -1411,8 +1661,10 @@ function loadYard(id) {
       grassTotal++;
     }
   }
-  perfectT = grassTotal * CELL * CELL / (2 * BASE_MOWER.deckRadius) / BASE_MOWER.speed;
-  for (const k of ['gold', 'silver', 'bronze']) medalT[k] = Math.round(perfectT * MEDALS[k]);
+  // medal times are set for the mower this yard is meant for — a bigger mower makes them easier
+  const ref = mowerById(YARD.ref || 'walk30');
+  perfectT = grassTotal * CELL * CELL / (2 * ref.deck * 0.8) / ref.speed;
+  for (const k of ['gold', 'silver', 'bronze']) medalT[k] = Math.round(perfectT * MEDALS[k] * (YARD.medalEase || 1));
   buildGrass(cellsTemplate);
   grassMesh.count = Math.floor(tuftCount * QUALITY[qLevel].grass);   // (QUALITY is set up further down)
 }
@@ -1425,11 +1677,35 @@ const camPos = new THREE.Vector3(), camLook = new THREE.Vector3();
 // What kind of run this is: paid = a real job for money; otherwise it's practice (no pay, no wear, free gas)
 let RUN = { paid: false, tall: false, payFactor: 1 };
 
+// Some grass can't be reached by a big mower (a sliver between a tree and the fence, say).
+// Find every spot the mower's middle can stand on, and only count grass its deck can reach from one.
+function dropUnreachable() {
+  const R = MOWER.deckRadius, step = 6, rc = Math.ceil(R / CELL) + 1;
+  const ok = new Uint8Array(G.cells.length);
+  for (let y = 0; y <= YARD_H; y += step) for (let x = 0; x <= YARD_W; x += step) {
+    if (collides(x, y)) continue;
+    const c0 = Math.floor(x / CELL), r0 = Math.floor(y / CELL);
+    for (let r = Math.max(0, r0 - rc); r <= Math.min(ROWS - 1, r0 + rc); r++)
+      for (let c = Math.max(0, c0 - rc); c <= Math.min(COLS - 1, c0 + rc); c++) {
+        const cx = c * CELL + CELL / 2, cy = r * CELL + CELL / 2;
+        if ((cx - x) ** 2 + (cy - y) ** 2 <= R * R) ok[r * COLS + c] = 1;
+      }
+  }
+  let n = 0;
+  for (let i = 0; i < G.cells.length; i++) { if (G.cells[i] === 1 && !ok[i]) G.cells[i] = 0; if (G.cells[i] === 1) n++; }
+  grassTotal = n;
+}
+
 // paint the mower and make the deck wider for bigger mowers
-function styleMower(mw) {
-  const [red, darkRed] = mowerMesh.userData.paint;
+function styleMower(mw, model = mowerMesh) {
+  const [red, darkRed] = model.userData.paint;
   red.color.set(mw.color); darkRed.color.set(mw.color).multiplyScalar(0.7);
-  mowerMesh.userData.mower.scale.z = mw.deck / 20;
+  if (model.userData.type === 'walk') {
+    // walk-behinds: stretch the deck to the cutting width, and move the worker back to the handle
+    const k = mw.deck / 20;
+    model.userData.mower.scale.set(k, 1, k);
+    model.userData.worker.position.x = -34 * (k - 1);
+  }
 }
 
 function newRun() {
@@ -1437,17 +1713,22 @@ function newRun() {
   document.body.classList.remove('inhub');
   $('hub').classList.add('hidden');
   const mw = currentMower();
-  MOWER.speed = mw.speed * (RUN.tall ? 0.9 : 1);    // long grass slows you down a little
-  MOWER.deckRadius = mw.deck * 0.8;
-  styleMower(mw);
+  Object.assign(MOWER, {
+    speed: mw.speed * (RUN.tall ? 0.9 : 1),           // long grass slows you down a little
+    reverseSpeed: mw.reverse, turnSpeed: mw.turn,
+    deckRadius: mw.deck * 0.8,                         // 20 inches = 16 units of half-width
+    bodyRadius: mw.body
+  });
+  setMowerModel(mw);
   grassLen.value = RUN.tall ? 1.5 : 1;
   fuelMax = mw.tank / mw.burn;                      // gas measured in "seconds of full-throttle mowing"
   let fuel = fuelMax;
   if (RUN.paid) { topUpTank(); fuel = career.tank / mw.burn; }
   G.cells.set(cellsTemplate);
+  dropUnreachable();
   G.cutCount = 0;
   maskData.fill(0); maskTex.needsUpdate = true;
-  mlctx.drawImage(uncutCanvas, 0, 0, YARD_W, YARD_H);
+  paintMiniUncut();
   mgctx.clearRect(0, 0, YARD_W, YARD_H);
   G.mower = { x: YARD.start.x, y: YARD.start.y, rot: YARD.start.angle };
   Object.assign(G, {
@@ -1463,6 +1744,7 @@ function newRun() {
   $('pullBtn').classList.add('hidden');
   finder.visible = false;
   guide.visible = false; guide.material.opacity = 0;
+  if (isPhone && ctrl.mode !== 'touch') setMode('touch');   // phones: GO / REV buttons and the steering pad
   G.best = null;
   try { G.best = JSON.parse(localStorage.getItem(bestKey())); } catch (e) {}
   G.ghostData = G.best && G.best.ghost && G.best.ghost.length > 1 ? G.best.ghost : null;
@@ -1721,7 +2003,8 @@ function setMode(mode) {
   $('touchUI').classList.toggle('hidden', !isTouch);
   $('levelBtn').classList.toggle('hidden', isTouch);
   $('tiltDbg').classList.toggle('hidden', isTouch);
-  $('ctrlBtn').classList.remove('hidden');
+  // (the tilt styles are still in the code, but the button to switch to them is hidden for now)
+  $('ctrlBtn').classList.toggle('hidden', isTouch);
   $('ctrlBtn').querySelector('.lbl').textContent = CTRL_NAMES[mode];
   hideIntro();
   if (isTouch) lockSideways();
@@ -1867,6 +2150,8 @@ function update(dt) {
   const th = G.throttle;
   const prevX = m.x, prevY = m.y;
 
+  // a lawn tractor steers its front wheels, so it can only turn while it's rolling
+  if (currentMower().type === 'tractor') turn *= Math.min(1, Math.abs(G.throttle) * 1.6);
   m.rot += turn * MOWER.turnSpeed * dt;
   // magnetic straight lines (phones): near straight and only steering lightly? get pulled into line.
   // The harder you steer, the weaker the pull — steer past assistHold and you're free to turn.
@@ -1919,9 +2204,12 @@ function update(dt) {
   placeModel(mowerMesh, m.x, m.y, m.rot);
   G.walk += moved * (th < 0 ? -1 : 1);
   const swing = moved > 0.1 ? Math.sin(G.walk * 0.12) * 0.45 : 0;
-  mowerMesh.userData.legs[0].rotation.z = swing;
-  mowerMesh.userData.legs[1].rotation.z = -swing;
-  mowerMesh.userData.worker.position.y = moved > 0.1 ? Math.abs(Math.cos(G.walk * 0.12)) * 1.1 : 0;
+  const ud = mowerMesh.userData, walking = ud.type === 'walk';
+  if (walking) {
+    ud.legs[0].rotation.z = swing;
+    ud.legs[1].rotation.z = -swing;
+    ud.worker.position.y = moved > 0.1 ? Math.abs(Math.cos(G.walk * 0.12)) * 1.1 : 0;
+  } else ud.worker.position.y = moved > 0.1 ? Math.sin(performance.now() / 70) * 0.35 : 0;   // riding: a little bumpy
   const t = performance.now() / 1000, rumble = running ? 0.18 + (newlyCut > 0 ? 0.22 : 0) : 0;
   const mg = mowerMesh.userData.mower;
   mg.position.y = Math.sin(t * 71) * rumble;
@@ -2185,15 +2473,17 @@ function updateCamera(dt, snap) {
   let pos, look;
   if (G.finished || G.inHub) {
     // at the end (and on the clipboard), rise up for a view of the whole lawn
-    pos = new THREE.Vector3(320, 640, 760);
-    look = new THREE.Vector3(320, 0, 215);
+    const k = Math.max(YARD_W / 640, YARD_H / 448);
+    pos = new THREE.Vector3(YARD_W / 2, 640 * k, YARD_H / 2 + 536 * k);
+    look = new THREE.Vector3(YARD_W / 2, 0, YARD_H / 2 - 9 * k);
   } else {
     const cfg = CAMERA[camMode];
     const targetYaw = camMode === 'turning' ? m.rot : -Math.PI / 2;
     camYaw = snap ? targetYaw : camYaw + wrapAngle(targetYaw - camYaw) * (1 - Math.exp(-dt * cfg.lag));
     const fx = Math.cos(camYaw), fz = Math.sin(camYaw), rx = -fz, rz = fx;
-    pos = new THREE.Vector3(m.x - fx * cfg.dist + rx * cfg.side, cfg.height, m.y - fz * cfg.dist + rz * cfg.side);
-    look = new THREE.Vector3(m.x + fx * cfg.ahead, 0, m.y + fz * cfg.ahead);
+    const z = currentMower().cam;   // bigger machines: the camera sits a bit further back
+    pos = new THREE.Vector3(m.x - fx * cfg.dist * z + rx * cfg.side, cfg.height * z, m.y - fz * cfg.dist * z + rz * cfg.side);
+    look = new THREE.Vector3(m.x + fx * cfg.ahead * z, 0, m.y + fz * cfg.ahead * z);
   }
   const k = snap ? 1 : 1 - Math.exp(-dt * (G.finished || G.inHub ? 1.8 : 7));
   camPos.lerp(pos, k);
@@ -2295,14 +2585,7 @@ function showIntro() {
       ? `<p>Straight stripes earn tips · chain them for a combo · don't overlap · watch your gas ⛽</p>`
       : `<p>Long, straight stripes on uncut grass earn tips.<br>Do them in a row for a combo!<br>
          Don't drive over cut grass too long, and watch your gas ⛽</p>`}
-    ${isPhone && ctrl.mode === 'none' ? `
-      <p class="tiltnote">Hold the phone sideways, then pick your controls:</p>
-      <div class="modes">
-        <button data-mode="auto" class="rec">📱 Auto-drive + tilt to steer</button>
-        <button data-mode="tilt">📱 Tilt to drive</button>
-        <button data-mode="touch">👆 Touch buttons</button>
-      </div>`
-    : isPhone ? `<p class="small">${{ auto: 'Nudge forward to go', tilt: 'Tilt away from you to go', touch: 'Hold GO to start' }[ctrl.mode]} · tap here to close</p>`
+    ${isPhone ? `<p class="small">${{ auto: 'Nudge forward to go', tilt: 'Tilt away from you to go', touch: 'Hold GO to start' }[ctrl.mode]} · tap here to close</p>`
     : `<p class="small">Drive to start · C switches the camera · M = sound on/off</p>`}`;
   el.classList.remove('hidden');
   if (isPhone) el.onclick = (e) => { if (e.target.tagName !== 'BUTTON') hideIntro(); };
@@ -2430,9 +2713,9 @@ function finish(reason) {
 // =====================================================================
 function newCareer() {
   return {
-    v: 1, day: 1, slot: 0, weather: 'sun', money: BIZ.startMoney, earned: 0, rep: 0, jobsDone: 0,
+    v: 2, day: 1, slot: 0, weather: 'sun', money: BIZ.startMoney, earned: 0, rep: 0, jobsDone: 0,
     gasCan: BIZ.startGas, tank: MOWERS[0].tank,          // liters of gas in the can and in the mower
-    owned: ['old'], mower: 'old', wearOf: { old: 15 },
+    owned: ['walk30'], mower: 'walk30', wearOf: { walk30: 15 },
     unlocked: ['peterson'], lastMowed: { peterson: -3 },
     seen: {}, notes: []
   };
@@ -2449,12 +2732,26 @@ function checkUnlocks() {
   return fresh;
 }
 function loadCareer() {
-  try { const c = JSON.parse(localStorage.getItem(CAREER_KEY)); if (c && c.v === 1) return c; } catch (e) {}
+  try {
+    const c = JSON.parse(localStorage.getItem(CAREER_KEY));
+    if (c && c.v === 1) {
+      // old save (before the new mower lineup): refund the old mowers you bought, and start you on Dad's 30"
+      const refund = { used21: 120, new22: 300, wide30: 700 };
+      for (const id of c.owned || []) c.money += refund[id] || 0;
+      c.owned = ['walk30']; c.mower = 'walk30';
+      c.wearOf = { walk30: Math.min(40, (c.wearOf || {})[c.mower] || 15) };
+      c.tank = Math.min(c.tank || 0, MOWERS[0].tank);
+      c.v = 2;
+      (c.notes = c.notes || []).push('🚜 <b>New mowers in the shop!</b> Dad found his old 30" mower for you, and the mowers you had bought were sold back for what you paid.');
+    }
+    if (c && c.v === 2) return c;
+  } catch (e) {}
   return null;
 }
 let career = loadCareer() || newCareer();
 function saveCareer() { try { localStorage.setItem(CAREER_KEY, JSON.stringify(career)); } catch (e) {} }
-function currentMower() { return MOWERS.find(m => m.id === career.mower) || MOWERS[0]; }
+function currentMower() { return mowerById(career.mower); }
+const canSize = () => Math.max(BIZ.canSize, Math.round(currentMower().tank * 2.5));
 function getWear() { return career.wearOf[career.mower] || 0; }
 const grassDays = (y) => career.day - career.lastMowed[y.id];
 const payFactor = (days) => days <= BIZ.overdueDays ? 1 : Math.max(BIZ.minPayFactor, 1 - (days - BIZ.overdueDays) * BIZ.overduePenalty);
@@ -2486,6 +2783,38 @@ function nextDay() {
   showHub();
 }
 
+// ---- pictures of the mowers for the clipboard ----
+//  Each mower is built in a little scene of its own, photographed once, and the photo is kept.
+let mowerPics = null;
+function makeMowerPics() {
+  if (mowerPics) return mowerPics;
+  mowerPics = {};
+  try {
+    const W = 240, H = 150, r = new THREE.WebGLRenderer({ antialias: true, alpha: true, preserveDrawingBuffer: true });
+    r.setSize(W, H, false);
+    r.toneMapping = THREE.ACESFilmicToneMapping; r.toneMappingExposure = 1.0;
+    const sc = new THREE.Scene();
+    sc.environment = scene.environment;
+    sc.add(new THREE.HemisphereLight(0xffffff, 0x557744, 1.2));
+    const key = new THREE.DirectionalLight(0xfff1d6, 2.2); key.position.set(150, 250, 200); sc.add(key);
+    const cam = new THREE.PerspectiveCamera(30, W / H, 1, 3000);
+    for (const mw of MOWERS) {
+      const model = buildMower(false, mw.type, sc);
+      styleMower(mw, model);
+      model.rotation.y = 0.55;                                    // a three-quarter view from the front
+      const box = new THREE.Box3().setFromObject(model), c = box.getCenter(new THREE.Vector3()), size = box.getSize(new THREE.Vector3()).length();
+      cam.position.copy(c).add(new THREE.Vector3(0.95, 0.62, 1.0).normalize().multiplyScalar(size * 0.95));
+      cam.lookAt(c);
+      r.render(sc, cam);
+      mowerPics[mw.id] = r.domElement.toDataURL('image/png');
+      disposeModel(model);
+    }
+    r.dispose(); r.forceContextLoss();
+  } catch (e) { console.warn('mower pictures failed', e); }
+  return mowerPics;
+}
+const mowerPic = (id) => { const u = makeMowerPics()[id]; return u ? `<img class="pic" src="${u}" alt="">` : ''; };
+
 // ---- the clipboard: pick a job, buy gas, fix or buy mowers, go to bed ----
 let resetArmed = false, titleTaps = 0, lastTitleTap = 0;
 function toggleCheats() {
@@ -2510,7 +2839,7 @@ function showHub() {
   guide.visible = false; guide.material.opacity = 0;
   ghostMesh.visible = false;
   SFX.engine(false);
-  styleMower(currentMower());
+  setMowerModel(currentMower());
   setWeather(career.weather);
   resetArmed = false;
 
@@ -2524,6 +2853,7 @@ function showHub() {
       Lawns need ${BIZ.readyDays} days to grow back. You can do ${BIZ.jobsPerDay} jobs a day. Good jobs earn ★ reputation,
       and word gets around — new neighbors will call. Keep gas in your can and your mower tuned up!`);
   }
+  if (c.notes && c.notes.length) { notes.push(...c.notes); c.notes = []; }
   // nearly broke and out of gas? Mom helps out
   if (c.money < BIZ.gasPrice && c.gasCan + c.tank < 0.3) {
     c.gasCan += 1;
@@ -2561,10 +2891,10 @@ function showHub() {
   const wear = getWear();
   const cond = wear < 25 ? '<span class="good">Runs well</span>' : wear < 50 ? 'A bit worn' : '<span class="warn">Needs a tune-up — it may stall!</span>';
   const meter = (f) => `<span class="meter"><i style="width:${Math.round(clamp(f, 0, 1) * 100)}%"></i></span>`;
-  const fillL = BIZ.canSize - c.gasCan, fillCost = Math.min(fillL * BIZ.gasPrice, c.money);
+  const can = canSize(), fillL = can - c.gasCan, fillCost = Math.min(fillL * BIZ.gasPrice, c.money);
   const shopRows = MOWERS.filter(m => m.id !== mw.id).map(m => {
     const own = c.owned.includes(m.id);
-    return `<div class="row"><div class="info"><div class="name">${m.name}</div>
+    return `<div class="row">${mowerPic(m.id)}<div class="info"><div class="name">${m.name}</div>
       <div class="sub2">${m.like} · ${m.deck}" cut · tank ${m.tank} L</div></div>
       ${own ? `<button data-use="${m.id}">Use it</button>`
             : `<button data-buy="${m.id}" ${c.money >= m.price ? '' : 'disabled'}>Buy · $${m.price}</button>`}</div>`;
@@ -2579,11 +2909,11 @@ function showHub() {
     ${notes.map(n => `<div class="note">${n}</div>`).join('')}
     <h2>Customers</h2>${jobRows.join('')}
     <h2>Your gear</h2>
-    <div class="row"><div class="info"><div class="name">${mw.name}</div>
-      <div class="sub2">${cond} · chance of stalling ${Math.round(wear)}%</div></div>
+    <div class="row">${mowerPic(mw.id)}<div class="info"><div class="name">${mw.name}</div>
+      <div class="sub2">${mw.deck}" cut · ${cond} · chance of stalling ${Math.round(wear)}%</div></div>
       <button data-tune ${wear > 0 && c.money >= BIZ.tuneUp ? '' : 'disabled'}>Tune-up · $${BIZ.tuneUp}</button></div>
     <div class="row"><div class="info"><div class="name">Gas</div>
-      <div class="sub2">Mower tank ${meter(c.tank / mw.tank)} ${c.tank.toFixed(2)} L &nbsp; Gas can ${meter(c.gasCan / BIZ.canSize)} ${c.gasCan.toFixed(1)} of ${BIZ.canSize} L · $${BIZ.gasPrice.toFixed(2)}/L</div></div>
+      <div class="sub2">Mower tank ${meter(c.tank / mw.tank)} ${c.tank.toFixed(2)} L &nbsp; Gas can ${meter(c.gasCan / can)} ${c.gasCan.toFixed(1)} of ${can} L · $${BIZ.gasPrice.toFixed(2)}/L</div></div>
       <button data-gas ${fillL > 0.05 && c.money >= 0.5 ? '' : 'disabled'}>Fill can · ${money(fillCost)}</button></div>
     <h2>Mower shop</h2>${shopRows}
     ${c.seen.cheats ? `<h2>🛠 Practice tools</h2>
@@ -2632,7 +2962,7 @@ function showHub() {
     if (k === 'stars') c.rep += 3;
     if (k === 'unlock') c.rep = Math.max(c.rep, ...YARDS.map(y => y.stars));
     if (k === 'ready') for (const id of c.unlocked) c.lastMowed[id] = c.day - BIZ.readyDays;
-    if (k === 'gas') { c.gasCan = BIZ.canSize; c.tank = currentMower().tank; }
+    if (k === 'gas') { c.gasCan = canSize(); c.tank = currentMower().tank; }
     if (k === 'worn') c.wearOf[c.mower] = 90;
     if (k === 'jobs') c.slot = 0;
     if (k === 'sun' || k === 'rain') c.weather = k;
@@ -2650,13 +2980,13 @@ updateCamButton();
 loadYard(career.lastYard || 'peterson');
 placeModel(mowerMesh, YARD.start.x, YARD.start.y, YARD.start.angle);
 G.mower = { x: YARD.start.x, y: YARD.start.y, rot: YARD.start.angle };
-mlctx.drawImage(uncutCanvas, 0, 0, YARD_W, YARD_H);
+paintMiniUncut();
 showHub();
 updateCamera(0, true);
 requestAnimationFrame(frame);
 window.__game = { G, keys, CAMERA, tilt, readTilt, ctrl, touch, setMode, finish, newRun, mowAt, update, updateCamera,
   get camMode() { return camMode; }, toggleCamera, get career() { return career; }, startJob, showHub, nextDay, loadYard, pullCord, MOWERS, YARDS, guide,
-  maskA: (tx, ty) => maskData[((MH - 1 - ty) * MW + tx) * 4 + 3] };   // for testing
+  maskA: (tx, ty) => maskData[((MH - 1 - ty) * MW + tx) * 4 + 3], get tmpl() { return cellsTemplate; } };   // for testing
 </script>
 </body>
 </html>
