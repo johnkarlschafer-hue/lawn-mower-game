@@ -205,6 +205,7 @@
   <div class="spacer"></div>
   <button id="ctrlBtn" class="quiet hidden">🎮<span class="lbl"></span></button>
   <button id="levelBtn" class="quiet hidden">⟲ Level</button>
+  <button id="toolBtn" class="hidden" title="Swap mower / trimmer (T)">🌿 Trimmer</button>
   <button id="hubBtn" class="quiet" title="Clipboard (Esc)">📋</button>
   <button id="camBtn" class="quiet">🎥</button>
   <button id="finishBtn">Finish ✓</button>
@@ -396,7 +397,7 @@ const MOWERS = [
     deck: 36, speed: 140, reverse: 70, turn: 2.9, body: 24, tank: 2.5, burn: 0.011, wear: 8, color: 0x3d8b37, cam: 1.06 },
   { id: 'tractor42', type: 'tractor', name: '42" riding lawn tractor', price: 1400,
     like: 'sit down and steer with a wheel — fast, but it can only turn while it\'s rolling',
-    deck: 42, speed: 170, reverse: 80, turn: 1.9, body: 32, tank: 4, burn: 0.02, wear: 7, color: 0x2f7d32, cam: 1.15 },
+    deck: 42, speed: 170, reverse: 80, turn: 2.3, body: 32, tank: 4, burn: 0.02, wear: 7, color: 0x2f7d32, cam: 1.15 },
   { id: 'standon48', type: 'standon', name: '48" stand-on mower', price: 3200,
     like: 'you ride standing at the back — quick, nimble and great around trees',
     deck: 48, speed: 180, reverse: 90, turn: 3.3, body: 36, tank: 6, burn: 0.03, wear: 6, color: 0xe36a1e, cam: 1.2 },
@@ -405,6 +406,11 @@ const MOWERS = [
     deck: 54, speed: 200, reverse: 100, turn: 4.2, body: 40, tank: 8, burn: 0.04, wear: 5, color: 0xd62828, cam: 1.26 }
 ];
 const mowerById = (id) => MOWERS.find(m => m.id === id) || MOWERS[0];
+
+// ---- The string trimmer (weed eater) ----
+//  Park the mower by the driveway and walk with the trimmer: a narrow cut, but you fit
+//  into the tight spots no mower can reach ("edges"). Trimming the edges earns a big tip.
+const TRIMMER = { speed: 85, reverseSpeed: 55, turnSpeed: 4.5, deckRadius: 10, bodyRadius: 8 };
 
 // ---- Running the business ----
 const BIZ = {
@@ -419,6 +425,8 @@ const BIZ = {
   tuneUp: 10,           // dollars to sharpen the blade, change the spark plug and clean the filter
   medalBonus: { gold: 6, silver: 4, bronze: 2, none: 0 },
   firstJobTip: 10,      // a new customer tips you extra the first time you mow for them
+  trimTip: 0.4,         // trimming ALL the edges adds this much of the customer's price (40%) as a tip
+  swapZone: 70,         // how close to the start (the end of the driveway) you must be to swap mower ⇄ trimmer
   starCut: 0.9,         // cut at least this much to earn a ★ (a medal earns one more)
   fullPayCut: 0.95,     // cut at least this much for full pay…
   okPayCut: 0.85,       // …at least this much for 85% pay; less than that is half pay
@@ -1293,6 +1301,17 @@ function buildMower(ghost, type = 'walk', parent = scene) {
       barC([-45, 53, z], [-48, 54, z * 0.5], 1.6, black, mg, sh);                            // levers
     }
     pose = { legs: 'stand', hip: [-60, 42], hands: [-47, 53, 8], lean: 0.05 };
+  } else if (type === 'trimmer') {
+    // ---- string trimmer: the cutting head is at the middle (where the grass gets cut), the worker walks behind it ----
+    var red = M(0xf07a1a, { roughness: 0.45 }), darkRed = M(0xa84f0c, { roughness: 0.6 });
+    add(new THREE.CylinderGeometry(3.6, 3.6, 3, 18), engine, 0, 4, 0);                       // head
+    const guard = add(new THREE.CylinderGeometry(7, 7, 0.8, 24, 1, false, Math.PI * 0.5, Math.PI), red, -1, 6.5, 0);   // guard
+    const spin = add(new THREE.CylinderGeometry(10, 10, 0.3, 24), ghost ? M() : new THREE.MeshBasicMaterial({ color: 0xe8ffd0, transparent: true, opacity: 0.35, depthWrite: false }), 0, 3, 0);
+    g.userData.spinner = spin;
+    barC([0, 5, 0], [-24, 44, 3], 1.1, metal, mg, sh);                                       // shaft
+    add(new RoundedBoxGeometry(9, 8, 7, 2, 2), red, -27, 46, 3);                             // engine
+    barC([-15, 38, -7], [-14, 41, 9], 1.2, black, mg, sh);                                   // handle
+    pose = { legs: 'walk', hip: [-28, 34], hands: [-14.5, 40, 7], lean: -0.05 };
   } else {
     // ---- zero-turn rider: big back wheels, little front casters, two lap-bar levers ----
     var red = M(0xd62828, { roughness: 0.4 }), darkRed = M(0x8e1717, { roughness: 0.6 });
@@ -1365,6 +1384,13 @@ function disposeModel(obj) {
 let mowerMesh = buildMower(false);
 let ghostMesh = buildMower(true);
 ghostMesh.visible = false;
+const trimMesh = buildMower(false, 'trimmer');
+trimMesh.visible = false;
+// a glowing ring on the lawn where you swap between mower and trimmer
+const swapRing = new THREE.Mesh(new THREE.RingGeometry(BIZ.swapZone - 6, BIZ.swapZone, 64),
+  new THREE.MeshBasicMaterial({ color: 0xc8ff7a, transparent: true, opacity: 0.35, depthWrite: false, depthTest: false }));
+swapRing.rotation.x = -Math.PI / 2; swapRing.renderOrder = 8; swapRing.visible = false;
+scene.add(swapRing);
 // swap the 3D model when you switch mowers (and the ghost to match)
 function setMowerModel(mw) {
   if (mowerMesh.userData.type !== mw.type) {
@@ -1610,8 +1636,10 @@ function drawMini() {
   };
   // near the end: the last uncut patches blink on the minimap
   if (G.hunting && !G.finished) {
-    mctx.fillStyle = `rgba(255, 233, 120, ${0.45 + 0.45 * Math.sin(performance.now() / 160)})`;
-    for (let i = 0; i < G.cells.length; i++) if (G.cells[i] === 1) {
+    const want = G.trimming ? 3 : 1;
+    mctx.fillStyle = G.trimming ? `rgba(255, 150, 60, ${0.45 + 0.45 * Math.sin(performance.now() / 160)})`
+                                : `rgba(255, 233, 120, ${0.45 + 0.45 * Math.sin(performance.now() / 160)})`;
+    for (let i = 0; i < G.cells.length; i++) if (G.cells[i] === want) {
       mctx.beginPath(); mctx.arc((i % COLS) * CELL + CELL / 2, Math.floor(i / COLS) * CELL + CELL / 2, 7 * miniK, 0, 7); mctx.fill();
     }
   }
@@ -1679,9 +1707,10 @@ let RUN = { paid: false, tall: false, payFactor: 1 };
 
 // Some grass can't be reached by a big mower (a sliver between a tree and the fence, say).
 // Find every spot the mower's middle can stand on, and only count grass its deck can reach from one.
-function dropUnreachable() {
-  const R = MOWER.deckRadius, step = 6, rc = Math.ceil(R / CELL) + 1;
-  const ok = new Uint8Array(G.cells.length);
+// Grass the mower can't reach becomes an "edge" (3) for the trimmer; anything even the trimmer can't reach is dropped.
+function reachable(spec, step) {
+  const save = MOWER.bodyRadius; MOWER.bodyRadius = spec.bodyRadius;
+  const R = spec.deckRadius, rc = Math.ceil(R / CELL) + 1, ok = new Uint8Array(G.cells.length);
   for (let y = 0; y <= YARD_H; y += step) for (let x = 0; x <= YARD_W; x += step) {
     if (collides(x, y)) continue;
     const c0 = Math.floor(x / CELL), r0 = Math.floor(y / CELL);
@@ -1691,9 +1720,29 @@ function dropUnreachable() {
         if ((cx - x) ** 2 + (cy - y) ** 2 <= R * R) ok[r * COLS + c] = 1;
       }
   }
-  let n = 0;
-  for (let i = 0; i < G.cells.length; i++) { if (G.cells[i] === 1 && !ok[i]) G.cells[i] = 0; if (G.cells[i] === 1) n++; }
-  grassTotal = n;
+  MOWER.bodyRadius = save;
+  return ok;
+}
+function dropUnreachable() {
+  const byMower = reachable(MOWER, 6), byTrimmer = reachable(TRIMMER, 4);
+  let n = 0, e = 0;
+  for (let i = 0; i < G.cells.length; i++) {
+    if (G.cells[i] !== 1) continue;
+    if (byMower[i]) n++;
+    else if (byTrimmer[i]) { G.cells[i] = 3; e++; }
+    else G.cells[i] = 0;
+  }
+  grassTotal = n; G.trimTotal = e;
+}
+
+// the nearest spot to the yard's start (moving into the yard) where the current mower isn't touching anything
+function safeStart() {
+  const s0 = YARD.start, dx = Math.cos(s0.angle), dy = Math.sin(s0.angle);
+  for (let d = 0; d < 400; d += 2) {
+    const x = s0.x + dx * d, y = s0.y + dy * d;
+    if (!collides(x, y)) return { x, y };
+  }
+  return { x: s0.x, y: s0.y };
 }
 
 // paint the mower and make the deck wider for bigger mowers
@@ -1730,14 +1779,17 @@ function newRun() {
   maskData.fill(0); maskTex.needsUpdate = true;
   paintMiniUncut();
   mgctx.clearRect(0, 0, YARD_W, YARD_H);
-  G.mower = { x: YARD.start.x, y: YARD.start.y, rot: YARD.start.angle };
+  // bigger machines don't fit right at the fence: slide the start spot inward until they do
+  const st = safeStart();
+  G.mower = { x: st.x, y: st.y, rot: YARD.start.angle };
   Object.assign(G, {
     started: false, finished: false, elapsed: 0, distance: 0, walk: 0,
-    trail: [{ x: YARD.start.x, y: YARD.start.y }], rec: [], recTimer: 0,
+    trail: [{ x: st.x, y: st.y }], rec: [], recTimer: 0,
     fuel, style: 0, combo: 1, bestCombo: 1, cleanStripes: 0,
     run: null, overlapRun: 0, overlapWarned: false, wasted: 0, sinceFresh: 0,
     throttle: 0, bumpCD: 0, shake: 0, milestone: 0, medalStage: 0, lastTick: -1,
     hunting: false, finderT: 0, target: null, stalled: null, ghostCut: null,
+    trimming: false, parked: null, trimCount: 0, mowDoneAt: null, zone: { x: st.x, y: st.y }, savedSpec: null,
     // a worn-out mower might die halfway through the job (paid jobs only)
     stallAt: RUN.paid && Math.random() < getWear() / 100 ? perfectT * (0.25 + Math.random() * 0.5) : null
   });
@@ -1745,6 +1797,7 @@ function newRun() {
   finder.visible = false;
   guide.visible = false; guide.material.opacity = 0;
   if (isPhone && ctrl.mode !== 'touch') setMode('touch');   // phones: GO / REV buttons and the steering pad
+  trimMesh.visible = false; mowerMesh.visible = true; mowerMesh.userData.worker.visible = true;
   G.best = null;
   try { G.best = JSON.parse(localStorage.getItem(bestKey())); } catch (e) {}
   G.ghostData = G.best && G.best.ghost && G.best.ghost.length > 1 ? G.best.ghost : null;
@@ -1781,6 +1834,7 @@ window.addEventListener('keydown', (e) => {
     else showHub();
   }
   if (e.code === 'Space' && G.stalled) pullCord();
+  if (e.code === 'KeyT') toggleTool();
   if (e.code === 'Enter' && !G.finished) finish();
   if (e.code === 'KeyH' && G.finished) document.getElementById('results').classList.toggle('hidden');
   if (e.code === 'KeyM') { const on = SFX.toggle(); pop(G.mower.x, G.mower.y, on ? 'Sound on' : 'Sound off', '#e8f5e0'); }
@@ -1814,6 +1868,7 @@ function updateCamButton() {
 }
 const clickBtn = (id, fn) => document.getElementById(id).addEventListener('click', (e) => { e.currentTarget.blur(); fn(); });
 clickBtn('camBtn', toggleCamera);
+clickBtn('toolBtn', toggleTool);
 clickBtn('hubBtn', () => {
   if (RUN.paid && G.started && !G.finished) pop(G.mower.x, G.mower.y, 'Finish the job first (Finish ✓)', '#ffab7a');
   else showHub();
@@ -2131,8 +2186,8 @@ function update(dt) {
   if ((turn !== 0 || drive !== 0) && !G.started) { G.started = true; hideIntro(); SFX.startUp(); }
   if (G.started) {
     G.elapsed += dt;
-    if (G.stallAt && G.elapsed >= G.stallAt) stall();
-    if (!G.stalled) G.fuel -= dt * (IDLE_BURN + (1 - IDLE_BURN) * Math.min(1, Math.abs(G.throttle)));
+    if (G.stallAt && G.elapsed >= G.stallAt && !G.trimming) stall();
+    if (!G.stalled && !G.trimming) G.fuel -= dt * (IDLE_BURN + (1 - IDLE_BURN) * Math.min(1, Math.abs(G.throttle)));
     if (G.fuel <= 0) {
       G.fuel = 0;
       pop(m.x, m.y, 'Out of gas!', '#ff8a6b', 24);
@@ -2140,7 +2195,7 @@ function update(dt) {
       finish('gas');
       return;
     }
-    checkMedalClock();
+    if (!G.mowDoneAt) checkMedalClock();   // the medal clock stops once the mowing is done (trimming after that is free)
   }
   if (G.stalled) { turn = 0; drive = 0; }
 
@@ -2151,7 +2206,7 @@ function update(dt) {
   const prevX = m.x, prevY = m.y;
 
   // a lawn tractor steers its front wheels, so it can only turn while it's rolling
-  if (currentMower().type === 'tractor') turn *= Math.min(1, Math.abs(G.throttle) * 1.6);
+  if (currentMower().type === 'tractor' && !G.trimming) turn *= Math.min(1, Math.abs(G.throttle) * 3);
   m.rot += turn * MOWER.turnSpeed * dt;
   // magnetic straight lines (phones): near straight and only steering lightly? get pulled into line.
   // The harder you steer, the weaker the pull — steer past assistHold and you're free to turn.
@@ -2193,7 +2248,7 @@ function update(dt) {
       const n = Math.min(8, Math.round(newlyCut * (RUN.tall ? 2.5 : 1.6)));
       emitClips(m.x, m.y, m.rot, n, RUN.tall ? 1.3 : 1);
     }
-    trackStyle(drive, moved, newlyCut);
+    if (!G.trimming) trackStyle(drive, moved, newlyCut);   // clean stripes are a mower thing
     checkMilestones();
   }
   const running = G.started && !G.stalled;
@@ -2201,17 +2256,19 @@ function update(dt) {
 
   // move the 3D model, swing the worker's legs as he walks, bob him up and down,
   // and make the mower shake from the engine (more when it's chewing through grass)
-  placeModel(mowerMesh, m.x, m.y, m.rot);
+  const mm = G.trimming ? trimMesh : mowerMesh;    // while trimming, the mower stays parked
+  placeModel(mm, m.x, m.y, m.rot);
   G.walk += moved * (th < 0 ? -1 : 1);
   const swing = moved > 0.1 ? Math.sin(G.walk * 0.12) * 0.45 : 0;
-  const ud = mowerMesh.userData, walking = ud.type === 'walk';
+  const ud = mm.userData, walking = ud.type === 'walk' || ud.type === 'trimmer';
+  if (ud.spinner) ud.spinner.rotation.y += dt * 40;
   if (walking) {
     ud.legs[0].rotation.z = swing;
     ud.legs[1].rotation.z = -swing;
     ud.worker.position.y = moved > 0.1 ? Math.abs(Math.cos(G.walk * 0.12)) * 1.1 : 0;
   } else ud.worker.position.y = moved > 0.1 ? Math.sin(performance.now() / 70) * 0.35 : 0;   // riding: a little bumpy
   const t = performance.now() / 1000, rumble = running ? 0.18 + (newlyCut > 0 ? 0.22 : 0) : 0;
-  const mg = mowerMesh.userData.mower;
+  const mg = ud.mower;
   mg.position.y = Math.sin(t * 71) * rumble;
   mg.rotation.x = Math.sin(t * 53) * rumble * 0.012;
   mg.rotation.z = Math.sin(t * 61) * rumble * 0.01 + (G.bumpWobble || 0);
@@ -2225,9 +2282,65 @@ function update(dt) {
     if (G.recTimer <= 0) { G.recTimer = 0.05; recordSample(); }
   }
   updateFinder(dt);
+  updateSwap();
   updateGhost();
   updateHud();
-  if (G.cutCount >= grassTotal) finish();
+  // all done? (if there are edges left, tell the player about the trimmer instead of ending)
+  const edgesLeft = G.trimTotal - G.trimCount;
+  if (G.cutCount >= grassTotal && !G.mowDoneAt) {
+    G.mowDoneAt = G.elapsed;
+    if (edgesLeft > 0) {
+      SFX.chime(3); flash('gold');
+      pop(m.x, m.y, 'Lawn mowed! 🌿 Trim the edges for a big tip — or tap Finish', '#fff3a0', 20);
+    }
+  }
+  if (G.cutCount >= grassTotal && edgesLeft <= 0) finish();
+}
+
+// ---- swapping between the mower and the trimmer (at the end of the driveway) ----
+function nearSwap() {
+  const m = G.mower, z = G.trimming ? G.parked : G.zone;
+  return z && Math.hypot(m.x - z.x, m.y - z.y) < BIZ.swapZone;
+}
+function updateSwap() {
+  const show = !G.finished && !G.stalled;
+  const z = G.trimming ? G.parked : G.zone;
+  swapRing.visible = show && !!z;
+  if (z) { swapRing.position.set(z.x, 2.5, z.y); swapRing.material.opacity = nearSwap() ? 0.6 + 0.25 * Math.sin(performance.now() / 150) : 0.25; }
+  const b = $('toolBtn');
+  b.classList.toggle('hidden', !(show && nearSwap()));
+  b.textContent = G.trimming ? '🚜 Mower' : '🌿 Trimmer';
+}
+function toggleTool() {
+  if (G.finished || G.stalled || G.inHub) return;
+  const m = G.mower;
+  if (!nearSwap()) {
+    pop(m.x, m.y, G.trimming ? 'Walk back to your mower to swap' : 'Swap to the trimmer at the end of the driveway', '#ffab7a');
+    return;
+  }
+  if (!G.trimming) {
+    G.parked = { ...m };
+    G.savedSpec = { speed: MOWER.speed, reverseSpeed: MOWER.reverseSpeed, turnSpeed: MOWER.turnSpeed, deckRadius: MOWER.deckRadius, bodyRadius: MOWER.bodyRadius };
+    Object.assign(MOWER, TRIMMER);
+    G.trimming = true;
+    // step off to the side of the mower
+    const sx = m.x - Math.sin(m.rot) * (G.savedSpec.bodyRadius + 14), sy = m.y + Math.cos(m.rot) * (G.savedSpec.bodyRadius + 14);
+    if (!collides(sx, sy)) { m.x = sx; m.y = sy; }
+    trimMesh.visible = true;
+    mowerMesh.userData.worker.visible = false;   // he got off the mower
+    G.hunting = true;   // the arrow now points at the edges
+    pop(m.x, m.y, `🌿 Trimmer! ${G.trimTotal - G.trimCount} edge spots to trim`, '#c6f0a8', 20);
+  } else {
+    Object.assign(MOWER, G.savedSpec);
+    Object.assign(m, G.parked);
+    G.trimming = false;
+    trimMesh.visible = false;
+    mowerMesh.userData.worker.visible = true;
+    G.hunting = G.cutCount / grassTotal >= 0.95;
+    pop(m.x, m.y, '🚜 Back on the mower', '#c6f0a8', 18);
+  }
+  G.throttle = 0;
+  SFX.pull(); buzz(30);
 }
 
 // Ran into the fence, the house or a tree
@@ -2306,13 +2419,17 @@ function updateFinder(dt) {
   G.finderT -= dt;
   if (G.finderT <= 0) {
     G.finderT = 0.25;
-    let best = null, bd = Infinity;
-    for (let i = 0; i < G.cells.length; i++) {
-      if (G.cells[i] !== 1) continue;
-      const x = (i % COLS) * CELL + CELL / 2, y = Math.floor(i / COLS) * CELL + CELL / 2, d = (x - m.x) ** 2 + (y - m.y) ** 2;
-      if (d < bd) { bd = d; best = { x, y }; }
-    }
-    G.target = best;
+    // with the mower: the nearest missed grass. With the trimmer: the nearest edge (or missed grass if no edges are left).
+    const find = (want) => {
+      let best = null, bd = Infinity;
+      for (let i = 0; i < G.cells.length; i++) {
+        if (G.cells[i] !== want) continue;
+        const x = (i % COLS) * CELL + CELL / 2, y = Math.floor(i / COLS) * CELL + CELL / 2, d = (x - m.x) ** 2 + (y - m.y) ** 2;
+        if (d < bd) { bd = d; best = { x, y }; }
+      }
+      return best;
+    };
+    G.target = G.trimming ? (find(3) || find(1)) : find(1);
   }
   const tg = G.target;
   finder.visible = !!tg && Math.hypot(tg.x - m.x, tg.y - m.y) > MOWER.deckRadius + 10;
@@ -2358,13 +2475,13 @@ function mowAt(x, y, rot) {
   const r0 = Math.max(0, Math.floor((y - r) / CELL)), r1 = Math.min(ROWS - 1, Math.floor((y + r) / CELL));
   for (let row = r0; row <= r1; row++) {
     for (let col = c0; col <= c1; col++) {
-      const i = row * COLS + col;
-      if (G.cells[i] !== 1) continue;
+      const i = row * COLS + col, v = G.cells[i];
+      if (v !== 1 && !(v === 3 && G.trimming)) continue;     // edges (3) can only be cut with the trimmer
       const ccx = col * CELL + CELL / 2, ccy = row * CELL + CELL / 2;
-      if ((ccx - x) ** 2 + (ccy - y) ** 2 <= r * r) { G.cells[i] = 2; G.cutCount++; n++; }
+      if ((ccx - x) ** 2 + (ccy - y) ** 2 <= r * r) { G.cells[i] = 2; if (v === 3) G.trimCount++; else G.cutCount++; n++; }
     }
   }
-  windrow(x, y, rot, n);
+  if (!G.trimming) windrow(x, y, rot, n);
   return n;
 }
 
@@ -2481,7 +2598,7 @@ function updateCamera(dt, snap) {
     const targetYaw = camMode === 'turning' ? m.rot : -Math.PI / 2;
     camYaw = snap ? targetYaw : camYaw + wrapAngle(targetYaw - camYaw) * (1 - Math.exp(-dt * cfg.lag));
     const fx = Math.cos(camYaw), fz = Math.sin(camYaw), rx = -fz, rz = fx;
-    const z = currentMower().cam;   // bigger machines: the camera sits a bit further back
+    const z = G.trimming ? 0.8 : currentMower().cam;   // bigger machines: the camera sits a bit further back
     pos = new THREE.Vector3(m.x - fx * cfg.dist * z + rx * cfg.side, cfg.height * z, m.y - fz * cfg.dist * z + rz * cfg.side);
     look = new THREE.Vector3(m.x + fx * cfg.ahead * z, 0, m.y + fz * cfg.ahead * z);
   }
@@ -2605,7 +2722,10 @@ function finish(reason) {
   guide.visible = false; guide.material.opacity = 0;
   SFX.engine(false);
 
-  const cut = G.cutCount / grassTotal, t = G.elapsed, done = cut >= 0.95;
+  swapRing.visible = false; $('toolBtn').classList.add('hidden');
+  // the medal time is how long the MOWING took — trimming the edges afterwards doesn't count against you
+  const cut = G.cutCount / grassTotal, t = G.mowDoneAt ?? G.elapsed, done = cut >= 0.95;
+  const trimFrac = G.trimTotal ? G.trimCount / G.trimTotal : 0;
   let medal = 'none';
   if (done) medal = t <= medalT.gold ? 'gold' : t <= medalT.silver ? 'silver' : t <= medalT.bronze ? 'bronze' : 'none';
   const comment =
@@ -2620,7 +2740,8 @@ function finish(reason) {
   const payRate = cut >= BIZ.fullPayCut ? 1 : cut >= BIZ.okPayCut ? 0.85 : 0.5;
   pay *= payRate;
   const firstTip = RUN.paid && !(career.firstDone || {})[YARD.id] ? BIZ.firstJobTip : 0;
-  const bonus = (done ? BIZ.medalBonus[medal] : 0) + firstTip;
+  const trimTip = G.trimTotal ? YARD.pay * BIZ.trimTip * trimFrac : 0;
+  const bonus = (done ? BIZ.medalBonus[medal] : 0) + firstTip + trimTip;
   const tips = G.style / TIP_RATE;
   const total = pay + bonus + tips;
   setTimeout(() => SFX.medal(medal), 250);
@@ -2667,12 +2788,14 @@ function finish(reason) {
   const lines = [
     `Time: ${t.toFixed(1)}s &nbsp;·&nbsp; Cut: ${pct(cut)} &nbsp;·&nbsp; Skipped: ${pct(1 - cut)}`,
     `Clean stripes: ${G.cleanStripes} &nbsp;·&nbsp; Best combo: ×${G.bestCombo}`,
+    G.trimTotal ? `🌿 Edges trimmed: ${Math.round(trimFrac * 100)}%${trimFrac < 1 ? ` (all of them earns a ${money(YARD.pay * BIZ.trimTip)} tip)` : ' — perfect edges!'}` : '',
     `Overlap: ${Math.round(G.wasted / Math.max(1, G.distance) * 100)}% of your driving was over cut grass`,
     RUN.paid
       ? `Paid ${money(pay)}${RUN.payFactor < 1 ? ` (grass was overgrown: ${Math.round(RUN.payFactor * 100)}%)` : ''}`
         + (payRate < 1 ? ` (${Math.round(payRate * 100)}% — you missed spots)` : '')
-        + (bonus - firstTip ? ` + medal bonus ${money(bonus - firstTip)}` : '')
+        + (bonus - firstTip - trimTip ? ` + medal bonus ${money(bonus - firstTip - trimTip)}` : '')
         + (firstTip ? ` + first-job tip ${money(firstTip)}` : '')
+        + (trimTip ? ` + 🌿 trim tip ${money(trimTip)}` : '')
         + ` + tips ${money(tips)} = <b id="payTotal" style="color:#9be37a">$0.00</b>`
       : `Practice — a paid job would have earned ${money(total)}`,
     ...bizLines,
@@ -2838,6 +2961,7 @@ function showHub() {
   finder.visible = false;
   guide.visible = false; guide.material.opacity = 0;
   ghostMesh.visible = false;
+  swapRing.visible = false; $('toolBtn').classList.add('hidden');
   SFX.engine(false);
   setMowerModel(currentMower());
   setWeather(career.weather);
@@ -2985,7 +3109,7 @@ showHub();
 updateCamera(0, true);
 requestAnimationFrame(frame);
 window.__game = { G, keys, CAMERA, tilt, readTilt, ctrl, touch, setMode, finish, newRun, mowAt, update, updateCamera,
-  get camMode() { return camMode; }, toggleCamera, get career() { return career; }, startJob, showHub, nextDay, loadYard, pullCord, MOWERS, YARDS, guide,
+  get camMode() { return camMode; }, toggleCamera, get career() { return career; }, startJob, showHub, nextDay, loadYard, pullCord, MOWERS, YARDS, guide, toggleTool,
   maskA: (tx, ty) => maskData[((MH - 1 - ty) * MW + tx) * 4 + 3], get tmpl() { return cellsTemplate; } };   // for testing
 </script>
 </body>
