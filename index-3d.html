@@ -2228,13 +2228,28 @@ function update(dt) {
     const sp = th > 0 ? MOWER.speed * th : MOWER.reverseSpeed * th;   // can be in-between (tilting, speeding up)
     const want = Math.abs(sp * dt);
     let nx = m.x + Math.cos(m.rot) * sp * dt, ny = m.y + Math.sin(m.rot) * sp * dt;
-    if (collides(nx, ny)) {
+    if (collides(nx, ny) && G.trimming) {
+      // trimmer: glide along fences, walls and trees. Try steps a little to the side of where
+      // you're heading (more and more), and take the first one that fits. No bonks.
+      const dir = Math.sign(sp);
+      let found = false;
+      for (const deg of [15, 30, 45, 60, 70, 80, 90]) {
+        for (const side of [G.slideSide || 1, -(G.slideSide || 1)]) {
+          // (straight sideways, at 90°, still moves at almost half speed, so you edge around trees you walk right into)
+          const a = m.rot + side * deg * toRad, step = want * Math.max(0.45, Math.cos(deg * toRad));
+          const tx = m.x + Math.cos(a) * step * dir, ty = m.y + Math.sin(a) * step * dir;
+          if (!collides(tx, ty)) { nx = tx; ny = ty; G.slideSide = side; found = true; break; }
+        }
+        if (found) break;
+      }
+      if (!found) { nx = m.x; ny = m.y; }
+    } else if (collides(nx, ny)) {
       if (!collides(nx, m.y)) ny = m.y;
       else if (!collides(m.x, ny)) nx = m.x;
       else { nx = m.x; ny = m.y; }
       // ran into something head-on? Bonk!
       if (Math.hypot(nx - m.x, ny - m.y) < want * 0.35 && Math.abs(th) > 0.5) bump(m, th);
-    }
+    } else if (G.trimming) G.slideSide = 0;   // free again: next time, slide whichever way fits first
     G.distance += Math.hypot(nx - m.x, ny - m.y);
     m.x = nx; m.y = ny;
   }
