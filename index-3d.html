@@ -481,7 +481,7 @@ const SFX = {
     tractor42: { base: 30, range: 22, sub: 0.5,  wave: 'square',   muffle: 300,  wob: 0.46, lfo: 7,  lfoR: 5,  vol: 0.27, blade: 1800 },   // V-twin: deep, lumpy rumble
     standon48: { base: 33, range: 27, sub: 0.5,  wave: 'sawtooth', muffle: 420,  wob: 0.42, lfo: 8,  lfoR: 7,  vol: 0.28, blade: 2000 },   // commercial V-twin, a bit raspier
     zt54:      { base: 28, range: 28, sub: 0.5,  wave: 'sawtooth', muffle: 360,  wob: 0.52, lfo: 7,  lfoR: 7,  vol: 0.31, blade: 1650 },   // big V-twin: the deepest growl
-    trimmer:   { base: 115, range: 120, sub: 1.01, wave: 'sawtooth', muffle: 2200, wob: 0.14, lfo: 34, lfoR: 20, vol: 0.15, blade: 4300 }    // 2-stroke: a high, buzzy whine
+    trimmer:   { base: 72, range: 46, sub: 0.5,  wave: 'triangle', muffle: 650,  wob: 0.12, lfo: 22, lfoR: 10, vol: 0.07, blade: 3000, bladeVol: 0.35 }   // 2-stroke: a soft, muffled hum
   },
   setProfile(name) {
     this.profName = name;
@@ -506,7 +506,7 @@ const SFX = {
     this.eng1.frequency.setTargetAtTime(f, t, 0.2);
     this.eng2.frequency.setTargetAtTime(f * p.sub + 0.7, t, 0.2);
     this.lfo.frequency.setTargetAtTime(p.lfo + p.lfoR * speed, t, 0.2);
-    this.bladeGain.gain.setTargetAtTime(running && cutting > 0 ? 0.03 + 0.035 * load : 0, t, 0.05);
+    this.bladeGain.gain.setTargetAtTime(running && cutting > 0 ? (0.03 + 0.035 * load) * (p.bladeVol ?? 1) : 0, t, 0.05);
   },
   // a short burst of noise (knocks, cord pulls)
   noiseHit(dur, freq, vol, delay = 0) {
