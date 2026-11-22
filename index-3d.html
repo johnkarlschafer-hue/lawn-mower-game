@@ -160,6 +160,7 @@
   #hub .row .name { font-weight: 600; }
   #hub .row .sub2 { font-size: 13px; color: #c9dcbf; }
   #hub .row button { font-size: 14px; padding: 6px 12px; white-space: nowrap; }
+  #hub .row { flex-wrap: wrap; } #hub .row .info { min-width: 200px; }
   #hub .row.locked { opacity: 0.55; }
   #hub .row img.pic { width: 96px; height: 60px; object-fit: contain; flex: none; border-radius: 8px;
     background: radial-gradient(ellipse at 50% 70%, rgba(255,255,255,0.16), rgba(255,255,255,0.02) 70%); }
@@ -411,7 +412,28 @@ const MOWERS = [
     like: 'the pro\'s machine: each lever drives one back wheel, so it spins on the spot',
     deck: 54, speed: 200, reverse: 100, turn: 4.2, body: 40, tank: 8, burn: 0.04, wear: 5, color: 0xd62828, cam: 1.26 }
 ];
+// a helper's own mower (not in the shop)
+MOWERS.push({ id: 'push21', type: 'walk', hidden: true, name: 'Tommy\'s family 21" push mower', price: 0,
+  like: 'an old 21-inch push mower from the neighbors\' shed', deck: 21, speed: 110, reverse: 55, turn: 3.0, body: 15,
+  tank: 0.9, burn: 0.006, wear: 14, color: 0x4a6fa5, cam: 0.95 });
 const mowerById = (id) => MOWERS.find(m => m.id === id) || MOWERS[0];
+
+// ---- Helpers you can hire ----
+//  stars = reputation needed before they ask for work. shirt/cap = their colors.
+const HELPERS = [
+  { id: 'tommy', name: 'Tommy', stars: 3, shirt: 0x3d7fd6, cap: 0xd83a2c,
+    story: 'Tommy (14) from down the street has been watching you work. "Can I help? I\'ve got my family\'s old push mower, and I learn fast!"' },
+  { id: 'maya', name: 'Maya', stars: 12, shirt: 0x8e44ad, cap: 0x2c3e50,
+    story: 'Maya (15) mows her grandpa\'s lawn every week. "Teach me your routes and I\'ll take care of the smaller yards."' }
+];
+const HELP = {
+  share: 0.4,          // "pay per job": the helper gets 40% of what the customer pays
+  wage: 15,            // "daily wage": $15 every day, even rainy days, however many jobs they do
+  lessonsNeeded: 2,    // good lessons before they can mow a yard alone
+  lessonCut: 0.8,      // a lesson only counts if you cut at least 80% (they copy what you do!)
+  jobsPerDay: 2,       // jobs a helper can do each day (on top of yours)
+  watchSpeed: 3        // how fast you watch a helper's run (3 = triple speed)
+};
 
 // ---- The string trimmer (weed eater) ----
 //  Park the mower by the driveway and walk with the trimmer: a narrow cut, but you fit
@@ -1377,7 +1399,7 @@ function buildProps() {
 // =====================================================================
 // type: 'walk' (walk-behind), 'tractor' (riding lawn tractor), 'standon' (stand-on), 'zt' (zero-turn rider)
 // parent: where to put it (the game scene, or the little scene that takes the clipboard pictures)
-function buildMower(ghost, type = 'walk', parent = scene) {
+function buildMower(ghost, type = 'walk', parent = scene, look = null) {
   const g = new THREE.Group();
   const ghostMat = new THREE.MeshBasicMaterial({ color: 0x8fcaff, transparent: true, opacity: 0.4, depthWrite: false });
   const M = ghost ? () => ghostMat : (c, e) => mat(c, e);
@@ -1406,7 +1428,11 @@ function buildMower(ghost, type = 'walk', parent = scene) {
   };
   let pose;
 
-  if (type === 'walk') {
+  if (type === 'person') {
+    // just a person standing (a helper watching a lesson): no machine
+    var red = M(0xffffff), darkRed = red;
+    pose = { legs: 'stand', hip: [0, 34], hands: [3, 36, 12.5], lean: 0 };
+  } else if (type === 'walk') {
   // ---- the mower ----
   var red = PAINT(0xd8342a), darkRed = PAINT(0x9e281e, { roughness: 0.5 });
   add(new THREE.CylinderGeometry(15.5, 16, 5, 48), red, 0, 6.5, 0);                         // deck
@@ -1494,8 +1520,8 @@ function buildMower(ghost, type = 'walk', parent = scene) {
 
   // ---- the worker ----
   part = wg;
-  const skin = M(0xf0c08a, { roughness: 0.7 }), shirt = M(0xff7a3d, { roughness: 0.9 }), jeans = M(0x3a5590, { roughness: 0.95 });
-  const capM = M(0x2f5fb3, { roughness: 0.8 }), shoe = M(0x4a3426, { roughness: 0.8 }), hair = M(0x5a3a22, { roughness: 0.9 });
+  const skin = M(0xf0c08a, { roughness: 0.7 }), shirt = M(look ? look.shirt : 0xff7a3d, { roughness: 0.9 }), jeans = M(0x3a5590, { roughness: 0.95 });
+  const capM = M(look ? look.cap : 0x2f5fb3, { roughness: 0.8 }), shoe = M(0x4a3426, { roughness: 0.8 }), hair = M(0x5a3a22, { roughness: 0.9 });
   const [hx, hy] = pose.hip, legs = [];
   for (const z of [-4.6, 4.6]) {
     if (pose.legs === 'sit') {
@@ -1529,6 +1555,7 @@ function buildMower(ghost, type = 'walk', parent = scene) {
     add(new THREE.SphereGeometry(2.6, 16, 12), skin, ax, ay, s * az);                        // hand
   }
   g.userData.legs = legs;
+  g.userData.lookId = look ? look.id : null;
   g.userData.mower = mg;
   g.userData.worker = wg;
   if (ghost) g.traverse(o => { o.castShadow = false; o.receiveShadow = false; });
@@ -1549,6 +1576,17 @@ const swapRing = new THREE.Mesh(new THREE.RingGeometry(BIZ.swapZone - 6, BIZ.swa
   new THREE.MeshBasicMaterial({ color: 0xc8ff7a, transparent: true, opacity: 0.35, depthWrite: false, depthTest: false }));
 swapRing.rotation.x = -Math.PI / 2; swapRing.renderOrder = 8; swapRing.visible = false;
 scene.add(swapRing);
+
+// The helper watching a lesson, standing just outside the fence near the driveway
+let watcher = null;
+function placeWatcher(hid) {
+  if (watcher) { disposeModel(watcher); watcher = null; }
+  if (!hid) return;
+  const h = HELPERS.find(v => v.id === hid);
+  watcher = buildMower(false, 'person', scene, h);
+  const d = YARD.driveway, x = d.x + d.w + 45 < YARD_W - 20 ? d.x + d.w + 45 : d.x - 45;
+  watcher.position.set(x, 0, YARD_H + 16);
+}
 
 // =====================================================================
 //  ANIMALS: birds in the trees, and now and then a dog or cat on the lawn
@@ -1791,11 +1829,11 @@ function updatePet(dt) {
   p.head.rotation.y = moving ? 0 : Math.sin(t * 0.7) * 0.5;
 }
 // swap the 3D model when you switch mowers (and the ghost to match)
-function setMowerModel(mw) {
-  if (mowerMesh.userData.type !== mw.type) {
+function setMowerModel(mw, look = null) {
+  if (mowerMesh.userData.type !== mw.type || mowerMesh.userData.lookId !== (look ? look.id : null)) {
     const keep = { pos: mowerMesh.position.clone(), rot: mowerMesh.rotation.y, gv: ghostMesh.visible };
     disposeModel(mowerMesh); disposeModel(ghostMesh);
-    mowerMesh = buildMower(false, mw.type);
+    mowerMesh = buildMower(false, mw.type, scene, look);
     ghostMesh = buildMower(true, mw.type);
     mowerMesh.position.copy(keep.pos); mowerMesh.rotation.y = keep.rot; ghostMesh.visible = keep.gv;
   }
@@ -2169,12 +2207,12 @@ function newRun() {
     deckRadius: mw.deck * 0.8,                         // 20 inches = 16 units of half-width
     bodyRadius: mw.body
   });
-  setMowerModel(mw);
+  setMowerModel(mw, RUN.watch ? HELPERS.find(h => h.id === RUN.watch.hid) : null);   // watching a helper: it's them on the mower
   SFX.setProfile(mw.id);
   grassLen.value = RUN.tall ? 1.5 : 1;
   fuelMax = mw.tank / mw.burn;                      // gas measured in "seconds of full-throttle mowing"
   let fuel = fuelMax;
-  if (RUN.paid) { topUpTank(); fuel = career.tank / mw.burn; }
+  if (RUN.paid && !RUN.lesson) { topUpTank(); fuel = career.tank / mw.burn; }   // (lessons: the helper's mower starts full; the gas comes out of your can afterwards)
   G.cells.set(cellsTemplate);
   dropUnreachable();
   G.cutCount = 0;
@@ -2200,6 +2238,7 @@ function newRun() {
   guide.visible = false; guide.material.opacity = 0;
   if (isPhone && ctrl.mode !== 'touch') setMode('touch');   // phones: GO / REV buttons and the steering pad
   trimMesh.visible = false; mowerMesh.visible = true; mowerMesh.userData.worker.visible = true;
+  placeWatcher(RUN.lesson || null);
   // now and then the customer's dog or cat is out on the lawn (practice tools can call one out)
   spawnPet(career.nextPet || null);
   career.nextPet = null;
@@ -2230,6 +2269,7 @@ window.addEventListener('keydown', (e) => {
   keys.add(e.code);
   if (G.inHub) return;
   const midJob = RUN.paid && G.started && !G.finished;
+  if (RUN.watch && (e.code === 'KeyR' || e.code === 'Enter')) { if (e.code === 'Enter') endWatch(); return; }
   if (e.code === 'KeyR') {
     if (midJob) pop(G.mower.x, G.mower.y, 'Paid job — no do-overs! Press Finish when done', '#ffab7a');
     else if (!RUN.paid || !G.finished) newRun();
@@ -2280,6 +2320,7 @@ clickBtn('hubBtn', () => {
 });
 clickBtn('finishBtn', () => {
   if (G.inHub) return;
+  if (RUN.watch && !G.finished) return endWatch();
   if (G.finished) document.getElementById('results').classList.toggle('hidden');
   else finish();
 });
@@ -2567,6 +2608,7 @@ function frame(now) {
 
 function update(dt) {
   if (G.finished || G.inHub) return;
+  if (RUN.watch) return watchUpdate(dt);
   const m = G.mower;
 
   let turn = 0, drive = 0;
@@ -2704,6 +2746,7 @@ function update(dt) {
     G.recTimer -= dt;
     if (G.recTimer <= 0) { G.recTimer = 0.05; recordSample(); }
   }
+  if (watcher) watcher.rotation.y = -Math.atan2(m.y - watcher.position.z, m.x - watcher.position.x);   // the helper follows you with their eyes
   updateFinder(dt);
   updateSwap();
   updateGhost();
@@ -2868,7 +2911,7 @@ function updateFinder(dt) {
 
 function recordSample() {
   const m = G.mower;
-  G.rec.push([+G.elapsed.toFixed(2), Math.round(m.x), Math.round(m.y), +m.rot.toFixed(2), +(G.cutCount / grassTotal).toFixed(4)]);
+  G.rec.push([+G.elapsed.toFixed(2), Math.round(m.x), Math.round(m.y), +m.rot.toFixed(2), +(G.cutCount / grassTotal).toFixed(4), G.trimming ? 1 : 0]);
 }
 
 function updateGhost() {
@@ -3224,13 +3267,15 @@ function finish(reason) {
     career.lastMowed[YARD.id] = career.day;
     career.slot++;
     career.jobsDone++;
-    career.tank = Math.max(0, G.fuel * mw.burn);
+    if (RUN.lesson) career.gasCan = Math.max(0, career.gasCan - (fuelMax - G.fuel) * mw.burn);
+    else career.tank = Math.max(0, G.fuel * mw.burn);
     career.wearOf[mw.id] = Math.min(90, getWear() + mw.wear);
     const stars = (cut >= BIZ.starCut ? 1 : 0) + (medal !== 'none' ? 1 : 0);
     career.rep += stars;
     (career.firstDone = career.firstDone || {})[YARD.id] = true;
     if (stars) bizLines.push(`<span style="color:#ffe9a3">+${stars} ★ reputation</span> (you have ${career.rep} ★)`);
     else bizLines.push(`<span style="color:#ffab7a">No ★ — cut at least ${Math.round(BIZ.starCut * 100)}% to earn reputation</span>`);
+    if (RUN.lesson) bizLines.push(recordLesson(RUN.lesson, cut, t));
     news = checkUnlocks().map(y => `<div class="note" style="text-align:left">📞 <b>New customer: ${y.name}!</b> ${y.story}</div>`).join('');
     saveCareer();
   }
@@ -3292,7 +3337,7 @@ function newCareer() {
     gasCan: BIZ.startGas, tank: MOWERS[0].tank,          // liters of gas in the can and in the mower
     owned: ['walk30'], mower: 'walk30', wearOf: { walk30: 15 },
     unlocked: ['peterson'], lastMowed: { peterson: -3 },
-    seen: {}, notes: []
+    seen: {}, notes: [], helpers: {}
   };
 }
 // new neighbors call once you have enough ★ — returns the ones who just called
@@ -3324,8 +3369,26 @@ function loadCareer() {
   return null;
 }
 let career = loadCareer() || newCareer();
+career.helpers = career.helpers || {};
 function saveCareer() { try { localStorage.setItem(CAREER_KEY, JSON.stringify(career)); } catch (e) {} }
-function currentMower() { return mowerById(career.mower); }
+// the mower being driven right now: yours, or the helper's (during a lesson, or when watching their run)
+function currentMower() { return mowerById(RUN.mowerOverride || career.mower); }
+
+// ---- helpers ----
+const hired = () => HELPERS.filter(h => career.helpers && career.helpers[h.id]);
+// which mower each helper uses: the best mower you own that you're not using (each helper gets a different one);
+// if there's none to spare, Tommy brings his family's old push mower
+function helperMower(hid) {
+  const spare = career.owned.filter(id => id !== career.mower).map(mowerById).sort((a, b) => b.deck - a.deck);
+  let i = 0;
+  for (const h of hired()) {
+    const m = spare[i++];
+    if (h.id === hid) return m ? m.id : (hid === 'tommy' ? 'push21' : null);
+  }
+  return null;
+}
+function lessonsFor(hid, yid) { const L = career.helpers[hid].lessons[yid]; return L ? L.n : 0; }
+const trained = (hid, yid) => lessonsFor(hid, yid) >= HELP.lessonsNeeded;
 const canSize = () => Math.max(BIZ.canSize, Math.round(currentMower().tank * 2.5));
 function getWear() { return career.wearOf[career.mower] || 0; }
 const grassDays = (y) => career.day - career.lastMowed[y.id];
@@ -3339,18 +3402,192 @@ function topUpTank() {
   if (take > 0) { career.tank += take; career.gasCan -= take; }
 }
 
-function startJob(id, paid) {
+// lesson = the helper's id when you're teaching them this yard (you mow with THEIR mower while they watch)
+function startJob(id, paid, lesson = null) {
   const y = YARDS.find(v => v.id === id);
   if (YARD !== y || !yardGroup.children.length) loadYard(id);
   career.lastYard = id;
   const days = grassDays(y);
   RUN = paid ? { paid: true, tall: days > BIZ.overdueDays, payFactor: payFactor(days) } : { paid: false, tall: false, payFactor: 1 };
+  if (lesson) { RUN.lesson = lesson; RUN.mowerOverride = helperMower(lesson); }
   setWeather(paid ? 'sun' : career.weather);
   saveCareer();
   newRun();
 }
 
+// a lesson: the helper remembers your route for this yard (only the mowing parts, not the trimming)
+function recordLesson(hid, cut, t) {
+  const h = career.helpers[hid], name = HELPERS.find(v => v.id === hid).name, need = HELP.lessonsNeeded;
+  if (cut < HELP.lessonCut) return `🧑‍🏫 ${name} got confused by all the missed spots — a lesson only counts if you cut at least ${Math.round(HELP.lessonCut * 100)}%.`;
+  const L = h.lessons[YARD.id] || { n: 0, cut: 0, time: 1e9 };
+  L.n++;
+  const route = [];
+  for (let i = 0; i < G.rec.length; i += 3) if (!G.rec[i][5]) route.push([G.rec[i][1], G.rec[i][2]]);
+  // keep the best lesson: the one that cut the most (or was quickest)
+  if (cut > L.cut + 0.005 || (cut >= L.cut - 0.005 && t < L.time)) Object.assign(L, { route, cut, time: t, mower: currentMower().id });
+  h.lessons[YARD.id] = L;
+  return L.n >= need ? `🧑‍🏫 ${name} watched closely. <b>${name} can mow ${YARD.name}'s yard alone now!</b> Send them from the clipboard.`
+                     : `🧑‍🏫 Lesson ${L.n} of ${need}: ${name} is learning ${YARD.name}'s yard.`;
+}
+
+// =====================================================================
+//  A HELPER MOWS A YARD ON THEIR OWN
+//  They follow your best lesson route for that yard, with human mistakes: a wobbly line,
+//  now and then a whole strip a bit off (leaving a gap), a bump, a stall. The more jobs they
+//  do on a yard (and the more lessons you give), the fewer mistakes.
+// =====================================================================
+let lastHelperRun = null;
+function helperError(hid, yid) {
+  const h = career.helpers[hid], extra = Math.max(0, lessonsFor(hid, yid) - HELP.lessonsNeeded), jobs = h.jobs[yid] || 0;
+  return clamp(0.32 - 0.05 * extra - 0.045 * jobs, 0.06, 0.32);
+}
+function runHelperJob(hid, yid) {
+  const hd = HELPERS.find(v => v.id === hid), h = career.helpers[hid], L = h.lessons[yid], y = YARDS.find(v => v.id === yid);
+  if (YARD.id !== yid || !yardGroup.children.length) loadYard(yid);        // (shows that yard behind the clipboard)
+  const mw = mowerById(helperMower(hid)), R = mw.deck * 0.8, err = helperError(hid, yid);
+  const save = { deckRadius: MOWER.deckRadius, bodyRadius: MOWER.bodyRadius };
+  Object.assign(MOWER, { deckRadius: R, bodyRadius: mw.body });
+  G.cells.set(cellsTemplate); dropUnreachable();
+  const total = grassTotal;
+  // 1. their path: your lesson route, with mistakes
+  const src = L.route, path = [];
+  let shift = 0, skips = 0, bumps = 0, stripeA = null, wob = Math.random() * 10;
+  for (let i = 0; i < src.length - 1; i++) {
+    const [x0, y0] = src[i], [x1, y1] = src[i + 1], dx = x1 - x0, dy = y1 - y0, len = Math.hypot(dx, dy);
+    if (len < 0.5) continue;
+    const a = Math.atan2(dy, dx);
+    if (stripeA === null) stripeA = a;
+    if (Math.abs(wrapAngle(a - stripeA)) > 1.2) {            // turned around: a new stripe
+      stripeA = a;
+      shift = Math.random() < err * 0.45 ? (Math.random() < 0.5 ? -1 : 1) * R * (0.5 + Math.random() * 0.4) : 0;
+      if (shift) skips++;
+      if (Math.random() < err * 0.25) bumps++;
+    }
+    const nx = -Math.sin(a), ny = Math.cos(a);
+    for (let k = 0; k < len; k += 3) {
+      wob += 0.05;
+      const off = shift + err * 14 * Math.sin(wob * 1.7) + err * 6 * Math.sin(wob * 4.3);
+      let px = x0 + dx * k / len + nx * off, py = y0 + dy * k / len + ny * off;
+      if (collides(px, py)) { px = x0 + dx * k / len; py = y0 + dy * k / len; }
+      path.push([px, py]);
+    }
+  }
+  // 2. how long it takes, gas and breakdowns
+  const lessonM = mowerById(L.mower || mw.id);
+  let time = L.time * (lessonM.speed / mw.speed) * (1 + err * 0.6);
+  const wear = career.wearOf[mw.id] || 0, stalled = Math.random() < wear / 100;
+  if (stalled) time += 25;
+  const need = time * mw.burn * 0.75, have = career.gasCan;
+  let ranOut = false;
+  if (have < need) { ranOut = true; path.length = Math.floor(path.length * have / need); }
+  career.gasCan = Math.max(0, have - need);
+  // 3. cut the grass along the path
+  let n = 0;
+  const rc = Math.ceil(R / CELL) + 1;
+  for (const [px, py] of path) {
+    const c0 = Math.floor(px / CELL), r0 = Math.floor(py / CELL);
+    for (let r = Math.max(0, r0 - rc); r <= Math.min(ROWS - 1, r0 + rc); r++)
+      for (let c = Math.max(0, c0 - rc); c <= Math.min(COLS - 1, c0 + rc); c++) {
+        const i = r * COLS + c;
+        if (G.cells[i] !== 1) continue;
+        const cx = c * CELL + CELL / 2, cy = r * CELL + CELL / 2;
+        if ((cx - px) ** 2 + (cy - py) ** 2 <= R * R) { G.cells[i] = 2; n++; }
+      }
+  }
+  Object.assign(MOWER, save);
+  const cut = total ? n / total : 0;
+  // 4. money, reputation, experience
+  const days = grassDays(y), tier = cut >= BIZ.fullPayCut ? 1 : cut >= BIZ.okPayCut ? 0.85 : 0.5;
+  const pay = y.pay * payFactor(days) * cut * tier, tip = cut >= 0.95 ? 2 : 0;
+  const share = h.plan === 'share' ? (pay + tip) * HELP.share : 0;
+  career.money += pay + tip - share;
+  h.earned += pay + tip; h.cost += share;
+  h.jobs[yid] = (h.jobs[yid] || 0) + 1; h.today = (h.today || 0) + 1;
+  career.lastMowed[yid] = career.day;
+  career.wearOf[mw.id] = Math.min(90, wear + mw.wear);
+  const repChange = cut >= 0.95 ? 1 : cut < 0.85 ? -1 : 0;
+  career.rep = Math.max(0, career.rep + repChange);
+  saveCareer();
+  // 5. the report
+  const notes = [];
+  if (err > 0.12) notes.push(`a few wobbly lines (still learning this yard)`);
+  if (skips) notes.push(`${skips} strip${skips > 1 ? 's' : ''} a bit off, leaving gaps`);
+  if (bumps) notes.push(`bumped into things ${bumps} time${bumps > 1 ? 's' : ''}`);
+  if (stalled) notes.push(`the mower stalled — it took a while to restart it (tune-up?)`);
+  if (ranOut) notes.push(`<span class="warn">ran out of gas before finishing — fill up your gas can!</span>`);
+  if (lessonM.deck > mw.deck + 1) notes.push(`you taught with a wider mower than ${hd.name} has, so the stripes didn't quite meet`);
+  lastHelperRun = { hid, yid, path: path.map(([x, y]) => [Math.round(x), Math.round(y)]), mower: mw.id,
+    report: { hd, y, cut, pay, tip, share, plan: h.plan, notes, repChange, err, jobs: h.jobs[yid], mower: mw } };
+  showHelperReport(lastHelperRun.report);
+}
+function showHelperReport(r) {
+  G.inHub = true;
+  document.body.classList.add('inhub');
+  $('hub').classList.add('hidden');
+  const money = (v) => '$' + v.toFixed(2), pct = (r.cut * 100).toFixed(1);
+  const grade = r.cut >= BIZ.fullPayCut ? '😀 Great job!' : r.cut >= BIZ.okPayCut ? '🙂 Not bad (85% pay)' : '😬 Needs more practice (half pay)';
+  const el = $('results');
+  el.innerHTML = `
+    <div class="head"><h1>${r.hd.name} mowed ${r.y.name}'s yard</h1></div>
+    <p>${grade} — cut <b>${pct}%</b> with ${r.mower.name}<br>
+      ${r.notes.length ? 'Mistakes: ' + r.notes.join('; ') : 'No mistakes at all!'}<br>
+      Customer paid ${money(r.pay + r.tip)}${r.tip ? ' (with a tip)' : ''}<br>
+      ${r.plan === 'share' ? `${r.hd.name}'s share (40%): −${money(r.share)} → <b style="color:#9be37a">you keep ${money(r.pay + r.tip - r.share)}</b>`
+                           : `${r.hd.name} is on a daily wage ($${HELP.wage}/day), so <b style="color:#9be37a">you keep all ${money(r.pay + r.tip)}</b>`}<br>
+      ${r.repChange > 0 ? '<span style="color:#ffe9a3">+1 ★ — the customer was impressed</span>' : r.repChange < 0 ? '<span class="warn">−1 ★ — the customer complained</span>' : ''}<br>
+      <span style="color:#c9dcbf">Jobs on this yard: ${r.jobs} · fewer mistakes each time</span></p>
+    <div class="btns"><button id="watchBtn">▶ Watch ${r.hd.name}'s run</button><button id="hubBtn2" class="quiet">📋 Back to the clipboard</button></div>`;
+  el.classList.remove('hidden');
+  clickBtn('watchBtn', startWatch);
+  clickBtn('hubBtn2', showHub);
+}
+// watch the helper's run in 3D at triple speed
+function startWatch() {
+  const w = lastHelperRun;
+  if (!w) return;
+  if (YARD.id !== w.yid) loadYard(w.yid);
+  RUN = { paid: false, tall: false, payFactor: 1, watch: w, mowerOverride: w.mower };
+  newRun();
+  const m = G.mower; [m.x, m.y] = w.path[0] || [m.x, m.y];
+  G.started = true; G.watchI = 0;
+  hideIntro();
+  pop(m.x, m.y, `Watching ${w.report.hd.name} (×${HELP.watchSpeed} speed) — tap Finish to skip`, '#ffe9a3', 18);
+}
+function watchUpdate(dt) {
+  const w = RUN.watch, m = G.mower;
+  let budget = MOWER.speed * HELP.watchSpeed * dt, moved = 0, cutNow = 0;
+  while (budget > 0 && G.watchI < w.path.length - 1) {
+    const [tx, ty] = w.path[G.watchI + 1], dx = tx - m.x, dy = ty - m.y, d = Math.hypot(dx, dy);
+    if (d > 0.5) m.rot += wrapAngle(Math.atan2(dy, dx) - m.rot) * 0.35;
+    if (d <= budget) { m.x = tx; m.y = ty; budget -= d; moved += d; G.watchI++; }
+    else { m.x += dx / d * budget; m.y += dy / d * budget; moved += budget; budget = 0; }
+    cutNow += mowAt(m.x, m.y, m.rot);
+  }
+  if (cutNow) emitClips(m.x, m.y, m.rot, Math.min(6, cutNow), 1);
+  G.elapsed += dt * HELP.watchSpeed;
+  placeModel(mowerMesh, m.x, m.y, m.rot);
+  const ud = mowerMesh.userData;
+  G.walk += moved;
+  if (ud.type === 'walk') { const sw = Math.sin(G.walk * 0.12) * 0.45; ud.legs[0].rotation.z = sw; ud.legs[1].rotation.z = -sw; }
+  SFX.engine(true, 1, cutNow);
+  updateHud();
+  if (G.watchI >= w.path.length - 1) endWatch();
+}
+function endWatch() {
+  if (!RUN.watch) return;
+  G.finished = true;
+  SFX.engine(false);
+  const r = RUN.watch.report;
+  setTimeout(() => showHelperReport(r), 500);
+}
+
 function nextDay() {
+  // helpers on a daily wage get paid every day — rain or shine, busy or not
+  for (const hd of hired()) {
+    const h = career.helpers[hd.id];
+    h.today = 0;
+    if (h.plan === 'wage') { career.money -= HELP.wage; h.cost += HELP.wage; }
+  }
   career.day++;
   career.slot = 0;
   career.weather = career.day > 2 && Math.random() < BIZ.rainChance ? 'rain' : 'sun';
@@ -3416,6 +3653,8 @@ function showHub() {
   swapRing.visible = false; $('toolBtn').classList.add('hidden');
   if (pet) { disposeModel(pet.g); pet = null; }   // the pet goes back inside
   SFX.engine(false);
+  RUN.mowerOverride = null; RUN.watch = null;
+  placeWatcher(null);
   setMowerModel(currentMower());
   setWeather(career.weather);
   resetArmed = false;
@@ -3458,9 +3697,22 @@ function showHub() {
       : over ? `<span class="warn">Overgrown! (${d} days) — pay down to ${Math.round(payFactor(d) * 100)}%, long grass is slower</span>`
       : `<span class="good">Grass is ready</span> (${d} days)`;
     const can = ready && !wet && left > 0;
+    // helpers: teach them this yard (it uses one of your jobs), or send them once they've learned it
+    let helperBtns = '', helperInfo = '';
+    for (const hd of hired()) {
+      const h = c.helpers[hd.id], n = lessonsFor(hd.id, y.id);
+      if (!helperMower(hd.id)) continue;
+      if (trained(hd.id, y.id)) {
+        const free = ready && !wet && (h.today || 0) < HELP.jobsPerDay;
+        helperBtns += `<button data-send="${hd.id}|${y.id}" ${free ? '' : 'disabled'}>Send ${hd.name}</button>`;
+        helperInfo += ` · ${hd.name} knows this yard (${h.jobs[y.id] || 0} jobs)`;
+      } else {
+        helperBtns += `<button class="quiet" data-teach="${hd.id}|${y.id}" ${can ? '' : 'disabled'} title="Mow it with ${hd.name}'s mower while they watch">Teach ${hd.name} ${n}/${HELP.lessonsNeeded}</button>`;
+      }
+    }
     jobRows.push(`<div class="row"><div class="info"><div class="name">${y.name}</div>
-      <div class="sub2">${status}${bestTxt}</div></div>
-      <button data-job="${y.id}" ${can ? '' : 'disabled'}>Mow · ${money(jobPay(y))}</button>
+      <div class="sub2">${status}${bestTxt}${helperInfo}</div></div>
+      <button data-job="${y.id}" ${can ? '' : 'disabled'}>Mow · ${money(jobPay(y))}</button>${helperBtns}
       <button class="quiet" data-practice="${y.id}">Practice</button></div>`);
   }
 
@@ -3469,13 +3721,40 @@ function showHub() {
   const cond = wear < 25 ? '<span class="good">Runs well</span>' : wear < 50 ? 'A bit worn' : '<span class="warn">Needs a tune-up — it may stall!</span>';
   const meter = (f) => `<span class="meter"><i style="width:${Math.round(clamp(f, 0, 1) * 100)}%"></i></span>`;
   const can = canSize(), fillL = can - c.gasCan, fillCost = Math.min(fillL * BIZ.gasPrice, c.money);
-  const shopRows = MOWERS.filter(m => m.id !== mw.id).map(m => {
+  const shopRows = MOWERS.filter(m => m.id !== mw.id && !m.hidden).map(m => {
     const own = c.owned.includes(m.id);
     return `<div class="row">${mowerPic(m.id)}<div class="info"><div class="name">${m.name}</div>
       <div class="sub2">${m.like} · ${m.deck}" cut · tank ${m.tank} L</div></div>
       ${own ? `<button data-use="${m.id}">Use it</button>`
             : `<button data-buy="${m.id}" ${c.money >= m.price ? '' : 'disabled'}>Buy · $${m.price}</button>`}</div>`;
   }).join('');
+
+  // helpers: offers to hire, and the ones you've hired
+  const helperRows = [];
+  let teased = false;
+  for (const hd of HELPERS) {
+    const h = c.helpers[hd.id];
+    if (h) {
+      const mid = helperMower(hd.id), known = YARDS.filter(y => trained(hd.id, y.id)).map(y => y.name);
+      const net = h.earned - h.cost;
+      helperRows.push(`<div class="row"><div class="info"><div class="name">👷 ${hd.name}</div>
+        <div class="sub2">${h.plan === 'share' ? `Paid per job: ${Math.round(HELP.share * 100)}% of each job` : `Daily wage: $${HELP.wage} every day (even rainy days)`}
+        · jobs today ${h.today || 0}/${HELP.jobsPerDay}<br>
+        Mower: ${mid ? mowerById(mid).name : '<span class="warn">none — buy a new mower and they\'ll get your old one</span>'}
+        · knows: ${known.length ? known.join(', ') : 'no yards yet — teach them one!'}<br>
+        So far they brought in ${money(h.earned)} and cost you ${money(h.cost)} → <b class="${net >= 0 ? 'good' : 'warn'}">${net >= 0 ? '+' : '−'}${money(Math.abs(net))}</b></div></div>
+        <button class="quiet" data-plan="${hd.id}">Switch to ${h.plan === 'share' ? 'daily wage' : 'pay per job'}</button></div>`);
+    } else if (c.rep >= hd.stars) {
+      helperRows.push(`<div class="row"><div class="info"><div class="name">🙋 ${hd.name} wants a job!</div>
+        <div class="sub2">${hd.story}</div></div>
+        <button data-hire="${hd.id}|share">Hire · ${Math.round(HELP.share * 100)}% per job</button>
+        <button data-hire="${hd.id}|wage">Hire · $${HELP.wage}/day</button></div>`);
+    } else if (!teased) {
+      teased = true;
+      helperRows.push(`<div class="row locked"><div class="info"><div class="name">🔒 A helper</div>
+        <div class="sub2">Someone will ask for a summer job when you have ${hd.stars} ★ (you have ${c.rep})</div></div></div>`);
+    }
+  }
 
   const el = $('hub');
   el.innerHTML = `
@@ -3485,6 +3764,7 @@ function showHub() {
       <span>💵 <b>${money(c.money)}</b></span><span>★ <b>${c.rep}</b></span></div>
     ${notes.map(n => `<div class="note">${n}</div>`).join('')}
     <h2>Customers</h2>${jobRows.join('')}
+    <h2>Helpers</h2>${helperRows.join('')}
     <h2>Your gear</h2>
     <div class="row">${mowerPic(mw.id)}<div class="info"><div class="name">${mw.name}</div>
       <div class="sub2">${mw.deck}" cut · ${cond} · chance of stalling ${Math.round(wear)}%</div></div>
@@ -3513,6 +3793,14 @@ function showHub() {
   const on = (sel, fn) => el.querySelectorAll(sel).forEach(b => b.addEventListener('click', (e) => { e.stopPropagation(); b.blur(); fn(b); }));
   on('[data-job]', b => startJob(b.dataset.job, true));
   on('[data-practice]', b => startJob(b.dataset.practice, false));
+  on('[data-teach]', b => { const [hid, yid] = b.dataset.teach.split('|'); startJob(yid, true, hid); });
+  on('[data-send]', b => { const [hid, yid] = b.dataset.send.split('|'); runHelperJob(hid, yid); });
+  on('[data-hire]', b => {
+    const [hid, plan] = b.dataset.hire.split('|');
+    c.helpers[hid] = { plan, lessons: {}, jobs: {}, today: 0, earned: 0, cost: 0, since: c.day };
+    SFX.cash(); showHub();
+  });
+  on('[data-plan]', b => { const h = c.helpers[b.dataset.plan]; h.plan = h.plan === 'share' ? 'wage' : 'share'; showHub(); });
   on('[data-next]', nextDay);
   on('[data-tune]', () => { c.money -= BIZ.tuneUp; c.wearOf[c.mower] = 0; SFX.cash(); showHub(); });
   on('[data-gas]', () => {
