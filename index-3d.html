@@ -310,7 +310,7 @@ const STEERING = {
 //  bottom edge (that's where the street is). house.look = colors, door/garage/window spots.
 //  pay = what they pay for a full mow. stars = reputation (★) you need before they ask you.
 const YARDS = [
-  { id: 'peterson', name: 'Mrs. Peterson', pay: 25, stars: 0,
+  { id: 'peterson', name: 'Mrs. Peterson', pay: 25, stars: 0, pet: { kind: 'cat', name: 'Whiskers' },
     story: 'Mrs. Peterson next door needs her lawn mowed every few days. Dad gave you his old push mower. Time to start a business!',
     house:    { x: 30,  y: 20,  w: 220, h: 150 },
     look:     { wall: 0xf3e6c9, roof: '#c4603a', garage: 100, door: 185, chimney: [158, 34],
@@ -319,7 +319,7 @@ const YARDS = [
     beds:     [ { x: 460, y: 24, w: 150, h: 46 } ],
     trees:    [ { x: 420, y: 150, r: 26 }, { x: 545, y: 330, r: 22 }, { x: 300, y: 365, r: 18 } ],
     start:    { x: 130, y: 415, angle: -Math.PI / 2 } },
-  { id: 'alvarez', name: 'Mr. Alvarez', pay: 30, stars: 1,
+  { id: 'alvarez', name: 'Mr. Alvarez', pay: 30, stars: 1, pet: { kind: 'dog', name: 'Bruno' },
     story: 'Mr. Alvarez saw your stripes from across the street. "Can you do mine too? Watch out for my roses."',
     house:    { x: 380, y: 20,  w: 230, h: 140 },
     look:     { wall: 0xdfe9d4, roof: '#4f6b8a', garage: 125, door: 200, chimney: [60, 30],
@@ -328,7 +328,7 @@ const YARDS = [
     beds:     [ { x: 36, y: 30, w: 46, h: 150 } ],
     trees:    [ { x: 210, y: 120, r: 30 }, { x: 130, y: 335, r: 20 }, { x: 330, y: 270, r: 16 } ],
     start:    { x: 505, y: 415, angle: -Math.PI / 2 } },
-  { id: 'kowalski', name: 'The Kowalskis', pay: 36, stars: 3,
+  { id: 'kowalski', name: 'The Kowalskis', pay: 36, stars: 3, pet: { kind: 'dog', name: 'Daisy' },
     story: 'The Kowalskis heard about you from Mrs. Peterson. Their driveway cuts the lawn right down the middle — plan your route!',
     house:    { x: 200, y: 20,  w: 240, h: 130 },
     look:     { wall: 0xf6f0e4, roof: '#6d4c3d', garage: 120, door: 195, chimney: [40, 30],
@@ -337,7 +337,7 @@ const YARDS = [
     beds:     [ { x: 30, y: 30, w: 120, h: 40 }, { x: 490, y: 30, w: 120, h: 40 } ],
     trees:    [ { x: 110, y: 260, r: 28 }, { x: 530, y: 250, r: 28 }, { x: 190, y: 390, r: 16 }, { x: 450, y: 390, r: 16 } ],
     start:    { x: 320, y: 415, angle: -Math.PI / 2 } },
-  { id: 'daniels', name: 'Coach Daniels', pay: 55, stars: 6, w: 800, h: 560, ref: 'walk36',
+  { id: 'daniels', name: 'Coach Daniels', pay: 55, stars: 6, pet: { kind: 'dog', name: 'Champ' }, w: 800, h: 560, ref: 'walk36',
     story: 'Coach Daniels has a big lot, lots of trees and not much patience. "Make it look like a ball field, kid." He pays well, though.',
     house:    { x: 30,  y: 20,  w: 180, h: 120 },
     look:     { wall: 0xcfe0ee, roof: '#8a3b32', garage: 60, door: 140, chimney: [40, 30],
@@ -348,7 +348,7 @@ const YARDS = [
                 { x: 330, y: 330, r: 22 }, { x: 490, y: 380, r: 26 }, { x: 650, y: 330, r: 16 }, { x: 260, y: 480, r: 18 },
                 { x: 700, y: 480, r: 22 } ],
     start:    { x: 90, y: 527, angle: -Math.PI / 2 } },
-  { id: 'henderson', name: 'The Hendersons', pay: 85, stars: 10, w: 960, h: 640, ref: 'tractor42', medalEase: 1.15,
+  { id: 'henderson', name: 'The Hendersons', pay: 85, stars: 10, pet: { kind: 'cat', name: 'Mittens' }, w: 960, h: 640, ref: 'tractor42', medalEase: 1.15,
     story: 'The Hendersons have the biggest lot on the street — and a garden shed in the corner. "We\'re told you\'re the best in town."',
     house:    { x: 330, y: 20,  w: 300, h: 160 },
     look:     { wall: 0xf1e7d0, roof: '#3f5a3c', garage: 150, door: 250, chimney: [60, 40],
@@ -359,7 +359,7 @@ const YARDS = [
                 { x: 870, y: 520, r: 20 }, { x: 150, y: 570, r: 18 } ],
     props:    [ { kind: 'shed', x: 60, y: 40, w: 90, h: 70, wall: 0xb9603f, roof: '#5a4636' } ],
     start:    { x: 480, y: 607, angle: -Math.PI / 2 } },
-  { id: 'church', name: 'Grace Church', pay: 130, stars: 15, w: 1120, h: 720, ref: 'standon48',
+  { id: 'church', name: 'Grace Church', pay: 130, stars: 15, pet: { kind: 'cat', name: 'Smokey' }, w: 1120, h: 720, ref: 'standon48',
     story: 'Pastor Ruth needs the church lawn perfect for weddings every weekend. "Mind the benches and the old oaks, please."',
     house:    { x: 380, y: 30,  w: 360, h: 180 },
     look:     { wall: 0xe9e4d8, roof: '#4a4f5c', door: 180, wallH: 125,
@@ -522,6 +522,11 @@ const SFX = {
   chime(level) { [0, 4, 7].forEach((s, i) => this.tone(523 * Math.pow(2, (s + level * 2) / 12), 0.3, 'sine', 0.11, i * 0.07)); },
   pull()       { this.noiseHit(0.22, 900, 0.3); this.tone(70, 0.2, 'sawtooth', 0.08, 0.05, 140); },
   startUp()    { this.tone(55, 0.5, 'sawtooth', 0.14, 0, 110); this.noiseHit(0.3, 300, 0.2); },
+  // animals
+  chirp(vol = 0.04) { const f = 3000 + Math.random() * 1500; for (let k = 0; k < 2 + Math.floor(Math.random() * 3); k++) this.tone(f, 0.06, 'sine', vol, k * 0.09, f * 1.25); },
+  flutter()    { for (let k = 0; k < 6; k++) this.noiseHit(0.05, 1400 + Math.random() * 600, 0.07, k * 0.035); },
+  bark()       { for (const d of [0, 0.17]) { this.tone(430, 0.09, 'sawtooth', 0.11, d, 250); this.noiseHit(0.08, 900, 0.14, d); } },
+  meow()       { this.tone(640, 0.5, 'triangle', 0.09, 0, 470); this.tone(980, 0.18, 'sine', 0.035, 0.02, 760); },
   cash()       { this.tone(1318, 0.08, 'square', 0.07); this.tone(1760, 0.25, 'triangle', 0.1, 0.07); },
   tone(freq, dur, type = 'sine', vol = 0.2, delay = 0, slideTo = null) {
     if (!this.ctx) return;
@@ -579,6 +584,7 @@ function obstacleHit(x, y, rad) {
 function collides(x, y) {
   const R = MOWER.bodyRadius;
   if (x - R < 0 || x + R > YARD_W || y - R < 0 || y + R > YARD_H) return true;
+  if (pet && Math.hypot(x - pet.x, y - pet.y) < R + pet.R) return true;    // don't run over the dog!
   return obstacleHit(x, y, R);
 }
 // A "seeded" random generator: the same seed gives the same flowers and trees every time
@@ -1204,7 +1210,9 @@ function buildTree(x, z, r, rnd, mulch, fade, parent = scene) {
   }
   parent.add(g);
   if (fade) fadeables.push({ group: g, mats: [leaf], box: new THREE.Box3().setFromObject(g) });
+  treeSpots.push({ x, z, r, top: trunkH + r * 1.6, inYard: !!mulch });   // birds can perch up here
 }
+const treeSpots = [];
 // The neighborhood around the yard (street, sidewalk, neighbors' houses, trees) is rebuilt
 // for each yard, because yards come in different sizes.
 const hoodGroup = new THREE.Group();
@@ -1541,6 +1549,247 @@ const swapRing = new THREE.Mesh(new THREE.RingGeometry(BIZ.swapZone - 6, BIZ.swa
   new THREE.MeshBasicMaterial({ color: 0xc8ff7a, transparent: true, opacity: 0.35, depthWrite: false, depthTest: false }));
 swapRing.rotation.x = -Math.PI / 2; swapRing.renderOrder = 8; swapRing.visible = false;
 scene.add(swapRing);
+
+// =====================================================================
+//  ANIMALS: birds in the trees, and now and then a dog or cat on the lawn
+// =====================================================================
+const BIRDS = { min: 4, max: 7, size: 1, flySpeed: 120, scaredSpeed: 200, scareDist: 85, lawnChance: 0.3 };
+const PETS  = { chance: 0.12, startle: 80, startleTrimmer: 45 };   // chance = how often a pet is out (12% of jobs)
+const BIRD_LOOKS = [
+  { back: 0x6b4a32, belly: 0xd9733a },   // robin
+  { back: 0x8a6a4a, belly: 0xd8c7a8 },   // sparrow
+  { back: 0x3a6fc4, belly: 0xe8eef5 },   // blue jay
+  { back: 0xc22a2a, belly: 0xb02020 },   // cardinal
+  { back: 0x2b2b30, belly: 0x3a3a40 }    // blackbird
+];
+const birdGroup = new THREE.Group();
+scene.add(birdGroup);
+const birds = [];
+
+// a little bird, facing +x: round body, head, beak, two flapping wings and a tail
+function buildBird(look) {
+  const g = new THREE.Group(), back = mat(look.back, { roughness: 0.8 }), belly = mat(look.belly, { roughness: 0.8 });
+  const body = addMesh(new THREE.SphereGeometry(2.6, 14, 10), back, 0, 0, 0, g, false); body.scale.set(1.55, 1, 1);
+  addMesh(new THREE.SphereGeometry(2.1, 12, 8), belly, 0.8, -0.7, 0, g, false).scale.set(1.3, 0.8, 0.9);
+  const head = new THREE.Group(); head.position.set(3.6, 1.6, 0); g.add(head);
+  addMesh(new THREE.SphereGeometry(1.75, 14, 10), back, 0, 0, 0, head, false);
+  addMesh(new THREE.ConeGeometry(0.5, 1.6, 8), mat(0xe8b23a), 2.1, -0.2, 0, head, false).rotation.z = -Math.PI / 2;
+  for (const z of [-0.95, 0.95]) addMesh(new THREE.SphereGeometry(0.32, 8, 6), mat(0x101010), 1.1, 0.5, z * 1.2, head, false);
+  const tail = addMesh(new THREE.BoxGeometry(3.2, 0.4, 2), back, -4.6, 0.6, 0, g, false); tail.rotation.z = 0.35;
+  const wings = [];
+  for (const sd of [-1, 1]) {
+    const pivot = new THREE.Group(); pivot.position.set(0, 0.9, sd * 1.6); g.add(pivot);
+    const shape = new THREE.Shape(); shape.moveTo(-2.4, 0); shape.lineTo(2.2, 0); shape.lineTo(-0.5, 5.5); shape.closePath();
+    const wg = new THREE.ShapeGeometry(shape); wg.rotateX(sd * Math.PI / 2);
+    const w = new THREE.Mesh(wg, new THREE.MeshStandardMaterial({ color: look.back, side: THREE.DoubleSide, roughness: 0.8, envMapIntensity: ENV }));
+    pivot.add(w); pivot.userData.side = sd; wings.push(pivot);
+  }
+  g.scale.setScalar(BIRDS.size);
+  birdGroup.add(g);
+  return { g, head, wings };
+}
+const randomTree = (pref) => {
+  const list = treeSpots.filter(t => (pref === 'yard' ? t.inYard : true) && t.x > -350 && t.x < YARD_W + 350 && t.z > -350 && t.z < YARD_H + 250);
+  return list.length ? list[Math.floor(Math.random() * list.length)] : null;
+};
+function perchOn(t) {
+  const a = Math.random() * Math.PI * 2, d = Math.random() * t.r * 0.45;
+  return new THREE.Vector3(t.x + Math.cos(a) * d, t.top - Math.random() * t.r * 0.25, t.z + Math.sin(a) * d);
+}
+// a spot on the lawn for a bird to hop around on (away from the mower)
+function lawnSpot() {
+  for (let k = 0; k < 20; k++) {
+    const x = 30 + Math.random() * (YARD_W - 60), z = 30 + Math.random() * (YARD_H - 60);
+    if (!obstacleHit(x, z, 6) && Math.hypot(x - G.mower.x, z - G.mower.y) > 200) return new THREE.Vector3(x, 0.8, z);
+  }
+  return null;
+}
+function spawnBirds() {
+  for (const b of birds) disposeModel(b.g);
+  birds.length = 0;
+  if (!treeSpots.length) return;
+  const n = BIRDS.min + Math.floor(Math.random() * (BIRDS.max - BIRDS.min + 1));
+  for (let i = 0; i < n; i++) {
+    const t = randomTree(i < n / 2 ? 'yard' : null) || randomTree();
+    if (!t) break;
+    const b = { ...buildBird(BIRD_LOOKS[Math.floor(Math.random() * BIRD_LOOKS.length)]), state: 'perch', tree: t, timer: 2 + Math.random() * 12, flap: Math.random() * 10, chirpT: Math.random() * 10 };
+    b.g.position.copy(perchOn(t)); b.g.rotation.y = Math.random() * Math.PI * 2;
+    birds.push(b);
+  }
+}
+function flyTo(b, to, scared, tree) {
+  b.state = 'fly'; b.from = b.g.position.clone(); b.to = to; b.t = 0; b.tree = tree; b.scared = scared;
+  const d = b.from.distanceTo(to);
+  b.dur = Math.max(0.6, d / (scared ? BIRDS.scaredSpeed : BIRDS.flySpeed));
+  b.arc = 25 + d * 0.22;
+}
+// the mower hit a tree (or came too close): every bird there flies off to a tree far away
+function scareBirds(x, z, radius) {
+  let n = 0;
+  for (const b of birds) {
+    if (b.state === 'fly') continue;
+    if (Math.hypot(b.g.position.x - x, b.g.position.z - z) > radius) continue;
+    let t = null;
+    for (let k = 0; k < 8 && (!t || Math.hypot(t.x - x, t.z - z) < 250); k++) t = randomTree();
+    if (t) { flyTo(b, perchOn(t), true, t); n++; }
+  }
+  if (n) { SFX.flutter(); SFX.chirp(0.05); }
+  return n;
+}
+function updateBirds(dt) {
+  const m = G.mower, now = performance.now() / 1000;
+  for (const b of birds) {
+    const p = b.g.position;
+    b.flap += dt;
+    if (b.state === 'fly') {
+      b.t = Math.min(1, b.t + dt / b.dur);
+      const k = b.t, e = k * k * (3 - 2 * k);
+      p.lerpVectors(b.from, b.to, e);
+      p.y += Math.sin(Math.PI * k) * b.arc;
+      const dx = b.to.x - b.from.x, dz = b.to.z - b.from.z;
+      b.g.rotation.y = -Math.atan2(dz, dx);
+      b.g.rotation.z = Math.cos(Math.PI * k) * 0.25;                       // nose up when climbing, down when landing
+      const gliding = !b.scared && k > 0.35 && k < 0.6;
+      for (const w of b.wings) w.rotation.x = w.userData.side * (gliding ? 0.15 : Math.sin(b.flap * (b.scared ? 38 : 28)) * 0.9);
+      if (b.t >= 1) {
+        b.g.rotation.z = 0;
+        b.state = b.tree ? 'perch' : 'lawn';
+        b.timer = b.tree ? 5 + Math.random() * 14 : 4 + Math.random() * 8;
+        b.hopT = 0.5;
+      }
+      continue;
+    }
+    for (const w of b.wings) w.rotation.x = w.userData.side * 0.05;      // wings folded
+    b.head.rotation.y = Math.sin(now * 1.3 + b.flap) * 0.6;               // looking around
+    b.chirpT -= dt;
+    if (b.chirpT <= 0) {                                                  // the odd chirp (quieter when far away)
+      b.chirpT = 6 + Math.random() * 14;
+      const d = Math.hypot(p.x - m.x, p.z - m.y);
+      if (d < 600 && !G.inHub) SFX.chirp(0.035 * (1 - d / 600));
+    }
+    if (b.state === 'lawn') {
+      // hop around pecking; fly away if the mower comes close
+      b.hopT -= dt;
+      const hop = Math.max(0, b.hopT) < 0.15 ? Math.sin(Math.max(0, b.hopT) / 0.15 * Math.PI) * 2 : 0;
+      if (b.hopT <= 0) {
+        b.hopT = 0.4 + Math.random() * 0.9;
+        const a = b.g.rotation.y + (Math.random() - 0.5) * 2, nx = p.x + Math.cos(-a) * 5, nz = p.z + Math.sin(-a) * 5;
+        if (!obstacleHit(nx, nz, 4) && nx > 10 && nz > 10 && nx < YARD_W - 10 && nz < YARD_H - 10) { p.x = nx; p.z = nz; b.g.rotation.y = a; }
+      }
+      p.y = 0.8 + hop;
+      b.head.rotation.z = Math.sin(now * 9 + b.flap) > 0.7 ? -0.7 : 0;     // pecking
+      const near = Math.hypot(p.x - m.x, p.z - m.y) < BIRDS.scareDist && G.started && !G.finished;
+      b.timer -= dt;
+      if (near || b.timer <= 0) { const t = randomTree(); if (t) { flyTo(b, perchOn(t), near, t); if (near) SFX.flutter(); } }
+    } else {
+      b.timer -= dt;
+      if (b.timer <= 0) {
+        const spot = Math.random() < BIRDS.lawnChance ? lawnSpot() : null;
+        if (spot) flyTo(b, spot, false, null);
+        else { const t = randomTree(); if (t) flyTo(b, perchOn(t), false, t); }
+      }
+    }
+  }
+}
+
+// ---- pets: a dog or a cat napping or wandering on the lawn (a moving obstacle) ----
+//  Each customer can have a pet. Come close and it gets up and trots somewhere else.
+let pet = null;
+function buildPet(kind) {
+  const g = new THREE.Group(), dog = kind === 'dog';
+  const fur = mat(dog ? 0xb07a3c : 0x8c8c94, { roughness: 0.95 }), light = mat(dog ? 0xf0e0c8 : 0xdedee6, { roughness: 0.95 });
+  const dark = mat(0x141414), L = dog ? 1 : 0.72;                                         // a cat is smaller
+  const body = addMesh(new THREE.CapsuleGeometry(6 * L, 16 * L, 6, 14), fur, 0, 13 * L, 0, g);
+  body.rotation.z = Math.PI / 2;
+  const head = new THREE.Group(); head.position.set(14 * L, 19 * L, 0); g.add(head);
+  addMesh(new THREE.SphereGeometry(5.2 * L, 16, 12), fur, 0, 0, 0, head);
+  if (dog) {
+    addMesh(new THREE.CapsuleGeometry(2.6, 4, 4, 10), light, 5, -1.6, 0, head).rotation.z = Math.PI / 2;   // snout
+    addMesh(new THREE.SphereGeometry(1.1, 8, 6), dark, 8.4, -1.2, 0, head);                                // nose
+    for (const z of [-4, 4]) { const ear = addMesh(new THREE.CapsuleGeometry(1.6, 4, 4, 8), mat(0x6e4520), -0.5, -1, z, head); ear.rotation.x = z > 0 ? 0.3 : -0.3; }
+  } else {
+    addMesh(new THREE.SphereGeometry(2.2, 10, 8), light, 3.2, -1.2, 0, head);                              // muzzle
+    addMesh(new THREE.SphereGeometry(0.7, 8, 6), mat(0xd08a8a), 5.2, -0.6, 0, head);                       // nose
+    for (const z of [-2.4, 2.4]) addMesh(new THREE.ConeGeometry(1.5, 3.4, 4), fur, -0.5, 4.2, z, head);       // pointy ears
+  }
+  for (const z of [-1.9 * L, 1.9 * L]) addMesh(new THREE.SphereGeometry(0.8 * L, 8, 6), dark, 3.8 * L, 1.4 * L, z, head);   // eyes
+  const legs = [];
+  for (const [x, z] of [[8, -4], [8, 4], [-8, -4], [-8, 4]]) {
+    const pivot = new THREE.Group(); pivot.position.set(x * L, 11 * L, z * L); g.add(pivot);
+    addMesh(new THREE.CapsuleGeometry(1.7 * L, 7 * L, 4, 8), fur, 0, -5.5 * L, 0, pivot);
+    addMesh(new THREE.SphereGeometry(2 * L, 8, 6), light, 0.6 * L, -10 * L, 0, pivot);
+    legs.push(pivot);
+  }
+  const tail = new THREE.Group(); tail.position.set(-13 * L, 16 * L, 0); g.add(tail);
+  addMesh(new THREE.CapsuleGeometry(dog ? 1.4 : 1.1, dog ? 9 : 13, 4, 8), fur, -1, dog ? 4 : 6, 0, tail).rotation.z = dog ? 0.9 : 0.2;
+  scene.add(g);
+  return { g, head, legs, tail, body };
+}
+function petSpot(R, awayFrom, minD) {
+  for (let k = 0; k < 40; k++) {
+    const x = R + 10 + Math.random() * (YARD_W - 2 * R - 20), y = R + 10 + Math.random() * (YARD_H - 2 * R - 20);
+    if (obstacleHit(x, y, R + 4) || inRect(x, y, YARD.driveway)) continue;
+    if (awayFrom && Math.hypot(x - awayFrom.x, y - awayFrom.y) < minD) continue;
+    return { x, y };
+  }
+  return null;
+}
+function spawnPet(force) {
+  if (pet) { disposeModel(pet.g); pet = null; }
+  const info = YARD.pet;
+  const kind = force || (info && Math.random() < PETS.chance ? info.kind : null);
+  if (!kind) return;
+  const R = kind === 'dog' ? 15 : 11, spot = petSpot(R, G.mower, 220);
+  if (!spot) return;
+  pet = { kind, name: force ? (kind === 'dog' ? 'Buddy' : 'Whiskers') : info.name, R, x: spot.x, y: spot.y, rot: Math.random() * 6.28,
+          state: 'rest', timer: 8 + Math.random() * 10, ...buildPet(kind), walk: 0, cd: 0 };
+  setTimeout(() => pet && pop(pet.x, pet.y, `${pet.name} the ${kind} is out on the lawn — mow around!`, '#ffe9a3', 18), 600);
+}
+// the pet walks or runs to a new spot (away from you, if it got startled)
+function petGo(run) {
+  const to = petSpot(pet.R, run ? G.mower : null, run ? 260 : 0);
+  if (!to) return;
+  pet.target = to; pet.state = run ? 'run' : 'walk';
+}
+function petNotice() {   // a bark or a meow, and off it goes
+  if (pet.cd > 0) return;
+  pet.cd = 2;
+  if (pet.kind === 'dog') { SFX.bark(); pop(pet.x, pet.y, 'Woof!', '#ffffff', 18); }
+  else { SFX.meow(); pop(pet.x, pet.y, 'Meow!', '#ffffff', 18); }
+  petGo(true);
+}
+function updatePet(dt) {
+  if (!pet) return;
+  const p = pet, m = G.mower, t = performance.now() / 1000;
+  p.cd -= dt;
+  const d = Math.hypot(p.x - m.x, p.y - m.y);
+  const startle = G.trimming ? PETS.startleTrimmer : PETS.startle;
+  if (G.started && !G.finished && p.state === 'rest' && d < startle + MOWER.bodyRadius) petNotice();
+  let moving = false;
+  if (p.state === 'rest') {
+    p.timer -= dt;
+    if (p.timer <= 0) { petGo(false); p.timer = 8 + Math.random() * 12; }
+  } else {
+    const dx = p.target.x - p.x, dy = p.target.y - p.y, dist = Math.hypot(dx, dy);
+    const speed = p.state === 'run' ? 120 : 35;
+    if (dist < 6) { p.state = 'rest'; p.timer = 7 + Math.random() * 12; }
+    else {
+      const want = Math.atan2(dy, dx);
+      p.rot += wrapAngle(want - p.rot) * Math.min(1, dt * 6);
+      const nx = p.x + Math.cos(p.rot) * speed * dt, ny = p.y + Math.sin(p.rot) * speed * dt;
+      const hitMower = Math.hypot(nx - m.x, ny - m.y) < p.R + MOWER.bodyRadius;
+      if (obstacleHit(nx, ny, p.R) || nx < p.R || ny < p.R || nx > YARD_W - p.R || ny > YARD_H - p.R || hitMower) petGo(p.state === 'run');
+      else { p.x = nx; p.y = ny; moving = true; p.walk += speed * dt; }
+    }
+  }
+  // animation: legs walk, tail wags (dog) or swishes (cat), lying down when resting
+  const lying = p.state === 'rest' && p.kind === 'dog';
+  p.g.position.set(p.x, lying ? -6 : 0, p.y);
+  p.g.rotation.y = -p.rot;
+  p.legs.forEach((leg, i) => { leg.rotation.z = moving ? Math.sin(p.walk * 0.22 + (i % 2 ? Math.PI : 0) + (i > 1 ? Math.PI / 2 : 0)) * 0.7 : (lying ? 1.3 * (i < 2 ? -1 : 1) : 0); });
+  p.tail.rotation.y = p.kind === 'dog' ? Math.sin(t * (moving ? 14 : 6)) * 0.6 : Math.sin(t * 2) * 0.4;
+  p.head.rotation.y = moving ? 0 : Math.sin(t * 0.7) * 0.5;
+}
 // swap the 3D model when you switch mowers (and the ghost to match)
 function setMowerModel(mw) {
   if (mowerMesh.userData.type !== mw.type) {
@@ -1824,11 +2073,13 @@ function loadYard(id) {
     grp.clear();
   }
   fadeables.length = 0;
+  treeSpots.length = 0;
   // 2. build the new ones
   fadeables.push(buildHouse(YARD.house, { ...YARD.look, parent: yardGroup }));
   const rnd = seeded(5 + YARDS.indexOf(YARD));
   for (const t of YARD.trees) buildTree(t.x, t.y, t.r, rnd, true, true, yardGroup);
   buildBeds(); buildDriveway(); buildFence(); buildProps(); buildHood(); drawMiniStatic();
+  spawnBirds();
   // 3. work out which cells are grass, and the medal times
   cellsTemplate.fill(0); grassTotal = 0;
   for (let row = 0; row < ROWS; row++) {
@@ -1949,6 +2200,9 @@ function newRun() {
   guide.visible = false; guide.material.opacity = 0;
   if (isPhone && ctrl.mode !== 'touch') setMode('touch');   // phones: GO / REV buttons and the steering pad
   trimMesh.visible = false; mowerMesh.visible = true; mowerMesh.userData.worker.visible = true;
+  // now and then the customer's dog or cat is out on the lawn (practice tools can call one out)
+  spawnPet(career.nextPet || null);
+  career.nextPet = null;
   G.best = null;
   try { G.best = JSON.parse(localStorage.getItem(bestKey())); } catch (e) {}
   G.ghostData = G.best && G.best.ghost && G.best.ghost.length > 1 ? G.best.ghost : null;
@@ -2298,6 +2552,8 @@ function frame(now) {
   timeU.value = now / 1000;
   checkSpeed((now - (frame.prev || now)) / 1000); frame.prev = now;
   update(dt);
+  updateBirds(dt);
+  updatePet(dt);
   updateClips(dt);
   updateRings(dt);
   updateRain(dt);
@@ -2516,6 +2772,9 @@ function toggleTool() {
 function bump(m, th) {
   if (G.bumpCD > 0) return;
   G.bumpCD = 0.6;
+  // hit a tree? the birds in it fly off
+  for (const t of YARD.trees) if (Math.hypot(t.x - m.x, t.y - m.y) < t.r + MOWER.bodyRadius + 12) scareBirds(t.x, t.y, t.r + 30);
+  if (pet && Math.hypot(pet.x - m.x, pet.y - m.y) < pet.R + MOWER.bodyRadius + 10) petNotice();
   SFX.bonk();
   buzz(35);
   G.shake = 1;
@@ -2794,6 +3053,7 @@ function updateCamera(dt, snap) {
     pos = new THREE.Vector3(m.x - fx * cfg.dist * z + rx * cfg.side, cfg.height * z, m.y - fz * cfg.dist * z + rz * cfg.side);
     look = new THREE.Vector3(m.x + fx * cfg.ahead * z, 0, m.y + fz * cfg.ahead * z);
   }
+  if (window.__camOverride) { pos = window.__camOverride.pos; look = window.__camOverride.look; }   // (for testing: a fixed camera)
   const k = snap ? 1 : 1 - Math.exp(-dt * (G.finished || G.inHub ? 1.8 : 7));
   camPos.lerp(pos, k);
   camLook.lerp(look, k);
@@ -3154,6 +3414,7 @@ function showHub() {
   guide.visible = false; guide.material.opacity = 0;
   ghostMesh.visible = false;
   swapRing.visible = false; $('toolBtn').classList.add('hidden');
+  if (pet) { disposeModel(pet.g); pet = null; }   // the pet goes back inside
   SFX.engine(false);
   setMowerModel(currentMower());
   setWeather(career.weather);
@@ -3240,6 +3501,7 @@ function showHub() {
       <button data-cheat="ready">All lawns ready</button><button data-cheat="gas">Free full gas</button>
       <button data-cheat="worn">Wear out mower (test stalls)</button><button data-cheat="jobs">More jobs today</button>
       <button data-cheat="sun">Make it sunny</button><button data-cheat="rain">Make it rain</button>
+      <button data-cheat="dog">🐕 Dog out next job</button><button data-cheat="cat">🐈 Cat out next job</button>
     </div>` : ''}
     <div class="foot"><button class="quiet" data-reset>Start over</button>
       <span class="sub2" style="font-size:12px;color:#c9dcbf">Earned so far: ${money(c.earned)} · ${c.jobsDone} jobs</span>
@@ -3282,6 +3544,7 @@ function showHub() {
     if (k === 'worn') c.wearOf[c.mower] = 90;
     if (k === 'jobs') c.slot = 0;
     if (k === 'sun' || k === 'rain') c.weather = k;
+    if (k === 'dog' || k === 'cat') c.nextPet = k;
     SFX.cash();
     showHub();
   });
@@ -3301,7 +3564,7 @@ showHub();
 updateCamera(0, true);
 requestAnimationFrame(frame);
 window.__game = { G, keys, CAMERA, tilt, readTilt, ctrl, touch, setMode, finish, newRun, mowAt, update, updateCamera,
-  get camMode() { return camMode; }, toggleCamera, get career() { return career; }, startJob, showHub, nextDay, loadYard, pullCord, MOWERS, YARDS, guide, toggleTool,
+  get camMode() { return camMode; }, toggleCamera, get career() { return career; }, startJob, showHub, nextDay, loadYard, pullCord, MOWERS, YARDS, guide, toggleTool, birds, get pet() { return pet; }, scareBirds, spawnPet, updatePet, updateBirds,
   scene, THREE,
   maskA: (tx, ty) => maskData[((MH - 1 - ty) * MW + tx) * 4 + 3], get tmpl() { return cellsTemplate; } };   // for testing
 </script>
