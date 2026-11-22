@@ -432,7 +432,9 @@ const HELP = {
   lessonsNeeded: 2,    // good lessons before they can mow a yard alone
   lessonCut: 0.8,      // a lesson only counts if you cut at least 80% (they copy what you do!)
   jobsPerDay: 2,       // jobs a helper can do each day (on top of yours)
-  watchSpeed: 3        // how fast you watch a helper's run (3 = triple speed)
+  watchSpeed: 3,       // how fast you watch a helper's run (3 = triple speed)
+  // helpers earn their way up to bigger machines: [jobs done on their own, widest deck in inches they may use]
+  licence: [[0, 30], [5, 36], [12, 42], [20, 48], [30, 54]]
 };
 
 // ---- The string trimmer (weed eater) ----
@@ -3370,6 +3372,15 @@ function loadCareer() {
 }
 let career = loadCareer() || newCareer();
 career.helpers = career.helpers || {};
+for (const [hid, h] of Object.entries(career.helpers)) {
+  const max = helperLicence(hid).deck;
+  for (const [yid, L] of Object.entries(h.lessons || {})) {
+    if (mowerById(L.mower || 'walk30').deck > max) {
+      delete h.lessons[yid];
+      (career.notes = career.notes || []).push(`🧑‍🏫 New rule: helpers start on Dad's 30" mower and move up with experience. ${HELPERS.find(v => v.id === hid).name}'s lessons on ${YARDS.find(y => y.id === yid).name}'s yard were on a bigger mower, so you'll need to teach that yard again.`);
+    }
+  }
+}
 function saveCareer() { try { localStorage.setItem(CAREER_KEY, JSON.stringify(career)); } catch (e) {} }
 // the mower being driven right now: yours, or the helper's (during a lesson, or when watching their run)
 function currentMower() { return mowerById(RUN.mowerOverride || career.mower); }
@@ -3378,11 +3389,26 @@ function currentMower() { return mowerById(RUN.mowerOverride || career.mower); }
 const hired = () => HELPERS.filter(h => career.helpers && career.helpers[h.id]);
 // which mower each helper uses: the best mower you own that you're not using (each helper gets a different one);
 // if there's none to spare, Tommy brings his family's old push mower
+// how experienced a helper is: all the jobs they've done on their own
+function helperJobs(hid) { return Object.values(career.helpers[hid].jobs || {}).reduce((a, b) => a + b, 0); }
+// the widest mower (in inches) a helper is allowed to use, and how many more jobs until the next one
+function helperLicence(hid) {
+  const n = helperJobs(hid);
+  let deck = HELP.licence[0][1], next = null;
+  for (const [jobs, d] of HELP.licence) { if (n >= jobs) deck = d; else if (!next) next = { jobs: jobs - n, deck: d }; }
+  return { deck, next };
+}
+// which mower each helper uses: the best spare mower you own that they're allowed to drive
+// (each helper gets a different one). Helpers without their own mower choose first;
+// Tommy can always fall back on his family's old push mower.
 function helperMower(hid) {
   const spare = career.owned.filter(id => id !== career.mower).map(mowerById).sort((a, b) => b.deck - a.deck);
-  let i = 0;
-  for (const h of hired()) {
-    const m = spare[i++];
+  const order = hired().slice().sort((a, b) => (a.id === 'tommy') - (b.id === 'tommy'));
+  const taken = new Set();
+  for (const h of order) {
+    const max = helperLicence(h.id).deck;
+    const m = spare.find(v => v.deck <= max && !taken.has(v.id));
+    if (m) taken.add(m.id);
     if (h.id === hid) return m ? m.id : (hid === 'tommy' ? 'push21' : null);
   }
   return null;
@@ -3502,7 +3528,9 @@ function runHelperJob(hid, yid) {
   const share = h.plan === 'share' ? (pay + tip) * HELP.share : 0;
   career.money += pay + tip - share;
   h.earned += pay + tip; h.cost += share;
+  const before = helperLicence(hid).deck;
   h.jobs[yid] = (h.jobs[yid] || 0) + 1; h.today = (h.today || 0) + 1;
+  const promoted = helperLicence(hid).deck > before ? helperLicence(hid).deck : 0;
   career.lastMowed[yid] = career.day;
   career.wearOf[mw.id] = Math.min(90, wear + mw.wear);
   const repChange = cut >= 0.95 ? 1 : cut < 0.85 ? -1 : 0;
@@ -3516,6 +3544,7 @@ function runHelperJob(hid, yid) {
   if (stalled) notes.push(`the mower stalled — it took a while to restart it (tune-up?)`);
   if (ranOut) notes.push(`<span class="warn">ran out of gas before finishing — fill up your gas can!</span>`);
   if (lessonM.deck > mw.deck + 1) notes.push(`you taught with a wider mower than ${hd.name} has, so the stripes didn't quite meet`);
+  if (promoted) notes.push(`<span class="good">🎉 ${hd.name} has enough experience to use mowers up to ${promoted}" now!</span>`);
   lastHelperRun = { hid, yid, path: path.map(([x, y]) => [Math.round(x), Math.round(y)]), mower: mw.id,
     report: { hd, y, cut, pay, tip, share, plan: h.plan, notes, repChange, err, jobs: h.jobs[yid], mower: mw } };
   showHelperReport(lastHelperRun.report);
@@ -3740,7 +3769,8 @@ function showHub() {
       helperRows.push(`<div class="row"><div class="info"><div class="name">👷 ${hd.name}</div>
         <div class="sub2">${h.plan === 'share' ? `Paid per job: ${Math.round(HELP.share * 100)}% of each job` : `Daily wage: $${HELP.wage} every day (even rainy days)`}
         · jobs today ${h.today || 0}/${HELP.jobsPerDay}<br>
-        Mower: ${mid ? mowerById(mid).name : '<span class="warn">none — buy a new mower and they\'ll get your old one</span>'}
+        Mower: ${mid ? mowerById(mid).name : `<span class="warn">none they can use yet — they need a spare mower up to ${helperLicence(hd.id).deck}" (like Dad's 30")</span>`}
+        · ${helperJobs(hd.id)} jobs done, allowed up to ${helperLicence(hd.id).deck}"${helperLicence(hd.id).next ? ` (${helperLicence(hd.id).next.deck}" after ${helperLicence(hd.id).next.jobs} more jobs)` : ''}
         · knows: ${known.length ? known.join(', ') : 'no yards yet — teach them one!'}<br>
         So far they brought in ${money(h.earned)} and cost you ${money(h.cost)} → <b class="${net >= 0 ? 'good' : 'warn'}">${net >= 0 ? '+' : '−'}${money(Math.abs(net))}</b></div></div>
         <button class="quiet" data-plan="${hd.id}">Switch to ${h.plan === 'share' ? 'daily wage' : 'pay per job'}</button></div>`);
