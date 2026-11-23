@@ -1442,24 +1442,39 @@ function buildMower(ghost, type = 'walk', parent = scene, look = null) {
     var red = M(0xffffff), darkRed = red;
     pose = { legs: 'stand', hip: [0, 34], hands: [3, 36, 12.5], lean: 0 };
   } else if (type === 'walk') {
-  // ---- the mower ----
+  // ---- the walk-behind mower: smooth curved deck, engine with cooling fins, bent tube handle ----
   var red = PAINT(0xd8342a), darkRed = PAINT(0x9e281e, { roughness: 0.5 });
-  add(new THREE.CylinderGeometry(15.5, 16, 5, 48), red, 0, 6.5, 0);                         // deck
-  add(new THREE.SphereGeometry(15.5, 48, 12, 0, Math.PI * 2, 0, Math.PI / 2), red, 0, 9, 0).scale.y = 0.28;   // domed top
-  add(new THREE.TorusGeometry(15.9, 1.3, 10, 48), darkRed, 0, 4.3, 0).rotation.x = Math.PI / 2;               // rim
-  add(new RoundedBoxGeometry(11, 5, 8, 2, 1.8), darkRed, 0, 6.5, 17.5);                    // side chute
-  add(new THREE.CylinderGeometry(7.2, 8.2, 9, 36), engine, 2, 14, 0);                       // engine
-  add(new THREE.SphereGeometry(7.2, 36, 10, 0, Math.PI * 2, 0, Math.PI / 2), M(0x555a60, { roughness: 0.4 }), 2, 18.4, 0).scale.y = 0.4;
-  add(new RoundedBoxGeometry(6, 4, 7, 2, 1.4), black, 8.5, 15.5, -4);                      // air filter
-  add(new THREE.CylinderGeometry(2, 2, 1.6, 18), yellow, -2, 20.5, 4);                     // gas cap
-  for (const [x, z] of [[11, -17], [11, 17], [-11, -17], [-11, 17]]) {
-    const tire = add(new THREE.TorusGeometry(3.6, 1.5, 12, 28), black, x, 5, z);
-    const cap = add(new THREE.CylinderGeometry(2.6, 2.6, 2.6, 20), hub, x, 5, z);
-    cap.rotation.x = Math.PI / 2;
+  const V2 = (x, y) => new THREE.Vector2(x, y), V3 = (x, y, z) => new THREE.Vector3(x, y, z);
+  // the deck: a skirt that curves up into a low dome (spun around like a pot on a wheel)
+  add(new THREE.LatheGeometry([V2(0.1, 3), V2(16.2, 3), V2(16.4, 5.5), V2(15.8, 7.6), V2(14.2, 9.2), V2(11, 10.4), V2(6, 11), V2(0.1, 11.2)], 48), red, 0, 0, 0);
+  add(new THREE.TorusGeometry(16.1, 0.9, 10, 56), darkRed, 0, 3.4, 0).rotation.x = Math.PI / 2;                 // rolled edge
+  const chute = add(new THREE.CapsuleGeometry(3.4, 6, 8, 16), darkRed, 1, 6.2, 17);                            // side discharge chute
+  chute.rotation.x = Math.PI / 2; chute.scale.set(1.5, 1, 0.7);
+  // engine: finned cylinder, starter cover on top, air filter, muffler, spark plug
+  add(new THREE.CylinderGeometry(6.6, 7.4, 8, 36), engine, 2, 15, 0);
+  for (let k = 0; k < 4; k++) add(new THREE.TorusGeometry(7.25 - k * 0.15, 0.32, 6, 36), M(0x3c3c3c, { roughness: 0.5 }), 2, 12 + k * 1.8, 0).rotation.x = Math.PI / 2;
+  add(new THREE.SphereGeometry(6.8, 36, 12, 0, Math.PI * 2, 0, Math.PI / 2), PAINT(0x2b2e33), 2, 18.9, 0).scale.y = 0.42;   // starter cover
+  add(new THREE.CylinderGeometry(4.2, 4.6, 3.2, 24), black, 8.6, 15.6, -3.4);                                  // air filter
+  add(new THREE.CylinderGeometry(1.9, 1.9, 7, 16), metal, 5, 11.5, 6.2).rotation.z = Math.PI / 2;            // muffler
+  add(new THREE.CylinderGeometry(0.7, 0.7, 3, 10), M(0xf0f0f0, { roughness: 0.3 }), -4.2, 15, 3).rotation.z = 1.2;   // spark plug
+  add(new THREE.CylinderGeometry(1.9, 1.9, 1.6, 18), yellow, -2, 20.6, 4);                                     // gas cap
+  // wheels: rounded tires with hubcaps
+  const tireProf = [V2(2.0, -1.4), V2(3.6, -1.6), V2(4.4, -1.0), V2(4.6, 0), V2(4.4, 1.0), V2(3.6, 1.6), V2(2.0, 1.4)];
+  for (const [x, z] of [[11, -16.8], [11, 16.8], [-11, -16.8], [-11, 16.8]]) {
+    const tire = add(new THREE.LatheGeometry(tireProf, 28), black, x, 4.8, z); tire.rotation.x = Math.PI / 2;
+    const cap = add(new THREE.CylinderGeometry(2.4, 2.4, 3.4, 20), hub, x, 4.8, z); cap.rotation.x = Math.PI / 2;
+    add(new THREE.SphereGeometry(1, 10, 8), darkRed, x, 4.8, z + Math.sign(z) * 1.8).scale.set(1, 1, 0.4);    // wheel bolt
   }
-  barC([-12, 9, -9.5], [-34, 44, -10.5], 1.1, metal, mg, sh);                               // handle
-  barC([-12, 9, 9.5], [-34, 44, 10.5], 1.1, metal, mg, sh);
+  // handle: two bent tubes up from the back of the deck, the grip, and the safety bar you hold down
+  for (const sd of [-1, 1]) {
+    const path = new THREE.CatmullRomCurve3([V3(-11, 8, sd * 9.5), V3(-16, 12, sd * 10.6), V3(-26, 28, sd * 11), V3(-34, 44, sd * 11.4)]);
+    const tube = new THREE.Mesh(new THREE.TubeGeometry(path, 24, 1.05, 10), metal); tube.castShadow = sh; mg.add(tube);
+  }
   barC([-34, 44, -12], [-34, 44, 12], 1.9, black, mg, sh);                                   // grip
+  const bail = new THREE.CatmullRomCurve3([V3(-33.4, 44.6, -11), V3(-31.2, 42.2, -10), V3(-30.6, 41.6, 0), V3(-31.2, 42.2, 10), V3(-33.4, 44.6, 11)]);
+  const bailM = new THREE.Mesh(new THREE.TubeGeometry(bail, 20, 0.6, 8), red); bailM.castShadow = sh; mg.add(bailM);   // safety bar
+  barC([-27, 30, 11.2], [-24, 32, 13], 0.5, black, mg, sh);                                  // pull-cord handle
+  add(new THREE.CapsuleGeometry(0.8, 2.6, 4, 8), black, -24, 32.5, 13.6).rotation.z = Math.PI / 2;
     pose = { legs: 'walk', hip: [-47, 34], hands: [-34.5, 44, 9], lean: -0.12 };
   } else if (type === 'tractor') {
     // ---- riding lawn tractor: steering wheel, hood in front, seat over the back wheels ----
@@ -1527,43 +1542,84 @@ function buildMower(ghost, type = 'walk', parent = scene, look = null) {
   g.userData.paint = [red, darkRed];
   g.userData.type = type;
 
-  // ---- the worker ----
+  // ---- the worker: a proper character, with a face, bending knees and real proportions ----
   part = wg;
-  const skin = M(0xf0c08a, { roughness: 0.7 }), shirt = M(look ? look.shirt : 0xff7a3d, { roughness: 0.9 }), jeans = M(0x3a5590, { roughness: 0.95 });
-  const capM = M(look ? look.cap : 0x2f5fb3, { roughness: 0.8 }), shoe = M(0x4a3426, { roughness: 0.8 }), hair = M(0x5a3a22, { roughness: 0.9 });
-  const [hx, hy] = pose.hip, legs = [];
-  for (const z of [-4.6, 4.6]) {
+  const skin = M(0xf2c294, { roughness: 0.62 }), shirt = M(look ? look.shirt : 0xff7a3d, { roughness: 0.92 }), jeans = M(0x3a5590, { roughness: 0.95 });
+  const capM = M(look ? look.cap : 0x2f5fb3, { roughness: 0.75 }), shoeM = M(0x4a5560, { roughness: 0.7 }), sole = M(0xf2f2ee, { roughness: 0.8 });
+  const hair = M(0x5a3a22, { roughness: 0.9 }), eyeW = M(0xffffff, { roughness: 0.3 }), iris = M(0x3b2a1a, { roughness: 0.3 }), lips = M(0xa4524a, { roughness: 0.6 });
+  const V = (x, y, z) => new THREE.Vector3(x, y, z);
+  // a smooth tapered limb from a (radius r1) to b (radius r2), with round joints
+  const limb = (a, b, r1, r2, m, parent = wg) => {
+    const A = V(...a), B = V(...b), d = B.clone().sub(A), len = d.length();
+    const mesh = new THREE.Mesh(new THREE.CylinderGeometry(r2, r1, len, 18, 1, true), m);
+    mesh.position.copy(A).addScaledVector(d, 0.5);
+    mesh.quaternion.setFromUnitVectors(V(0, 1, 0), d.normalize());
+    mesh.castShadow = sh; parent.add(mesh);
+    addMesh(new THREE.SphereGeometry(r1, 16, 12), m, ...a, parent, sh);
+    addMesh(new THREE.SphereGeometry(r2, 16, 12), m, ...b, parent, sh);
+  };
+  // a sneaker: colored upper on a white sole, toe pointing forward (+x)
+  const sneaker = (x, y, z, parent) => {
+    addMesh(new THREE.SphereGeometry(1, 18, 12), sole, x + 1.6, y - 1.2, z, parent, sh).scale.set(4.4, 1.1, 2.3);
+    addMesh(new THREE.SphereGeometry(1, 18, 12), shoeM, x + 1.2, y + 0.2, z, parent, sh).scale.set(3.8, 1.9, 2.1);
+  };
+  const [hx, hy] = pose.hip, legs = [], knees = [];
+  for (const z of [-4.4, 4.4]) {
     if (pose.legs === 'sit') {
-      barC([hx, hy, z], [pose.knee[0], pose.knee[1], z], 3.7, jeans, wg, sh);              // thigh
-      barC([pose.knee[0], pose.knee[1], z], [pose.foot[0], pose.foot[1] + 3, z], 3.4, jeans, wg, sh);   // shin
-      add(new THREE.CapsuleGeometry(3, 5, 6, 12), shoe, pose.foot[0] + 2.5, pose.foot[1], z).rotation.z = Math.PI / 2;
+      limb([hx, hy, z], [pose.knee[0], pose.knee[1], z], 3.9, 3.2, jeans);                 // thigh
+      limb([pose.knee[0], pose.knee[1], z], [pose.foot[0], pose.foot[1] + 3, z], 3.1, 2.5, jeans);   // shin
+      sneaker(pose.foot[0], pose.foot[1] + 1, z, wg);
     } else {
       const hip = new THREE.Group(); hip.position.set(hx, hy, z); wg.add(hip);
-      addMesh(new THREE.CapsuleGeometry(3.6, 24, 6, 14), jeans, 0, -14, 0, hip, sh);
-      const foot = addMesh(new THREE.CapsuleGeometry(3, 5, 6, 12), shoe, 2.5, -30, 0, hip, sh);
-      foot.rotation.z = Math.PI / 2;
-      legs.push(hip);
+      limb([0, 0, 0], [0, -14, 0], 3.9, 3.2, jeans, hip);                                   // thigh
+      const knee = new THREE.Group(); knee.position.set(0, -14, 0); hip.add(knee);
+      limb([0, 0, 0], [0, -13.5, 0], 3.1, 2.5, jeans, knee);                                // shin
+      sneaker(0.4, -16.5, 0, knee);
+      legs.push(hip); knees.push(knee);
     }
   }
-  add(new THREE.SphereGeometry(8, 24, 16), jeans, hx, hy + 1, 0).scale.set(0.72, 0.6, 1.08);   // hips
-  const torso = add(new THREE.CapsuleGeometry(8, 11, 8, 20), shirt, hx + 1, hy + 15, 0);
-  torso.scale.set(0.72, 1, 1.12);
-  torso.rotation.z = pose.lean;
-  add(new THREE.CylinderGeometry(2.6, 3, 5, 14), skin, hx + 2, hy + 27.5, 0);                // neck
-  add(new THREE.SphereGeometry(6.8, 32, 24), skin, hx + 2, hy + 34.5, 0);                    // head
-  for (const z of [-6.5, 6.5]) add(new THREE.SphereGeometry(1.6, 12, 10), skin, hx + 1.5, hy + 34.5, z);   // ears
-  add(new THREE.SphereGeometry(6.95, 32, 16, 0, Math.PI * 2, Math.PI * 0.42, Math.PI * 0.2), hair, hx + 1.7, hy + 34.5, 0);
-  add(new THREE.SphereGeometry(7.3, 32, 16, 0, Math.PI * 2, 0, Math.PI / 2), capM, hx + 2, hy + 36, 0);          // cap
-  add(new THREE.CylinderGeometry(6.8, 6.8, 1, 28, 1, false, 0, Math.PI), capM, hx + 2.5, hy + 36.3, 0);  // brim (half circle, forward)
+  addMesh(new THREE.SphereGeometry(7.4, 24, 16), jeans, hx, hy + 1.5, 0, wg, sh).scale.set(0.8, 0.62, 1.05);   // hips
+  // T-shirt: a smooth shape (waist, chest, shoulders) spun around, then flattened front-to-back
+  const prof = [[0, 0], [6.1, 0], [6.4, 3], [6.9, 9], [7.3, 15], [7.0, 19], [5.6, 22], [3.0, 23.6], [0.1, 24]].map(([r, y]) => new THREE.Vector2(r, y));
+  const torso = add(new THREE.LatheGeometry(prof, 28), shirt, hx + 1, hy + 2, 0);
+  torso.scale.set(0.8, 1, 1.14); torso.rotation.z = pose.lean;
+  add(new THREE.TorusGeometry(6.2, 0.75, 8, 28), M(0x2a2a30, { roughness: 0.6 }), hx + 1, hy + 2.6, 0).rotation.x = Math.PI / 2;   // belt
+  add(new THREE.TorusGeometry(2.9, 0.6, 8, 20), shirt, hx + 1.6, hy + 25.6, 0).rotation.x = Math.PI / 2;                         // collar
+  // head: neck, a slightly egg-shaped head with a chin, ears
+  const hc = V(hx + 2, hy + 34.5, 0);
+  add(new THREE.CylinderGeometry(2.3, 2.6, 6, 16), skin, hx + 1.8, hy + 27, 0);
+  add(new THREE.SphereGeometry(6.4, 36, 26), skin, hc.x, hc.y, 0).scale.set(1.0, 1.1, 0.92);
+  for (const z of [-6, 6]) add(new THREE.SphereGeometry(1.7, 14, 10), skin, hc.x - 0.4, hc.y - 0.2, z).scale.set(0.55, 1, 0.75);   // ears
+  // face (looking forward, +x): eyes with a shine, eyebrows, nose, a smile
+  for (const z of [-2.3, 2.3]) {
+    add(new THREE.SphereGeometry(1.3, 16, 12), eyeW, hc.x + 5.3, hc.y + 0.7, z).scale.set(0.7, 1.1, 1);
+    add(new THREE.SphereGeometry(0.75, 14, 10), iris, hc.x + 6.05, hc.y + 0.6, z * 1.02);
+    add(new THREE.SphereGeometry(0.23, 8, 6), eyeW, hc.x + 6.62, hc.y + 0.95, z * 1.02 - 0.2);
+    barC([hc.x + 5.75, hc.y + 2.35, z * 0.55], [hc.x + 5.35, hc.y + 2.6, z * 1.45], 0.36, hair, wg, sh);
+  }
+  add(new THREE.SphereGeometry(0.75, 14, 10), M(0xf0b98c, { roughness: 0.6 }), hc.x + 6.75, hc.y - 0.9, 0).scale.set(1, 1.05, 0.85);   // nose
+  const smile = new THREE.CatmullRomCurve3([V(hc.x + 5.75, hc.y - 2.5, -1.5), V(hc.x + 6.2, hc.y - 2.95, 0), V(hc.x + 5.75, hc.y - 2.5, 1.5)]);
+  const mouth = new THREE.Mesh(new THREE.TubeGeometry(smile, 12, 0.24, 6), lips); wg.add(mouth);
+  // hair under the cap (back and sides, not the face), then the cap with a curved brim
+  add(new THREE.SphereGeometry(6.75, 32, 16, -Math.PI * 0.63, Math.PI * 1.26, Math.PI * 0.28, Math.PI * 0.32), hair, hc.x - 0.3, hc.y, 0);
+  add(new THREE.SphereGeometry(6.9, 32, 16, 0, Math.PI * 2, 0, Math.PI / 2), capM, hc.x - 0.5, hc.y + 3.1, 0).scale.set(1, 0.78, 1);
+  const brim = add(new THREE.CylinderGeometry(6.2, 6.2, 0.7, 28, 1, false, 0, Math.PI), capM, hc.x + 1.6, hc.y + 3.3, 0);
+  brim.rotation.z = -0.1; brim.scale.set(1.08, 1, 1);
+  add(new THREE.SphereGeometry(0.8, 10, 8), capM, hc.x - 0.5, hc.y + 8.4, 0);                                // button on top
+  // arms: short sleeves, elbows, hands with a thumb
   const [ax, ay, az] = pose.hands;
   for (const s of [-1, 1]) {
-    const sx = hx + 2, sy = hy + 23, sz = s * 10;                                            // shoulder
-    const ex = (sx + ax) / 2 - 1, ey = (sy + ay) / 2 - 5, ez = (sz + s * az) / 2 + s * 1.5;  // elbow, a bit down and out
-    barC([sx, sy, sz], [ex, ey, ez], 2.9, shirt, wg, sh);                                    // upper arm (sleeve)
-    barC([ex, ey, ez], [ax, ay, s * az], 2.2, skin, wg, sh);                                 // forearm
-    add(new THREE.SphereGeometry(2.6, 16, 12), skin, ax, ay, s * az);                        // hand
+    const S = [hx + 2, hy + 22, s * 8.6];                                                                       // shoulder
+    const E = [(S[0] + ax) / 2 - 1.5, (S[1] + ay) / 2 - 4.5, (S[2] + s * az) / 2 + s * 1.6];                 // elbow, a bit down and out
+    const mid = S.map((v, i) => v + (E[i] - v) * 0.45);
+    limb(S, mid, 3.0, 2.8, shirt);                                                                              // sleeve
+    limb(mid, E, 2.3, 2.05, skin);                                                                              // upper arm
+    limb(E, [ax, ay, s * az], 2.0, 1.6, skin);                                                                  // forearm
+    add(new THREE.SphereGeometry(2.1, 16, 12), skin, ax + 0.4, ay - 0.3, s * az).scale.set(1.05, 0.8, 1);     // hand
+    barC([ax + 0.6, ay + 0.6, s * (az - 1.3)], [ax + 1.8, ay + 1.4, s * (az - 2.2)], 0.65, skin, wg, sh);      // thumb
   }
   g.userData.legs = legs;
+  g.userData.knees = knees;
   g.userData.lookId = look ? look.id : null;
   g.userData.mower = mg;
   g.userData.worker = wg;
@@ -2740,6 +2796,9 @@ function update(dt) {
   if (walking) {
     ud.legs[0].rotation.z = swing;
     ud.legs[1].rotation.z = -swing;
+    // knees bend as each foot swings forward (the leg lifts), and stay straight while it pushes
+    ud.knees[0].rotation.z = moved > 0.1 ? -Math.max(0, Math.cos(G.walk * 0.12)) * 0.75 : 0;
+    ud.knees[1].rotation.z = moved > 0.1 ? -Math.max(0, -Math.cos(G.walk * 0.12)) * 0.75 : 0;
     ud.worker.position.y = moved > 0.1 ? Math.abs(Math.cos(G.walk * 0.12)) * 1.1 : 0;
   } else ud.worker.position.y = moved > 0.1 ? Math.sin(performance.now() / 70) * 0.35 : 0;   // riding: a little bumpy
   const t = performance.now() / 1000, rumble = running ? 0.18 + (newlyCut > 0 ? 0.22 : 0) : 0;
