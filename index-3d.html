@@ -420,9 +420,11 @@ const YARDS = [
   { id: 'peterson', name: 'Mrs. Peterson', pay: 25, stars: 0, pet: { kind: 'cat', name: 'Whiskers' },
     story: 'Mrs. Peterson next door needs her lawn mowed every few days. Dad gave you his old push mower. Time to start a business!',
     house:    { x: 30,  y: 20,  w: 220, h: 150 },
-    look:     { wall: 0xf3e6c9, roof: '#c4603a', garage: 100, door: 185, chimney: [158, 34],
+    // Mrs. Peterson's house is the oldest on the street: faded paint, a mossy roof, a chain-link fence
+    look:     { wall: 0xf3e6c9, roof: '#c4603a', garage: 100, door: 185, chimney: [158, 34], old: true,
                 windows: [[30, 's'], [40, 'n'], [110, 'n'], [180, 'n'], [45, 'e'], [105, 'e'], [45, 'w'], [105, 'w']] },
     driveway: { x: 95,  y: 170, w: 70,  h: 278 },
+    fence: 'chain',
     beds:     [ { x: 460, y: 24, w: 150, h: 46 } ],
     trees:    [ { x: 420, y: 150, r: 26 }, { x: 545, y: 330, r: 22 }, { x: 300, y: 365, r: 18 } ],
     start:    { x: 130, y: 415, angle: -Math.PI / 2 } },
@@ -432,7 +434,7 @@ const YARDS = [
     look:     { wall: 0xdfe9d4, roof: '#4f6b8a', garage: 125, door: 200, chimney: [60, 30],
                 windows: [[40, 's'], [40, 'n'], [115, 'n'], [190, 'n'], [40, 'e'], [100, 'e'], [40, 'w'], [100, 'w']] },
     driveway: { x: 470, y: 160, w: 70,  h: 288 },
-    beds:     [ { x: 36, y: 30, w: 46, h: 150 } ],
+    beds:     [ { x: 36, y: 30, w: 46, h: 150 } ], roses: true,
     trees:    [ { x: 210, y: 120, r: 30 }, { x: 130, y: 335, r: 20 }, { x: 330, y: 270, r: 16 } ],
     start:    { x: 505, y: 415, angle: -Math.PI / 2 } },
   { id: 'kowalski', name: 'The Kowalskis', pay: 36, stars: 3, pet: { kind: 'dog', name: 'Daisy' },
@@ -447,10 +449,13 @@ const YARDS = [
   { id: 'daniels', name: 'Coach Daniels', pay: 55, stars: 6, pet: { kind: 'dog', name: 'Champ' }, w: 800, h: 560, ref: 'walk36',
     story: 'Coach Daniels has a big lot, lots of trees and not much patience. "Make it look like a ball field, kid." He pays well, though.',
     house:    { x: 30,  y: 20,  w: 180, h: 120 },
-    look:     { wall: 0xcfe0ee, roof: '#8a3b32', garage: 60, door: 140, chimney: [40, 30],
+    // a roomy house with a two-car garage, a basketball hoop and a covered front porch
+    look:     { wall: 0xcfe0ee, roof: '#8a3b32', garages: [[62, 110]], door: 152, chimney: [40, 30], hoop: 62,
+                porch: [122, 180, 20], doorColor: 0x7a2a22,
                 windows: [[45, 'n'], [135, 'n'], [40, 'e'], [90, 'e'], [40, 'w'], [90, 'w']] },
     driveway: { x: 55,  y: 140, w: 70,  h: 420 },
     beds:     [ { x: 228, y: 196, w: 44, h: 44 } ],
+    props:    [ { kind: 'pickup', x: 61, y: 146, w: 58, h: 136, color: 0x7a1f1f } ],
     trees:    [ { x: 340, y: 90, r: 24 }, { x: 480, y: 170, r: 20 }, { x: 600, y: 85, r: 18 }, { x: 720, y: 200, r: 26 },
                 { x: 330, y: 330, r: 22 }, { x: 490, y: 380, r: 26 }, { x: 650, y: 330, r: 16 }, { x: 260, y: 480, r: 18 },
                 { x: 700, y: 480, r: 22 } ],
@@ -458,13 +463,19 @@ const YARDS = [
   { id: 'henderson', name: 'The Hendersons', pay: 85, stars: 10, pet: { kind: 'cat', name: 'Mittens' }, w: 960, h: 640, ref: 'tractor42', medalEase: 1.15,
     story: 'The Hendersons have the biggest lot on the street — and a garden shed in the corner. "We\'re told you\'re the best in town."',
     house:    { x: 330, y: 20,  w: 300, h: 160 },
-    look:     { wall: 0xf1e7d0, roof: '#3f5a3c', garage: 150, door: 250, chimney: [60, 40],
-                windows: [[40, 's'], [60, 'n'], [150, 'n'], [240, 'n'], [50, 'e'], [110, 'e'], [50, 'w'], [110, 'w']] },
+    // the fanciest house on the street: two storeys, a three-car garage, tall columns at the front door,
+    // a white picket fence and lanterns at the gate
+    look:     { wall: 0xf1e7d0, roof: '#3f5a3c', storeys: 2, garages: [[80, 58], [146, 58], [212, 58]], door: 272, chimney: [60, 40],
+                porch: [244, 300, 24], columns: true, lanterns: true, doorColor: 0x1f3d2b,
+                windows: [[60, 'n'], [150, 'n'], [240, 'n'], [50, 'e'], [110, 'e'], [50, 'w'], [110, 'w']],
+                windows2: [[80, 's'], [146, 's'], [212, 's'], [272, 's']] },
+    fence: 'picket', gateLights: true,
     driveway: { x: 440, y: 180, w: 80,  h: 460 },
     beds:     [ { x: 700, y: 30, w: 200, h: 40 }, { x: 60, y: 300, w: 40, h: 140 } ],
     trees:    [ { x: 240, y: 250, r: 30 }, { x: 760, y: 240, r: 28 }, { x: 640, y: 450, r: 22 }, { x: 300, y: 520, r: 26 },
                 { x: 870, y: 520, r: 20 }, { x: 150, y: 570, r: 18 } ],
-    props:    [ { kind: 'shed', x: 60, y: 40, w: 90, h: 70, wall: 0xb9603f, roof: '#5a4636' } ],
+    props:    [ { kind: 'shed', x: 60, y: 40, w: 90, h: 70, wall: 0xb9603f, roof: '#5a4636' },
+                { kind: 'sedan', x: 449, y: 188, w: 62, h: 146, color: 0x1c2f45 } ],
     start:    { x: 480, y: 607, angle: -Math.PI / 2 } },
   { id: 'church', name: 'Grace Church', pay: 130, stars: 15, pet: { kind: 'cat', name: 'Smokey' }, w: 1120, h: 720, ref: 'standon48',
     story: 'Pastor Ruth needs the church lawn perfect for weddings every weekend. "Mind the benches and the old oaks, please."',
@@ -1282,7 +1293,7 @@ const fadeables = [];   // things that turn see-through when they block your vie
 
 // A house with a hip roof. r = footprint rectangle (x, y = top-left on the map).
 // roof shingles: two staggered rows of tabs, each tab a slightly different shade, with grit and a shadow line
-function shingleTex(color, seed) {
+function shingleTex(color, seed, old = false) {
   const c = canvas2d(256, 128), ctx = c.getContext('2d'), rnd = seeded(seed), base = new THREE.Color(color), t = new THREE.Color();
   for (let row = 0; row < 2; row++) {
     const y0 = row * 64;
@@ -1295,80 +1306,193 @@ function shingleTex(color, seed) {
     ctx.fillStyle = 'rgba(0,0,0,0.32)'; ctx.fillRect(0, y0 + 54, 256, 10);            // shadow under the row above
     ctx.fillStyle = 'rgba(255,255,255,0.10)'; ctx.fillRect(0, y0, 256, 5);            // sunlit top edge
   }
+  if (old) for (let i = 0; i < 7; i++) {                                              // an old roof: patches of moss and stains
+    const x = rnd() * 256, y = rnd() * 128, rr = 8 + rnd() * 18, gr = ctx.createRadialGradient(x, y, 0, x, y, rr);
+    gr.addColorStop(0, rnd() < 0.5 ? 'rgba(70,90,40,0.45)' : 'rgba(40,35,30,0.35)'); gr.addColorStop(1, 'rgba(0,0,0,0)');
+    ctx.fillStyle = gr; ctx.fillRect(x - rr, y - rr, rr * 2, rr * 2);
+  }
   for (let i = 0; i < 2600; i++) {                                                     // grit
     ctx.fillStyle = rnd() < 0.5 ? 'rgba(0,0,0,0.16)' : 'rgba(255,255,255,0.10)';
     ctx.fillRect(rnd() * 256, rnd() * 128, 1.5, 1.5);
   }
   return c;
 }
+// Options in a yard's "look" (all optional):
+//   storeys: 2          a two-storey house (windows on both floors)
+//   porch: [from, to, depth]   a covered porch set into the front wall (from/to = where along the front)
+//   columns: true       round white columns on the porch (instead of square posts)
+//   garages: [[where, width], ...]   one or more garage doors (instead of the single "garage" door)
+//   windows2: [...]     extra windows on the upper floor only
+//   hoop: where         a basketball hoop on the front wall
+//   lanterns: true      a lantern on each side of the front door
+// The porch and columns stay inside the house's footprint, so the lawn and the mowing are exactly the same.
 function buildHouse(r, o) {
   const g = new THREE.Group(), mats = [];
-  const wallH = o.wallH || 100;
-  const siding = stripeTex(8, 64, '#ffffff', [['rgba(0,0,0,0.13)', 1, 3]], false, () => 0.9, [1, wallH / 9]);
-  const wall = mat(o.wall, { map: siding }); mats.push(wall);
-  addMesh(new THREE.BoxGeometry(r.w, wallH, r.h), wall, r.x + r.w / 2, wallH / 2, r.y + r.h / 2, g);
+  const two = o.storeys === 2, wallH = o.wallH || (two ? 190 : 100);
+  let siding;
+  if (o.old) {
+    // old siding: the same overlapping boards, plus rain streaks running down and grime near the ground
+    const c = canvas2d(128, Math.round(wallH * 4)), ctx = c.getContext('2d'), rnd = seeded(77), H4 = c.height;
+    ctx.fillStyle = '#ffffff'; ctx.fillRect(0, 0, 128, H4);
+    for (let y = 0; y < H4; y += 36) { ctx.fillStyle = 'rgba(0,0,0,0.14)'; ctx.fillRect(0, y, 128, 4); }
+    for (let i = 0; i < 14; i++) {
+      const x = rnd() * 128, w = 2 + rnd() * 6, len = H4 * (0.15 + rnd() * 0.5);
+      const gr = ctx.createLinearGradient(0, 0, 0, len);
+      gr.addColorStop(0, 'rgba(70,60,40,0.22)'); gr.addColorStop(1, 'rgba(70,60,40,0)');
+      ctx.fillStyle = gr; ctx.fillRect(x, 0, w, len);
+    }
+    const gr = ctx.createLinearGradient(0, H4 * 0.75, 0, H4);
+    gr.addColorStop(0, 'rgba(60,50,30,0)'); gr.addColorStop(1, 'rgba(60,50,30,0.35)');
+    ctx.fillStyle = gr; ctx.fillRect(0, H4 * 0.75, 128, H4 * 0.25);
+    siding = texFrom(c);
+  } else siding = stripeTex(8, 64, '#ffffff', [['rgba(0,0,0,0.13)', 1, 3]], false, () => 0.9, [1, wallH / 9]);
+  const fade = (c, k) => new THREE.Color(c).lerp(new THREE.Color(0xa6a49a), k);   // old paint goes greyish in the sun
+  const wall = mat(o.old ? fade(o.wall, 0.22).getHex() : o.wall, { map: siding, roughness: o.old ? 0.95 : 0.85 }); mats.push(wall);
+  const pr = o.porch, zFront = r.y + r.h, zPorch = pr ? zFront - pr[2] : zFront;
+  const inPorch = (xr) => pr && xr > pr[0] && xr < pr[1];
+  const frontZ = (xr) => inPorch(xr) ? zPorch : zFront;     // the front wall is set back where the porch is
+  const wallBox = (x0, x1, z0, z1) => { if (x1 > x0 && z1 > z0) addMesh(new THREE.BoxGeometry(x1 - x0, wallH, z1 - z0), wall, (x0 + x1) / 2, wallH / 2, (z0 + z1) / 2, g); };
+  if (pr) {
+    wallBox(r.x, r.x + r.w, r.y, zPorch);
+    wallBox(r.x, r.x + pr[0], zPorch, zFront);
+    wallBox(r.x + pr[1], r.x + r.w, zPorch, zFront);
+  } else wallBox(r.x, r.x + r.w, r.y, zFront);
   const trim = mat(0xb8a88a); mats.push(trim);
   addMesh(new THREE.BoxGeometry(r.w + 4, 8, r.h + 4), trim, r.x + r.w / 2, 4, r.y + r.h / 2, g);
+  if (two) addMesh(new RoundedBoxGeometry(r.w + 3, 5, r.h + 3, 1, 1), mat(0xf4f1ea), r.x + r.w / 2, 100, r.y + r.h / 2, g);   // band between the floors
 
   // windows: [x or z position along the wall, which wall]
   // real-looking glass: dark, and it reflects the sky
   const glass = new THREE.MeshPhysicalMaterial({ color: 0x2c3f52, roughness: 0.06, metalness: 0.6, clearcoat: 1, envMapIntensity: ENV * 2.4 });
-  const frame = mat(0xffffff), shutter = mat(o.shutter || new THREE.Color(o.roof).multiplyScalar(0.55).getHex());
+  const frame = mat(o.old ? 0xe9e5da : 0xffffff);
+  const shutterC = o.shutter || new THREE.Color(o.roof).multiplyScalar(0.55).getHex();
+  const shutter = mat(o.old ? fade(shutterC, 0.4).getHex() : shutterC);
+  let winCount = 0;
   mats.push(glass, frame, shutter);
-  const win = (px, pz, alongX, out) => {
-    const fw = alongX ? [36, 30, 2] : [2, 30, 36], gw = alongX ? [30, 24, 2.6] : [2.6, 24, 30], y = wallH * 0.58;
+  const win = (px, pz, alongX, out, y = 58) => {
+    const fw = alongX ? [36, 30, 2] : [2, 30, 36], gw = alongX ? [30, 24, 2.6] : [2.6, 24, 30];
     addMesh(new RoundedBoxGeometry(...fw, 2, 0.9), frame, px, y, pz, g);
     addMesh(new THREE.BoxGeometry(...gw), glass, px, y, pz, g);
     // window bars (a cross), a sill, and a shutter on each side
     addMesh(new THREE.BoxGeometry(alongX ? 1.4 : 3.2, 24, alongX ? 3.2 : 1.4), frame, px, y, pz, g);
     addMesh(new THREE.BoxGeometry(alongX ? 30 : 3.2, 1.4, alongX ? 3.2 : 30), frame, px, y, pz, g);
     addMesh(new RoundedBoxGeometry(alongX ? 40 : 5, 2.4, alongX ? 5 : 40, 1, 0.8), frame, px + (alongX ? 0 : out * 1.5), y - 15.5, pz + (alongX ? out * 1.5 : 0), g);
+    winCount++;
     for (const sd of [-1, 1]) {
+      if (o.old && winCount === 2 && sd > 0) continue;     // one shutter fell off years ago
       const o2 = sd * 23;
       addMesh(new RoundedBoxGeometry(alongX ? 9 : 1.6, 30, alongX ? 1.6 : 9, 1, 0.6), shutter, px + (alongX ? o2 : 0), y, pz + (alongX ? 0 : o2), g);
     }
   };
-  for (const w of o.windows || []) {
-    if (w[1] === 'n') win(r.x + w[0], r.y - 0.5, true, -1);
-    if (w[1] === 's') win(r.x + w[0], r.y + r.h + 0.5, true, 1);
-    if (w[1] === 'w') win(r.x - 0.5, r.y + w[0], false, -1);
-    if (w[1] === 'e') win(r.x + r.w + 0.5, r.y + w[0], false, 1);
+  const placeWin = (w, y) => {
+    if (w[1] === 'n') win(r.x + w[0], r.y - 0.5, true, -1, y);
+    if (w[1] === 's') win(r.x + w[0], frontZ(w[0]) + 0.5, true, 1, y);
+    if (w[1] === 'w') win(r.x - 0.5, r.y + w[0], false, -1, y);
+    if (w[1] === 'e') win(r.x + r.w + 0.5, r.y + w[0], false, 1, y);
+  };
+  const lowY = two ? 58 : wallH * 0.58;
+  for (const w of o.windows || []) { placeWin(w, lowY); if (two) placeWin(w, 148); }   // two storeys: the same windows upstairs too
+  for (const w of o.windows2 || []) placeWin(w, 148);
+  if (o.old) {
+    // a rattly old air conditioner sticking out of a back window
+    const ac = mat(0xc9c6bb, { roughness: 0.7 }), grill = mat(0x5d5f60, { roughness: 0.8 }); mats.push(ac, grill);
+    const w = (o.windows || []).find(w => w[1] === 'n');
+    if (w) {
+      addMesh(new RoundedBoxGeometry(22, 14, 12, 1, 1), ac, r.x + w[0], lowY - 9, r.y - 5, g);
+      addMesh(new THREE.BoxGeometry(18, 9, 0.6), grill, r.x + w[0], lowY - 9, r.y - 11.2, g, false);
+    }
   }
   // white corner boards, so the walls don't look like plain boxes
   for (const [cx, cz] of [[r.x, r.y], [r.x + r.w, r.y], [r.x, r.y + r.h], [r.x + r.w, r.y + r.h]])
     addMesh(new RoundedBoxGeometry(5, wallH, 5, 1, 1), frame, cx, wallH / 2, cz, g);
-  if (o.garage) {
+  const garages = o.garages || (o.garage ? [[o.garage, 64]] : []);
+  if (garages.length) {
     const gd = mat(0xf7f7f2), groove = mat(0xd6d6cf); mats.push(gd, groove);
-    const gx = r.x + o.garage, gz = r.y + r.h + 1;
-    addMesh(new THREE.BoxGeometry(64, 70, 2), gd, gx, 35, gz, g);
-    for (const y of [17.5, 35, 52.5]) addMesh(new THREE.BoxGeometry(62, 1.2, 2.4), groove, gx, y, gz, g);
-    // raised panels, a row of little windows at the top, and trim around the opening
     const gGlass = new THREE.MeshPhysicalMaterial({ color: 0x2c3f52, roughness: 0.08, metalness: 0.5, envMapIntensity: ENV * 2 });
     mats.push(gGlass);
-    for (let row = 0; row < 4; row++) for (let col = 0; col < 4; col++) {
-      const px = gx - 24 + col * 16, py = 8.75 + row * 17.5;
-      if (row === 3) addMesh(new RoundedBoxGeometry(12, 9, 1.4, 1, 0.5), gGlass, px, py, gz + 1.1, g);
-      else addMesh(new RoundedBoxGeometry(13, 13, 1.4, 1, 0.6), gd, px, py, gz + 1.1, g);
+    for (const [where, gw] of garages) {
+      const gx = r.x + where, gz = zFront + 1, cols = Math.round(gw / 16), pw = gw / cols;
+      addMesh(new THREE.BoxGeometry(gw, 70, 2), gd, gx, 35, gz, g);
+      for (const y of [17.5, 35, 52.5]) addMesh(new THREE.BoxGeometry(gw - 2, 1.2, 2.4), groove, gx, y, gz, g);
+      // raised panels, a row of little windows at the top, and trim around the opening
+      for (let row = 0; row < 4; row++) for (let col = 0; col < cols; col++) {
+        const px = gx - gw / 2 + pw * (col + 0.5), py = 8.75 + row * 17.5;
+        if (row === 3) addMesh(new RoundedBoxGeometry(pw - 4, 9, 1.4, 1, 0.5), gGlass, px, py, gz + 1.1, g);
+        else addMesh(new RoundedBoxGeometry(pw - 3, 13, 1.4, 1, 0.6), gd, px, py, gz + 1.1, g);
+      }
+      addMesh(new RoundedBoxGeometry(gw + 8, 5, 3, 2, 1), frame, gx, 72.5, gz + 0.4, g);
+      for (const sd of [-1, 1]) addMesh(new RoundedBoxGeometry(4, 70, 3, 2, 1), frame, gx + sd * (gw / 2 + 2), 35, gz + 0.4, g);
     }
-    addMesh(new RoundedBoxGeometry(72, 5, 3, 2, 1), frame, gx, 72.5, gz + 0.4, g);
-    for (const sd of [-1, 1]) addMesh(new RoundedBoxGeometry(4, 70, 3, 2, 1), frame, gx + sd * 34, 35, gz + 0.4, g);
+  }
+  if (pr) {
+    // the porch: a floor, posts or columns along the front, a beam on top, and corner boards where the wall steps back
+    const px0 = r.x + pr[0], px1 = r.x + pr[1], pz = (zPorch + zFront) / 2, ph = two ? wallH : wallH;
+    addMesh(new RoundedBoxGeometry(px1 - px0, 5, pr[2], 2, 1.2), mat(0xcfc8ba, { roughness: 0.85 }), (px0 + px1) / 2, 2.5, pz, g);
+    const n = Math.max(2, Math.round((px1 - px0) / 50) + 1);
+    for (let k = 0; k < n; k++) {
+      const x = px0 + 4 + (px1 - px0 - 8) * k / (n - 1), z = zFront - 4;
+      if (o.columns) {
+        addMesh(new THREE.CylinderGeometry(3.4, 4, ph - 14, 20), frame, x, (ph - 14) / 2 + 7, z, g);       // round column
+        addMesh(new RoundedBoxGeometry(11, 5, 11, 1, 1), frame, x, 4.5, z, g);                            // base
+        addMesh(new RoundedBoxGeometry(11, 5, 11, 1, 1), frame, x, ph - 7, z, g);                         // top
+      } else addMesh(new RoundedBoxGeometry(6, ph, 6, 1, 1), frame, x, ph / 2, z, g);                     // square post
+    }
+    addMesh(new RoundedBoxGeometry(px1 - px0, 7, 6, 1, 1), frame, (px0 + px1) / 2, ph - 4, zFront - 4, g);  // beam
+    for (const x of [px0, px1]) addMesh(new RoundedBoxGeometry(5, wallH, 5, 1, 1), frame, x, wallH / 2, zPorch, g);
+    if (o.columns) {
+      // a white triangular gable (a "pediment") over the columns, like a grand old colonial house
+      const pw = px1 - px0 + 10, tri = new THREE.Shape();
+      tri.moveTo(-pw / 2, 0); tri.lineTo(pw / 2, 0); tri.lineTo(0, 30); tri.closePath();
+      const pg = new THREE.ExtrudeGeometry(tri, { depth: pr[2] + 16, bevelEnabled: false });
+      addMesh(pg, frame, (px0 + px1) / 2, wallH - 2, zPorch - 10, g);
+      const edge = mat(new THREE.Color(o.roof).multiplyScalar(0.72).getHex()); mats.push(edge);
+      for (const sd of [-1, 1]) barC([(px0 + px1) / 2 + sd * (pw / 2 + 2), wallH - 2.5, zFront + 6.5], [(px0 + px1) / 2, wallH + 30.5, zFront + 6.5], 1.8, edge, g, true);
+      addMesh(new THREE.CircleGeometry(6, 24), glass, (px0 + px1) / 2, wallH + 11, zFront + 6.2, g, false);   // a little round window in it
+    }
+    if (!o.columns) {   // a simple railing between the posts, except at the steps
+      const rail = mat(0xffffff);
+      mats.push(rail);
+      const dx = r.x + o.door;
+      for (const [a, b] of [[px0 + 4, dx - 16], [dx + 16, px1 - 4]]) if (b - a > 6) {
+        addMesh(new RoundedBoxGeometry(b - a, 2.5, 2.5, 1, 1), rail, (a + b) / 2, 22, zFront - 4, g);
+        for (let x = a + 4; x < b - 2; x += 5) addMesh(new THREE.BoxGeometry(1.4, 17, 1.4), rail, x, 13, zFront - 4, g);
+      }
+    }
+  }
+  if (o.hoop) {
+    // a basketball hoop on the wall above the garage
+    const hx = r.x + o.hoop, hz = zFront + 6, orange = mat(0xe8641c, { roughness: 0.5 }), white = mat(0xfafafa, { roughness: 0.4 });
+    mats.push(orange, white);
+    for (const sd of [-1, 1]) barC([hx + sd * 8, 84, zFront], [hx + sd * 8, 84, hz], 0.9, orange, g, true);   // brackets
+    addMesh(new RoundedBoxGeometry(32, 21, 1.6, 1, 0.6), white, hx, 88, hz, g);                               // backboard
+    for (const [w, h, x, y] of [[13, 1, 0, 85.5], [13, 1, 0, 93.5], [1, 9, -6, 89.5], [1, 9, 6, 89.5]])
+      addMesh(new THREE.BoxGeometry(w, h, 0.6), orange, hx + x, y, hz + 1, g, false);                         // the little square
+    addMesh(new THREE.TorusGeometry(5.5, 0.6, 8, 24), orange, hx, 81, hz + 6.8, g).rotation.x = Math.PI / 2;  // rim
+    const net = new THREE.MeshBasicMaterial({ color: 0xffffff, wireframe: true, transparent: true, opacity: 0.8 });
+    mats.push(net);
+    addMesh(new THREE.CylinderGeometry(5.3, 3.6, 8, 12, 2, true), net, hx, 76.5, hz + 6.8, g, false);
   }
   if (o.door) {
-    const dm = mat(0x2f5d8a), knob = mat(0xe8c25a); mats.push(dm, knob);
-    addMesh(new THREE.BoxGeometry(24, 52, 2), dm, r.x + o.door, 26, r.y + r.h + 1, g);
-    addMesh(new THREE.SphereGeometry(1.6, 8, 6), knob, r.x + o.door + 7, 26, r.y + r.h + 2.5, g);
-    addMesh(new RoundedBoxGeometry(30, 56, 2, 1, 0.8), frame, r.x + o.door, 27, r.y + r.h + 0.4, g);                       // door frame
+    const dm = mat(o.doorColor || 0x2f5d8a), knob = mat(0xe8c25a); mats.push(dm, knob);
+    const dz = frontZ(o.door);
+    addMesh(new THREE.BoxGeometry(24, 52, 2), dm, r.x + o.door, 26, dz + 1, g);
+    addMesh(new THREE.SphereGeometry(1.6, 8, 6), knob, r.x + o.door + 7, 26, dz + 2.5, g);
+    addMesh(new RoundedBoxGeometry(30, 56, 2, 1, 0.8), frame, r.x + o.door, 27, dz + 0.4, g);                       // door frame
+    if (o.columns) addMesh(new RoundedBoxGeometry(36, 7, 3, 1, 1), frame, r.x + o.door, 58, dz + 0.8, g);        // a fancy top over the door
     addMesh(new RoundedBoxGeometry(38, 5, 14, 2, 1.5), mat(0xbdb7ab, { roughness: 0.9 }), r.x + o.door, 2.5, r.y + r.h + 7, g);   // front step
-    // a porch light beside the door
+    // a porch light beside the door (or a lantern on each side)
     const lampM = mat(0x22252a, { roughness: 0.5 }), glow = new THREE.MeshStandardMaterial({ color: 0xfff1c9, emissive: 0xffd98a, emissiveIntensity: 0.6 });
     mats.push(lampM, glow);
-    addMesh(new RoundedBoxGeometry(5, 8, 4, 1, 0.8), lampM, r.x + o.door + 21, 40, r.y + r.h + 2.5, g);
-    addMesh(new RoundedBoxGeometry(3.6, 5, 3.6, 1, 0.6), glow, r.x + o.door + 21, 40, r.y + r.h + 3, g);
+    for (const lx of o.lanterns ? [-21, 21] : [21]) {
+      addMesh(new RoundedBoxGeometry(5, 8, 4, 1, 0.8), lampM, r.x + o.door + lx, 40, dz + 2.5, g);
+      addMesh(new RoundedBoxGeometry(3.6, 5, 3.6, 1, 0.6), glow, r.x + o.door + lx, 40, dz + 3, g);
+      if (o.lanterns) addMesh(new THREE.ConeGeometry(3.6, 3, 4), lampM, r.x + o.door + lx, 45.5, dz + 2.5, g).rotation.y = Math.PI / 4;
+    }
   }
 
   // roof
   const ov = 10, x0 = r.x - ov, x1 = r.x + r.w + ov, z0 = r.y - ov, z1 = r.y + r.h + ov;
-  const cz = (z0 + z1) / 2, i = (z1 - z0) / 2, y = wallH, Y = wallH + (o.roofH || 64);
+  const cz = (z0 + z1) / 2, i = (z1 - z0) / 2, y = wallH, Y = wallH + (o.roofH || (two ? 74 : 64));
   const A = [x0, y, z0], B = [x1, y, z0], C = [x1, y, z1], D = [x0, y, z1], R1 = [x0 + i, Y, cz], R2 = [x1 - i, Y, cz];
   const tris = [[A, B, R2], [A, R2, R1], [D, R1, R2], [D, R2, C], [A, R1, D], [B, C, R2]];
   const pos = [], uv = [];
@@ -1380,7 +1504,7 @@ function buildHouse(r, o) {
   rg.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3));
   rg.setAttribute('uv', new THREE.Float32BufferAttribute(uv, 2));
   rg.computeVertexNormals();
-  const sc = shingleTex(o.roof, Math.round(r.x + r.y * 7) + 11);
+  const sc = shingleTex(o.old ? '#' + fade(o.roof, 0.3).getHexString() : o.roof, Math.round(r.x + r.y * 7) + 11, o.old);
   const roofMat = new THREE.MeshStandardMaterial({ map: texFrom(sc, [1, 1]), side: THREE.DoubleSide, roughness: 0.8, envMapIntensity: ENV });
   roofMat.map.wrapS = roofMat.map.wrapT = THREE.RepeatWrapping;
   mats.push(roofMat);
@@ -1414,8 +1538,10 @@ function buildHouse(r, o) {
   for (const [a, b] of [[A, R1], [D, R1], [B, R2], [C, R2]]) barC(a, b, 1.6, ridgeM, g, true);
   if (o.chimney) {
     const brick = mat(0x8c5546), dark = mat(0x2a2422); mats.push(brick, dark);
-    addMesh(new THREE.BoxGeometry(18, 46, 18), brick, r.x + o.chimney[0], wallH + 40, r.y + o.chimney[1], g);
-    addMesh(new THREE.BoxGeometry(12, 2, 12), dark, r.x + o.chimney[0], wallH + 63.5, r.y + o.chimney[1], g);
+    const chH = two ? 92 : 46, chY = wallH + (two ? 46 : 40);     // a two-storey roof is taller, so the chimney is too
+    addMesh(new THREE.BoxGeometry(18, chH, 18), brick, r.x + o.chimney[0], chY, r.y + o.chimney[1], g);
+    addMesh(new RoundedBoxGeometry(21, 3, 21, 1, 1), brick, r.x + o.chimney[0], chY + chH / 2 - 1, r.y + o.chimney[1], g);
+    addMesh(new THREE.BoxGeometry(12, 2, 12), dark, r.x + o.chimney[0], chY + chH / 2 + 1, r.y + o.chimney[1], g);
   }
   (o.parent || scene).add(g);
   return { group: g, mats, box: new THREE.Box3().setFromObject(g) };
@@ -1586,7 +1712,8 @@ function buildHood() {
 // Flower beds: stone edging, mulch, little plants with flowers
 function buildBeds() {
   const rnd = seeded(9);
-  const petals = [0xff6b9a, 0xffd23f, 0xffffff, 0xb57cff, 0xff8a4c].map(c => mat(c));
+  // Mr. Alvarez grows roses: reds and pinks
+  const petals = (YARD.roses ? [0xc8102e, 0xe0284a, 0x9b0f24, 0xff7a9c, 0xd81b60] : [0xff6b9a, 0xffd23f, 0xffffff, 0xb57cff, 0xff8a4c]).map(c => mat(c));
   const leaf = mat(0x2f7024), leaf2 = mat(0x3f8a2e), centre = mat(0xffe27a), P = yardGroup;
   for (const b of YARD.beds) {
     addMesh(new RoundedBoxGeometry(b.w + 8, 8, b.h + 8, 3, 3), mat(0xa29d92, { roughness: 0.95 }), b.x + b.w / 2, 4, b.y + b.h / 2, P);
@@ -1605,6 +1732,19 @@ function buildBeds() {
         addMesh(new THREE.SphereGeometry(2, 12, 8), pm, px + Math.cos(a) * 2.6, 17, pz + Math.sin(a) * 2.6, P);
       }
       addMesh(new THREE.SphereGeometry(1.4, 12, 8), centre, px, 17.8, pz, P);
+    }
+    if (YARD.roses) {
+      // a little white picket fence around the rose bed (just inside its edge, so the mowing is the same)
+      const white = mat(0xf7f6f0, { roughness: 0.55 }), x0 = b.x + 2, x1 = b.x + b.w - 2, z0 = b.y + 2, z1 = b.y + b.h - 2;
+      for (const [ax, az, bx, bz] of [[x0, z0, x1, z0], [x1, z0, x1, z1], [x1, z1, x0, z1], [x0, z1, x0, z0]]) {
+        const len = Math.hypot(bx - ax, bz - az), alongX = az === bz;
+        addMesh(new RoundedBoxGeometry(alongX ? len : 1.6, 2, alongX ? 1.6 : len, 1, 0.6), white, (ax + bx) / 2, 18, (az + bz) / 2, P);
+        for (let t = 0; t <= len; t += 5) {
+          const x = ax + (bx - ax) * t / len, z = az + (bz - az) * t / len;
+          addMesh(new THREE.BoxGeometry(2.4, 14, 1), white, x, 15, z, P).rotation.y = alongX ? 0 : Math.PI / 2;
+          addMesh(new THREE.ConeGeometry(1.7, 3, 4), white, x, 23.5, z, P).rotation.y = Math.PI / 4;
+        }
+      }
     }
   }
 }
@@ -1632,12 +1772,15 @@ function buildDriveway() {
 
 // Wooden fence with a gap for the driveway
 function buildFence() {
-  const P = yardGroup;
+  const P = yardGroup, picket = YARD.fence === 'picket';   // a white picket fence for the fancier houses
+  if (YARD.fence === 'chain') return buildChainFence();     // a plain metal chain-link fence for the cheapest yard
   const grainV = stripeTex(32, 128, '#ffffff', [['rgba(90,60,30,0.25)', 10, 1], ['rgba(255,255,255,0.2)', 6, 1]], true, seeded(12), [1, 1]);
   const grainH = stripeTex(128, 32, '#ffffff', [['rgba(90,60,30,0.25)', 10, 1], ['rgba(255,255,255,0.2)', 6, 1]], false, seeded(13), [1, 1]);
-  const wood = mat(0xa68558, { map: grainV }), railX = mat(0xdcc9a0, { map: grainH }), railZ = mat(0xdcc9a0, { map: grainV });
+  const paintW = mat(0xf7f6f0, { roughness: 0.55 });
+  const wood = picket ? paintW : mat(0xa68558, { map: grainV });
+  const railX = picket ? paintW : mat(0xdcc9a0, { map: grainH }), railZ = picket ? paintW : mat(0xdcc9a0, { map: grainV });
   const d = YARD.driveway;
-  const F = 3, R = YARD_W - 3, B = YARD_H - 3, H = 46;
+  const F = 3, R = YARD_W - 3, B = YARD_H - 3, H = picket ? 40 : 46;
   const postGeo = new RoundedBoxGeometry(6, H, 6, 2, 1.2), capGeo = new THREE.ConeGeometry(4.9, 3.2, 4);
   capGeo.rotateY(Math.PI / 4);
   const fRnd = seeded(14);
@@ -1646,16 +1789,144 @@ function buildFence() {
     m.rotation.set((fRnd() - 0.5) * 0.035, (fRnd() - 0.5) * 0.08, (fRnd() - 0.5) * 0.035);   // real posts lean a tiny bit
     addMesh(capGeo, wood, x, H + 1.5, z, P);                                                    // pointed cap
   };
+  const pickets = [];
   const rails = (x0, z0, x1, z1) => {
     const len = Math.hypot(x1 - x0, z1 - z0), alongX = z0 === z1;
-    for (const y of [17, 38]) {
-      addMesh(new RoundedBoxGeometry(alongX ? len : 3, 5, alongX ? 3 : len, 2, 1), alongX ? railX : railZ, (x0 + x1) / 2, y, (z0 + z1) / 2, P);
+    for (const y of picket ? [12, 30] : [17, 38]) {
+      addMesh(new RoundedBoxGeometry(alongX ? len : 3, picket ? 3.5 : 5, alongX ? 3 : len, 2, 1), alongX ? railX : railZ, (x0 + x1) / 2, y, (z0 + z1) / 2, P);
     }
+    if (picket) for (let t = 5; t < len - 3; t += 7) pickets.push([x0 + (x1 - x0) * t / len, z0 + (z1 - z0) * t / len, alongX]);
   };
   rails(F, F, R, F); rails(F, F, F, B); rails(R, F, R, B); rails(F, B, d.x, B); rails(d.x + d.w, B, R, B);
+  if (picket) {
+    // hundreds of pointed white pickets, drawn in one go
+    const bodyG = new THREE.BoxGeometry(3.4, 32, 1.4), tipG = new THREE.ConeGeometry(2.4, 4.5, 4);
+    tipG.rotateY(Math.PI / 4); tipG.scale(1, 1, 0.6);
+    const bodies = new THREE.InstancedMesh(bodyG, paintW, pickets.length), tips = new THREE.InstancedMesh(tipG, paintW, pickets.length);
+    const m4 = new THREE.Matrix4(), q = new THREE.Quaternion(), one = new THREE.Vector3(1, 1, 1), v = new THREE.Vector3(), up = new THREE.Vector3(0, 1, 0);
+    pickets.forEach(([x, z, alongX], k) => {
+      const off = alongX ? [0, (z < YARD_H / 2 ? -2.2 : 2.2)] : [(x < YARD_W / 2 ? -2.2 : 2.2), 0];   // on the outside of the rails
+      q.setFromAxisAngle(up, alongX ? 0 : Math.PI / 2);
+      bodies.setMatrixAt(k, m4.compose(v.set(x + off[0], 18, z + off[1]), q, one));
+      tips.setMatrixAt(k, m4.compose(v.set(x + off[0], 36.2, z + off[1]), q, one));
+    });
+    for (const im of [bodies, tips]) { im.castShadow = true; im.receiveShadow = true; P.add(im); }
+  }
+  if (YARD.gateLights) {
+    // lanterns on top of the two posts where the driveway comes in
+    const lampM = mat(0x22252a, { roughness: 0.5 }), glow = new THREE.MeshStandardMaterial({ color: 0xfff1c9, emissive: 0xffd98a, emissiveIntensity: 0.7 });
+    for (const x of [d.x, d.x + d.w]) {
+      addMesh(new RoundedBoxGeometry(7, 2, 7, 1, 0.6), lampM, x, H + 3.5, B, P);
+      addMesh(new RoundedBoxGeometry(5, 7, 5, 1, 0.8), glow, x, H + 8, B, P);
+      addMesh(new THREE.ConeGeometry(5.2, 4, 4), lampM, x, H + 13.5, B, P).rotation.y = Math.PI / 4;
+    }
+  }
   for (let x = F; x <= R; x += 32) { post(x, F); if (x < d.x || x > d.x + d.w) post(x, B); }
   for (let z = F + 32; z < B; z += 32) { post(F, z); post(R, z); }
   post(R, F); post(F, B); post(R, B); post(d.x, B); post(d.x + d.w, B);
+}
+
+// A car parked on the driveway, nose toward the garage. p.w = how wide, p.h = how long.
+// The body and cabin are smooth rounded shapes: a side outline with curved corners, pushed out across the
+// car's width with rounded edges (like a bar of soap), so there are no hard box corners anywhere.
+function buildCar(p, parent) {
+  const g = new THREE.Group(), W = p.w, L = p.h, pick = p.kind === 'pickup';
+  const paint = new THREE.MeshPhysicalMaterial({ color: p.color, metalness: 0.5, roughness: 0.3, clearcoat: 1, clearcoatRoughness: 0.06, envMapIntensity: ENV * 2.4 });
+  const glassM = new THREE.MeshPhysicalMaterial({ color: 0x1a222c, metalness: 0.3, roughness: 0.04, clearcoat: 1, envMapIntensity: ENV * 3 });
+  const rubber = mat(0x151515, { roughness: 0.9 }), chrome = mat(0xd9dde2, { roughness: 0.2, metalness: 0.9, envMapIntensity: ENV * 2.5 });
+  const alloy = mat(0x9aa1a8, { roughness: 0.28, metalness: 0.85, envMapIntensity: ENV * 2 });
+  const head = new THREE.MeshStandardMaterial({ color: 0xf4f2ea, emissive: 0x5a5648, roughness: 0.2 });
+  const tail = new THREE.MeshStandardMaterial({ color: 0xb01818, emissive: 0x3a0606, roughness: 0.3 });
+  const r = W * 0.2, lift = pick ? r * 0.7 : r * 0.45;
+
+  // pts: the side outline as [length position, height] corners (front is +), each corner rounded by its own amount.
+  // width: how wide; bev: how round the edges are; y/z: where it goes.
+  const smooth = (pts, width, bev, material, y = 0, z = 0) => {
+    const sh = new THREE.Shape(), n = pts.length;
+    for (let k = 0; k < n; k++) {
+      const [u, v, rad] = pts[k], [pu, pv] = pts[(k + n - 1) % n], [nu, nv] = pts[(k + 1) % n];
+      const d1 = Math.hypot(u - pu, v - pv), d2 = Math.hypot(nu - u, nv - v), rr = Math.min(rad || 0, d1 / 2, d2 / 2);
+      const a = [u + (pu - u) * rr / d1, v + (pv - v) * rr / d1], b = [u + (nu - u) * rr / d2, v + (nv - v) * rr / d2];
+      if (k === 0) sh.moveTo(...a); else sh.lineTo(...a);
+      sh.quadraticCurveTo(u, v, ...b);
+    }
+    sh.closePath();
+    const depth = width - 2 * bev;
+    const geo = new THREE.ExtrudeGeometry(sh, { depth, bevelEnabled: true, bevelThickness: bev, bevelSize: bev * 0.6, bevelSegments: 5, curveSegments: 10 });
+    geo.rotateY(-Math.PI / 2); geo.translate(depth / 2, 0, 0);
+    return addMesh(geo, material, 0, y, z, g);
+  };
+
+  // wheels first (they tuck into the body a little)
+  for (const sx of [-1, 1]) for (const sz of [-1, 1]) {
+    const x = sx * (W / 2 - 4.5), z = sz * L * 0.32;
+    addMesh(new THREE.CylinderGeometry(r, r, 8, 28), rubber, x, r, z, g).rotation.z = Math.PI / 2;
+    addMesh(new THREE.TorusGeometry(r * 0.78, r * 0.2, 10, 28), rubber, x + sx * 3.8, r, z, g).rotation.y = Math.PI / 2;   // rounded tire wall
+    addMesh(new THREE.CylinderGeometry(r * 0.56, r * 0.56, 8.4, 20), alloy, x, r, z, g).rotation.z = Math.PI / 2;
+    addMesh(new THREE.SphereGeometry(r * 0.17, 12, 8), chrome, x + sx * 4.3, r, z, g).scale.set(0.5, 1, 1);
+  }
+
+  const e = L / 2, bev = W * 0.12;
+  if (pick) {
+    // pickup: a long body with a tall cab in front and an open bed behind
+    const hB = W * 0.4;
+    smooth([[-e + 2, lift, 5], [e - 1, lift, 5], [e, lift + hB * 0.82, 7], [e - 10, lift + hB, 6], [-e, lift + hB, 4]], W, bev, paint);
+    smooth([[e * 0.48, lift + hB - 2, 2], [e * 0.2, lift + hB + W * 0.36, 7], [-e * 0.12, lift + hB + W * 0.36, 6], [-e * 0.14, lift + hB - 2, 2]],
+      W * 0.88, W * 0.07, glassM);
+    smooth([[e * 0.22, lift + hB + W * 0.34, 4], [-e * 0.13, lift + hB + W * 0.34, 4], [-e * 0.13, lift + hB + W * 0.39, 3], [e * 0.21, lift + hB + W * 0.39, 3]],
+      W * 0.9, W * 0.05, paint);
+    addMesh(new RoundedBoxGeometry(W * 0.74, 2, L * 0.4, 2, 0.9), mat(0x262626, { roughness: 0.95 }), 0, lift + hB + bev * 0.6 + 0.6, -L * 0.27, g);   // the bed
+    for (const sx of [-1, 1]) addMesh(new RoundedBoxGeometry(4.5, 5, L * 0.42, 2, 2), paint, sx * (W / 2 - 4.5), lift + hB + bev * 0.6 + 2, -L * 0.27, g);
+    addMesh(new RoundedBoxGeometry(W * 0.82, 5, 4, 2, 2), paint, 0, lift + hB + bev * 0.6 + 2, -e + 3.5, g);                                         // tailgate top
+    var lampY = lift + hB * 0.7;
+  } else {
+    // sedan: low nose, the windshield and roof in one smooth curve, a short trunk
+    const hB = W * 0.3;
+    smooth([[-e + 2, lift, 6], [e - 2, lift, 6], [e, lift + hB * 0.72, 9], [e * 0.45, lift + hB, 14], [-e * 0.62, lift + hB * 1.02, 12], [-e, lift + hB * 0.86, 8]], W, bev, paint);
+    // the glass cabin with a painted roof on top
+    smooth([[e * 0.42, lift + hB - 1.5, 2], [e * 0.08, lift + hB + W * 0.26, 14], [-e * 0.38, lift + hB + W * 0.26, 12], [-e * 0.64, lift + hB - 1.5, 2]],
+      W * 0.84, W * 0.08, glassM);
+    smooth([[e * 0.1, lift + hB + W * 0.245, 6], [-e * 0.4, lift + hB + W * 0.245, 6], [-e * 0.35, lift + hB + W * 0.3, 8], [e * 0.04, lift + hB + W * 0.3, 8]],
+      W * 0.82, W * 0.06, paint);
+    var lampY = lift + hB * 0.62;
+  }
+  // lights, grille, mirrors
+  for (const sx of [-1, 1]) {
+    addMesh(new THREE.SphereGeometry(1, 16, 10), head, sx * W * 0.32, lampY, e - 0.8, g, false).scale.set(W * 0.11, 2.6, 1.2);
+    addMesh(new THREE.SphereGeometry(1, 16, 10), tail, sx * W * 0.33, lampY + 1, -e + 0.8, g, false).scale.set(W * 0.1, 2.4, 1.2);
+    addMesh(new THREE.SphereGeometry(1, 12, 8), paint, sx * (W / 2 + 1), lampY + W * 0.3, e * (pick ? 0.42 : 0.38), g).scale.set(1.6, 2.2, 3);
+  }
+  addMesh(new RoundedBoxGeometry(W * 0.36, 5, 1.6, 2, 0.7), pick ? chrome : rubber, 0, lampY - 4, e + 0.2, g, false);   // grille
+  g.position.set(p.x + p.w / 2, 0, p.y + p.h / 2);
+  g.rotation.y = Math.PI;                           // nose toward the garage
+  parent.add(g);
+}
+
+// A chain-link fence: grey metal posts and a top rail, with see-through wire mesh in between
+function buildChainFence() {
+  const P = yardGroup, d = YARD.driveway, F = 3, R = YARD_W - 3, B = YARD_H - 3, H = 40;
+  const steel = mat(0xa9adb0, { roughness: 0.4, metalness: 0.7, envMapIntensity: ENV * 2 });
+  // the wire: a picture of crossing diagonal wires on a see-through background, repeated along the fence
+  const c = canvas2d(64, 64), ctx = c.getContext('2d');
+  ctx.clearRect(0, 0, 64, 64); ctx.strokeStyle = '#ffffff'; ctx.lineWidth = 3.2; ctx.lineCap = 'round';
+  for (const [a, b] of [[[0, 0], [64, 64]], [[64, 0], [0, 64]], [[-32, 32], [32, 96]], [[32, -32], [96, 32]], [[32, -32], [-32, 32]], [[96, 32], [32, 96]]]) {
+    ctx.beginPath(); ctx.moveTo(...a); ctx.lineTo(...b); ctx.stroke();
+  }
+  const runs = [[F, F, R, F], [F, F, F, B], [R, F, R, B], [F, B, d.x, B], [d.x + d.w, B, R, B]];
+  for (const [x0, z0, x1, z1] of runs) {
+    const len = Math.hypot(x1 - x0, z1 - z0), alongX = z0 === z1;
+    const t = texFrom(c, [len / 9, H / 9]);
+    const mesh = new THREE.MeshStandardMaterial({ map: t, color: 0xb9bdc0, alphaTest: 0.5, side: THREE.DoubleSide, metalness: 0.6, roughness: 0.45, envMapIntensity: ENV * 2 });
+    const m = addMesh(new THREE.PlaneGeometry(len, H - 2), mesh, (x0 + x1) / 2, (H - 2) / 2 + 1, (z0 + z1) / 2, P);
+    if (!alongX) m.rotation.y = Math.PI / 2;
+    barC([x0, H, z0], [x1, H, z1], 1.3, steel, P, true);                       // top rail
+    const n = Math.max(1, Math.round(len / 48));
+    for (let k = 0; k <= n; k++) {
+      const x = x0 + (x1 - x0) * k / n, z = z0 + (z1 - z0) * k / n;
+      addMesh(new THREE.CylinderGeometry(1.9, 1.9, H + 2, 12), steel, x, (H + 2) / 2, z, P);   // posts
+      addMesh(new THREE.SphereGeometry(2.4, 12, 8, 0, Math.PI * 2, 0, Math.PI / 2), steel, x, H + 2, z, P);   // round caps
+    }
+  }
 }
 
 // Extra things in some yards: a garden shed, a church steeple, park benches, soccer goals
@@ -1674,6 +1945,8 @@ function buildProps() {
       for (const [dx, dz] of [[0, p.h / 2 + 0.5], [p.w / 2 + 0.5, 0]]) addMesh(new THREE.BoxGeometry(dz ? 18 : 2, 30, dz ? 2 : 18), mat(0x5d7ea8), cx + dx, 130, cz + dz, g);
       P.add(g);
       fadeables.push({ group: g, mats: [stone, slate], box: new THREE.Box3().setFromObject(g) });
+    } else if (p.kind === 'pickup' || p.kind === 'sedan') {
+      buildCar(p, P);
     } else if (p.kind === 'bench') {
       const L = along ? p.w : p.h, g = new THREE.Group();
       for (const y of [13, 15.5]) addMesh(new RoundedBoxGeometry(L, 2, 4, 1, 0.8), wood, 0, y, y === 13 ? -2.5 : 2.5, g);   // seat slats
@@ -2542,6 +2815,7 @@ function drawMiniStatic() {
   for (const p of YARD.props || []) {
     if (p.kind === 'shed') drawRoof(p, p.roof);
     else if (p.kind === 'steeple') drawRoof(p, '#41464f');
+    else if (p.color != null) { c.fillStyle = '#' + new THREE.Color(p.color).getHexString(); c.fillRect(p.x + 3, p.y, p.w - 6, p.h); }
     else { c.fillStyle = p.kind === 'goal' ? '#f4f4f0' : '#9a6b3f'; c.fillRect(p.x, p.y, p.w, p.h); }
   }
   for (const t of YARD.trees) {
