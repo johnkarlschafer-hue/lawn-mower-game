@@ -6,7 +6,7 @@
 <title>Lawn Mower Game 3D — Yard 1</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@400;600&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@400;600&family=Patrick+Hand&display=swap" rel="stylesheet">
 <style>
   html, body { margin: 0; height: 100%; overflow: hidden; background: #a9d8ff;
     font-family: Fredoka, "Trebuchet MS", sans-serif; touch-action: none; user-select: none; }
@@ -197,6 +197,90 @@
     #hub .row img.pic { width: 72px; height: 45px; }
     #hub .top { font-size: 13px; }
     #pullBtn { font-size: 20px; padding: 12px 24px; }
+  }
+
+  /* =====================================================================
+     THE CLIPBOARD LOOK: everything on screen is paper, pencil and ink —
+     a kid's summer-job clipboard — instead of shiny game buttons.
+     (These rules come last, so they win over the older styles above.)
+     ===================================================================== */
+  :root { --paper: #f6eed6; --paper2: #efe4c4; --ink: #2a2a33; --pencil: #6b6457; --red: #b3261e; --green: #2f6f22;
+          --hand: 'Patrick Hand', 'Comic Sans MS', cursive; }
+  /* the top bar: a clipboard with lined paper and a metal clip */
+  #hud { background: repeating-linear-gradient(0deg, transparent 0 15px, rgba(80,110,160,.16) 15px 16px), linear-gradient(var(--paper), var(--paper2));
+    color: var(--ink); font-family: var(--hand); font-size: 21px;
+    border-bottom: 3px solid #8a6a3e; box-shadow: 0 3px 0 #5d4526, 0 6px 14px rgba(0,0,0,.35); }
+  #hud::before { content: ''; position: absolute; left: 50%; top: -8px; width: 120px; height: 18px; margin-left: -60px;
+    background: linear-gradient(#c9ced4, #8d949c); border-radius: 0 0 8px 8px; box-shadow: 0 2px 3px rgba(0,0,0,.4); pointer-events: none; }
+  #timer, #style, #combo, #medalNext { color: var(--ink); font-weight: 400; }
+  #timer.hurry { color: var(--red); }
+  .bar, .fbar, #stripe { background: transparent; border: 2px solid var(--ink); border-radius: 4px; box-sizing: border-box; }
+  #cutFill { background: repeating-linear-gradient(-45deg, #6aa84f 0 5px, #4e8a37 5px 9px); border-radius: 0; }
+  #cutTxt { color: var(--ink); text-shadow: 0 0 3px var(--paper), 0 0 3px var(--paper); font-weight: 400; font-size: 16px; line-height: 16px; }
+  #fuelFill { border-radius: 0; }
+  #stripeFill { border-radius: 0; background: #9aa39a; }
+  #stripe span { color: var(--ink); text-shadow: 0 0 2px var(--paper), 0 0 2px var(--paper); font-weight: 400; font-size: 11px; line-height: 10px; }
+  #ghostDelta { font-weight: 400; } #ghostDelta.ahead { color: var(--green); } #ghostDelta.behind { color: var(--red); }
+  /* buttons: hand-drawn boxes, slightly crooked */
+  button { font-family: var(--hand); font-weight: 400; font-size: 19px; color: var(--ink); background: #fffdf5;
+    border: 2px solid var(--ink); border-radius: 6px 9px 7px 10px; box-shadow: 2px 2px 0 var(--ink); padding: 3px 13px; }
+  button:hover { background: #fff3d6; }
+  button:active { transform: translate(1px, 1px); box-shadow: 1px 1px 0 var(--ink); }
+  button.quiet { background: #f3ead2; font-size: 17px; box-shadow: 2px 2px 0 var(--ink); }
+  button.quiet:hover { background: #ebdfbf; }
+  #hud button { transform: rotate(-1.2deg); }
+  #hud button:nth-child(odd) { transform: rotate(1deg); }
+  #toolBtn { background: #e9f5d8; }
+  /* Finish: a red rubber stamp */
+  #hud #finishBtn { color: var(--red); border-color: var(--red); box-shadow: 2px 2px 0 var(--red); background: rgba(255,250,240,.65);
+    text-transform: uppercase; letter-spacing: 2px; transform: rotate(-4deg); }
+  #pullBtn { font-family: var(--hand); color: var(--red); background: #fff6ee; border: 3px solid var(--red); box-shadow: 3px 3px 0 var(--red); }
+  #pullBtn.yank { box-shadow: 1px 1px 0 var(--red); }
+  /* the mini-map: a note taped to the screen */
+  #miniWrap { border: 0; border-radius: 2px; background: var(--paper); padding: 7px; box-sizing: border-box; overflow: visible;
+    box-shadow: 0 4px 12px rgba(0,0,0,.4); transform: rotate(1.5deg); }
+  #miniWrap::before { content: ''; position: absolute; left: 30%; top: -9px; width: 40%; height: 18px; pointer-events: none;
+    background: rgba(240,230,180,.78); transform: rotate(-3deg); box-shadow: 0 1px 2px rgba(0,0,0,.2); }
+  #help { font-family: var(--hand); font-size: 17px; }
+  .pop { font-family: var(--hand); font-weight: 400; font-size: 23px; }
+  /* cards (intro, results, pause, the business clipboard): a sheet of paper on a clipboard */
+  .card { font-family: var(--hand); color: var(--ink); border: 0; border-radius: 3px;
+    background: repeating-linear-gradient(0deg, transparent 0 25px, rgba(80,110,160,.14) 25px 26px), linear-gradient(var(--paper), var(--paper2));
+    box-shadow: 0 0 0 7px #a07a46, 0 0 0 9px #6e5230, 0 10px 30px rgba(0,0,0,.5); }
+  .card h1 { font-weight: 400; font-size: 30px; }
+  .card p { font-size: 17px; }
+  .card .small, .tiltnote { color: var(--pencil); font-size: 15px; }
+  .card button.big { background: #dff0c8; font-size: 22px; }
+  .gold { color: #a17400; } .silver { color: #66717c; } .bronze { color: #95541f; } .none { color: #6b7a62; }
+  #hub .top b { color: var(--ink); }
+  #hub h2 { color: var(--green); font-weight: 400; font-size: 18px; border-bottom: 2px solid rgba(47,111,34,.35); }
+  #hub .row { background: rgba(0,0,0,0.035); border-radius: 4px; }
+  #hub .row .name { font-weight: 400; font-size: 18px; }
+  #hub .row .sub2 { color: var(--pencil); font-size: 15px; }
+  #hub .row button { font-size: 16px; padding: 3px 11px; }
+  #hub .row img.pic { background: radial-gradient(ellipse at 50% 70%, rgba(255,255,255,0.7), rgba(255,255,255,0) 70%); }
+  #hub button:disabled { background: #ece5d2; color: #a39c8c; border-color: #b9b19e; box-shadow: none; }
+  #hub .warn, .card .warn { color: var(--red); } #hub .good, .card .good { color: var(--green); }
+  #hub .note { background: rgba(255, 214, 102, 0.3); border-left: 4px solid #c9a227; border-radius: 3px; font-size: 16px; }
+  #hub .meter { background: transparent; border: 1.5px solid var(--ink); border-radius: 2px; box-sizing: border-box; }
+  /* colors written straight into the text (made for the old dark cards): darker inks on paper */
+  .card [style*="#ffab7a"], .card [style*="#ff8a6b"] { color: var(--red) !important; }
+  .card [style*="#ffe9a3"], .card [style*="#fff3a0"] { color: #8a6400 !important; }
+  .card [style*="#9be37a"], .card [style*="#c6f0a8"], .card [style*="#8fd16a"], .card [style*="#94d36c"] { color: var(--green) !important; }
+  .card [style*="#c9dcbf"] { color: var(--pencil) !important; }
+  #rotateMsg { font-family: var(--hand); }
+  @media (max-height: 520px) {
+    #hud { font-size: 16px; }
+    #hud::before { width: 80px; margin-left: -40px; height: 12px; top: -5px; }
+    button { font-size: 15px; padding: 2px 9px; }
+    #cutTxt { font-size: 13px; line-height: 12px; }
+    #miniWrap { padding: 4px; }
+    .card { box-shadow: 0 0 0 4px #a07a46, 0 0 0 6px #6e5230, 0 8px 20px rgba(0,0,0,.5); }
+    .card h1 { font-size: 21px; } .card p { font-size: 14px; }
+    #hub .row .name { font-size: 15px; } #hub .row .sub2 { font-size: 12.5px; }
+    #hub h2 { font-size: 15px; }
+    #hub .row button { font-size: 14px; }
+    .pop { font-size: 17px !important; }
   }
 </style>
 <!-- Three.js is the 3D engine. This tells the browser where to download it from. -->
@@ -754,12 +838,14 @@ const maxAniso = renderer.capabilities.getMaxAnisotropy();
 const scene = new THREE.Scene();
 // ---- the sky: a real "atmosphere" simulation (how sunlight scatters in the air) ----
 //  It also lights the whole scene: blue light from the sky above, warmer near the sun.
-const SUN_DIR = new THREE.Vector3(-380, 720, 460).normalize();   // high in the south-west
+// late afternoon ("golden hour"): the sun is low in the south-west, so the light is warm and the shadows are long.
+// From there, the shadows fall away from you and to the side, not across the driveway.
+const SUN_DIR = new THREE.Vector3(-700, 420, 500).normalize();
 const sky = new Sky();
 sky.scale.setScalar(4500);
-sky.material.uniforms.turbidity.value = 3.2;          // how hazy the air is
-sky.material.uniforms.rayleigh.value = 1.4;           // how blue the sky is
-sky.material.uniforms.mieCoefficient.value = 0.004;   // the glow around the sun
+sky.material.uniforms.turbidity.value = 4.6;          // how hazy the air is (a warm summer-evening haze)
+sky.material.uniforms.rayleigh.value = 1.8;           // how blue the sky is
+sky.material.uniforms.mieCoefficient.value = 0.006;   // the glow around the sun
 sky.material.uniforms.mieDirectionalG.value = 0.86;
 sky.material.uniforms.sunPosition.value.copy(SUN_DIR);
 scene.add(sky);
@@ -829,9 +915,10 @@ function resize() {
 window.addEventListener('resize', resize);
 resize();
 
-scene.add(new THREE.HemisphereLight(0xdcecff, 0x4a6a2e, 0.22));
+const hemi = new THREE.HemisphereLight(0xffdcbc, 0x4d5a2a, 0.3);   // soft light from the sky (warm) and the lawn (green)
+scene.add(hemi);
 const sun = new THREE.DirectionalLight(0xfff0da, 3.0);
-sun.position.set(320 - 380, 720, 224 + 460);     // high in the south-west
+sun.position.set(320, 0, 224).addScaledVector(SUN_DIR, 1000);     // low in the south-west
 sun.target.position.set(320, 0, 224);
 sun.castShadow = true;
 sun.shadow.mapSize.set(2048, 2048);
@@ -1489,7 +1576,7 @@ function buildHood() {
   buildHouse({ x: W + 150, y: 60, w: 210, h: 150 }, { parent: P, wall: 0xf6d9c2, roof: '#7a5240', windows: [[50, 's'], [150, 's'], [50, 'w'], [110, 'w']] });
   // the sun's shadows have to cover the whole yard
   const k = Math.max(W / 640, H / 448);
-  sun.position.set(W / 2 - 380 * k, 720 * k, H / 2 + 460 * k);
+  sun.position.set(W / 2, 0, H / 2).addScaledVector(SUN_DIR, 1000 * k);
   sun.target.position.set(W / 2, 0, H / 2);
   Object.assign(sun.shadow.camera, { left: -560 * k, right: 560 * k, top: 560 * k, bottom: -560 * k, near: 100, far: 2200 * k });
   sun.shadow.camera.updateProjectionMatrix();
@@ -2392,9 +2479,16 @@ function updateRain(dt) {
 function setWeather(w) {
   const wet = w === 'rain';
   rain.visible = wet;
-  sun.intensity = wet ? 0.9 : 2.4;
-  renderer.toneMappingExposure = wet ? 0.7 : 0.9;
-  scene.fog.color.set(wet ? 0x9aa6b0 : 0xd5ecfa);
+  // sunny days: warm golden late-afternoon light and haze. Rainy days: flat and grey.
+  sun.intensity = wet ? 0.9 : 3.4;
+  sun.color.set(wet ? 0xdfe6ee : 0xffc489);
+  hemi.color.set(wet ? 0xdcecff : 0xffdcbc); hemi.intensity = wet ? 0.24 : 0.3;
+  renderer.toneMappingExposure = wet ? 0.7 : 0.95;
+  scene.fog.color.set(wet ? 0x9aa6b0 : 0xf3d6b4);
+  grade.uniforms.warmth.value = wet ? 0 : 0.075;
+  grade.uniforms.saturation.value = wet ? 1.0 : 1.04;
+  grade.uniforms.contrast.value = wet ? 1.04 : 1.05;
+  grade.uniforms.vignette.value = wet ? 0.32 : 0.4;
 }
 
 // a little buzz on phones that support it (Android)
