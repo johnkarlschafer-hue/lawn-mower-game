@@ -792,6 +792,10 @@ gtao.output = GTAOPass.OUTPUT.Default;
 gtao.updateGtaoMaterial({ radius: 26, distanceExponent: 1.5, thickness: 14, distanceFallOff: 1, scale: 1.5, samples: 12 });
 gtao.updatePdMaterial({ lumaPhi: 10, depthPhi: 2, normalPhi: 3, radius: 6, rings: 2, samples: 16 });
 composer.addPass(gtao);
+{
+  const hide = gtao.overrideVisibility.bind(gtao);
+  gtao.overrideVisibility = () => { hide(); scene.traverse(o => { if (o.userData.noAO) o.visible = false; }); };
+}
 const bloom = new UnrealBloomPass(new THREE.Vector2(256, 256), 0.12, 0.45, 0.95);
 composer.addPass(bloom);
 const grade = new ShaderPass({
@@ -1057,9 +1061,10 @@ function stampMask(x, y, light, ghost) {
 // ---------------------------------------------------------------------
 const timeU = { value: 0 };
 const grassLen = { value: 1 };   // 1 = normal; bigger when the customer waited too long and the grass is long
-let grassMesh = null, tuftCount = 0;
+let grassMesh = null, tuftCount = 0, outerGrass = null, outerCount = 0;
 function buildGrass(cells) {
   if (grassMesh) { scene.remove(grassMesh); grassMesh.geometry.dispose(); grassMesh.material.dispose(); grassMesh.dispose(); }
+  if (outerGrass) { scene.remove(outerGrass); outerGrass.dispose(); outerGrass = null; }
   const rnd = seeded(77);
   // one tuft = 4 thin, curved, pointed blades
   const pos = [], col = [], idx = [];
@@ -1098,7 +1103,9 @@ function buildGrass(cells) {
       .replace('#include <begin_vertex>', `#include <begin_vertex>
         vec4 tuftW = instanceMatrix * vec4(0.0, 0.0, 0.0, 1.0);
         vec4 mk = texture2D(grassMask, vec2(tuftW.x / yardSize.x, 1.0 - tuftW.z / yardSize.y));
-        vCut = smoothstep(0.35, 0.75, mk.r);
+        vec2 yuv = vec2(tuftW.x / yardSize.x, tuftW.z / yardSize.y);
+        float inYard = step(0.0, yuv.x) * step(yuv.x, 1.0) * step(0.0, yuv.y) * step(yuv.y, 1.0);
+        vCut = smoothstep(0.35, 0.75, mk.r) * inYard;                // (the neighbors' grass is never cut)
         vLight = mk.g;
         float hgt = position.y / 8.0;
         transformed.y *= mix(grassLen, 0.13, vCut);                  // mowed: short stubble
@@ -1150,6 +1157,35 @@ function buildGrass(cells) {
   grassMesh.frustumCulled = false;
   grassMesh.receiveShadow = true;
   scene.add(grassMesh);
+
+  // ---- the neighbors' lawns: real grass blades in a wide band all round the outside of the fence too
+  //      (same blades, a little duller). Thick near the fence, thinning out further away, where the
+  //      flat grass picture underneath takes over. Not on the sidewalk, the street or the neighbors' houses.
+  const B = 230, step = 5.5, W = YARD_W, H = YARD_H, orng = seeded(78), outer = [];
+  const houses = [{ x: -330, y: 40, w: 230, h: 160 }, { x: W + 150, y: 60, w: 210, h: 150 }];
+  for (let z = -B; z < H + 2; z += step) for (let x = -B; x < W + B; x += step) {
+    const px = x + orng() * step, pz = z + orng() * step;
+    if (px > -1 && px < W + 1 && pz > -1 && pz < H + 1) continue;                    // that's your yard
+    if (houses.some(r => px > r.x - 6 && px < r.x + r.w + 6 && pz > r.y - 6 && pz < r.y + r.h + 6)) continue;
+    const d = Math.max(-px, px - W, -pz, 0);                                          // how far outside the fence
+    const keep = d < 40 ? 1 : 1 - 0.85 * Math.min(1, (d - 40) / (B - 40));
+    if (orng() > keep * (LEAF_COARSE ? 0.55 : 1)) continue;
+    outer.push([px, pz, 1 + Math.min(1, d / B) * 0.6]);                               // further out: fewer, bigger tufts
+  }
+  for (let i = outer.length - 1; i > 0; i--) { const j = Math.floor(orng() * (i + 1)); [outer[i], outer[j]] = [outer[j], outer[i]]; }
+  outerCount = outer.length;
+  outerGrass = new THREE.InstancedMesh(geo, gm, Math.max(1, outerCount));
+  outer.forEach(([x, z, big], i) => {
+    q.setFromAxisAngle(up, orng() * Math.PI * 2);
+    const s = (0.8 + orng() * 0.45) * big;
+    m4.compose(v.set(x, 0, z), q, sc.set(s, s * (0.85 + orng() * 0.3), s));
+    outerGrass.setMatrixAt(i, m4);
+    const k = 0.72 + orng() * 0.32;
+    outerGrass.setColorAt(i, tint.setRGB(k * 0.9, k * 0.92, k * 0.82, THREE.LinearSRGBColorSpace));
+  });
+  outerGrass.frustumCulled = false;
+  outerGrass.receiveShadow = true;
+  scene.add(outerGrass);
 }
 
 // =====================================================================
@@ -1325,6 +1361,29 @@ function leafBlob(s, seed, base) {
   geo.computeVertexNormals();
   return geo;
 }
+// ---- leaves: a picture of a little cluster of leaves on a see-through background. Hundreds of these
+//      "leaf cards" cover each tree, so the outline is leafy and ragged instead of a smooth blob ----
+const LEAF_COARSE = window.matchMedia('(pointer: coarse)').matches;   // phones get fewer leaf cards
+const leafTex = (() => {
+  const N = 256, c = canvas2d(N, N), ctx = c.getContext('2d'), rnd = seeded(41);
+  ctx.clearRect(0, 0, N, N);
+  for (let i = 0; i < 70; i++) {
+    // leaves fill a rough circle, so a card never shows a square corner
+    const a = rnd() * Math.PI * 2, d = Math.sqrt(rnd()) * N * 0.4;
+    const x = N / 2 + Math.cos(a) * d, y = N / 2 + Math.sin(a) * d, L = 19 + rnd() * 14, rot = rnd() * Math.PI * 2;
+    const g = Math.round(150 + rnd() * 90), rr = Math.round(g * (0.55 + rnd() * 0.2)), bb = Math.round(g * (0.3 + rnd() * 0.15));
+    ctx.save(); ctx.translate(x, y); ctx.rotate(rot);
+    ctx.fillStyle = `rgb(${rr},${g},${bb})`;
+    ctx.beginPath(); ctx.ellipse(0, 0, L, L * 0.42, 0, 0, Math.PI * 2); ctx.fill();
+    ctx.strokeStyle = 'rgba(30,50,10,0.35)'; ctx.lineWidth = 1.2;                     // the vein down the middle
+    ctx.beginPath(); ctx.moveTo(-L * 0.9, 0); ctx.lineTo(L * 0.9, 0); ctx.stroke();
+    ctx.restore();
+  }
+  const t = texFrom(c);
+  return t;
+})();
+const leafCardGeo = new THREE.PlaneGeometry(1, 1);
+
 function buildTree(x, z, r, rnd, mulch, fade, parent = scene) {
   const g = new THREE.Group();
   if (mulch) {
@@ -1334,21 +1393,59 @@ function buildTree(x, z, r, rnd, mulch, fade, parent = scene) {
   const trunkH = 26 + r * 1.1;
   const bark = mat(0xffffff, { map: barkTex, roughness: 0.95 });
   addMesh(new THREE.CylinderGeometry(3 + r * 0.07, 5.5 + r * 0.1, trunkH + r * 0.5, 16), bark, x, (trunkH + r * 0.5) / 2, z, g);
-  for (let k = 0; k < 3; k++) {
-    const a = rnd() * Math.PI * 2;
-    barC([x, trunkH * 0.75, z], [x + Math.cos(a) * r * 0.6, trunkH + r * 0.35, z + Math.sin(a) * r * 0.6], 1.8 + r * 0.03, bark, g);
-  }
-  const leaf = mat(0xffffff, { vertexColors: true, roughness: 0.9 });
-  const base = rnd.pick([0x3f8a2e, 0x4a9334, 0x377d28, 0x45902f]);
-  const n = mulch ? 7 : 5;
+  addMesh(new THREE.CylinderGeometry(5.2 + r * 0.1, 6.6 + r * 0.13, 10, 16), bark, x, 5, z, g);     // the trunk flares out at the roots
+
+  // the crown is a bunch of leafy clumps: one big one on top, a ring around it, and a couple higher up
+  const crownY = trunkH + r * 0.3, clumps = [[x, crownY + r * 0.45, z, r * 0.82]];
+  const n = mulch ? 7 : 6;
   for (let k = 0; k < n; k++) {
-    const a = k / n * Math.PI * 2 + rnd() * 0.5, d = k === 0 ? 0 : r * 0.68;
-    const s = r * (k === 0 ? 1.1 : 0.72 + rnd() * 0.2);
-    addMesh(leafBlob(s, rnd() * 100, base), leaf,
-      x + Math.cos(a) * d, trunkH + r * 0.3 + (k === 0 ? r * 0.35 : rnd() * r * 0.4), z + Math.sin(a) * d, g);
+    const a = k / n * Math.PI * 2 + rnd() * 0.6, d = r * (0.5 + rnd() * 0.28);
+    clumps.push([x + Math.cos(a) * d, crownY + rnd() * r * 0.5 - r * 0.05, z + Math.sin(a) * d, r * (0.48 + rnd() * 0.22)]);
   }
+  for (let k = 0; k < 2; k++) {
+    const a = rnd() * Math.PI * 2;
+    clumps.push([x + Math.cos(a) * r * 0.3, crownY + r * 0.85, z + Math.sin(a) * r * 0.3, r * (0.4 + rnd() * 0.12)]);
+  }
+  // branches from the trunk out into the clumps (you see them through the gaps in the leaves)
+  for (const [cx, cy, cz, cs] of clumps.slice(1)) {
+    barC([x, trunkH * 0.68, z], [x + (cx - x) * 0.8, cy - cs * 0.35, z + (cz - z) * 0.8], 1.1 + r * 0.03, bark, g);
+  }
+  // inside each clump: a darker leafy blob, so you can't see straight through the tree
+  const base = rnd.pick([0x3f8a2e, 0x4a9334, 0x377d28, 0x45902f]);
+  const inner = new THREE.Color(base).multiplyScalar(0.42).getHex();
+  const leaf = mat(0xffffff, { vertexColors: true, roughness: 0.9 });
+  for (const [cx, cy, cz, cs] of clumps) addMesh(leafBlob(cs * 0.62, rnd() * 100, inner), leaf, cx, cy, cz, g);
+  // ...and the leaf cards all over the outside of each clump, facing outward
+  const tint = new THREE.Color(base).lerp(new THREE.Color(0xffffff), 0.35);
+  const cardMat = addClouds(new THREE.MeshStandardMaterial({ map: leafTex, alphaTest: 0.5, side: THREE.DoubleSide,
+    color: tint, roughness: 0.8, envMapIntensity: ENV }));
+  cardMat.userData.leafCard = true;
+  const per = LEAF_COARSE ? 30 : 55, total = clumps.reduce((t, c) => t + Math.round(per * (c[3] / (r * 0.6)) ** 2), 0);
+  const cards = new THREE.InstancedMesh(leafCardGeo, cardMat, total);
+  const m4 = new THREE.Matrix4(), q = new THREE.Quaternion(), q2 = new THREE.Quaternion(), dir = new THREE.Vector3();
+  const pos = new THREE.Vector3(), sc = new THREE.Vector3(), Z = new THREE.Vector3(0, 0, 1), col = new THREE.Color();
+  let i = 0;
+  for (const [cx, cy, cz, cs] of clumps) {
+    const cnt = Math.round(per * (cs / (r * 0.6)) ** 2);
+    for (let k = 0; k < cnt && i < total; k++, i++) {
+      // a random direction, mostly sideways and up (the underside of a tree is mostly in shade)
+      do { dir.set(rnd() * 2 - 1, rnd() * 2 - 1, rnd() * 2 - 1); } while (dir.lengthSq() > 1 || dir.lengthSq() < 0.05);
+      dir.normalize(); if (dir.y < -0.55) dir.y *= 0.4; dir.normalize();
+      pos.set(cx, cy, cz).addScaledVector(dir, cs * (0.5 + rnd() * 0.55));
+      q.setFromUnitVectors(Z, dir); q2.setFromAxisAngle(Z, rnd() * Math.PI * 2); q.multiply(q2);   // face outward, any spin
+      const size = r * (0.42 + rnd() * 0.26);
+      m4.compose(pos, q, sc.set(size, size, 1));
+      cards.setMatrixAt(i, m4);
+      const k2 = 0.72 + 0.32 * (dir.y * 0.5 + 0.5) + (rnd() - 0.5) * 0.16;           // sunny top, shady underside
+      cards.setColorAt(i, col.setRGB(k2, k2, k2 * (0.95 + rnd() * 0.1)));
+    }
+  }
+  cards.count = i;
+  cards.castShadow = true; cards.receiveShadow = true;
+  cards.userData.noAO = true;              // (the contact shading can't see the see-through parts of the cards)
+  g.add(cards);
   parent.add(g);
-  if (fade) fadeables.push({ group: g, mats: [leaf], box: new THREE.Box3().setFromObject(g) });
+  if (fade) fadeables.push({ group: g, mats: [leaf, cardMat], box: new THREE.Box3().setFromObject(g) });
   treeSpots.push({ x, z, r, top: trunkH + r * 1.6, inYard: !!mulch });   // birds can perch up here
 }
 const treeSpots = [];
@@ -2445,6 +2542,7 @@ function loadYard(id) {
   for (const k of ['gold', 'silver', 'bronze']) medalT[k] = Math.round(perfectT * MEDALS[k] * (YARD.medalEase || 1));
   buildGrass(cellsTemplate);
   grassMesh.count = Math.floor(tuftCount * QUALITY[qLevel].grass);   // (QUALITY is set up further down)
+  if (outerGrass) outerGrass.count = Math.floor(outerCount * QUALITY[qLevel].grass);
 }
 
 const G = { cells: new Uint8Array(COLS * ROWS), ghostShown: true, inHub: true, mower: { x: 0, y: 0, rot: 0 } };
@@ -2873,6 +2971,7 @@ function applyQuality() {
   renderer.setPixelRatio(q.pr);
   resize();
   if (grassMesh) grassMesh.count = Math.floor(tuftCount * q.grass);
+  if (outerGrass) outerGrass.count = Math.floor(outerCount * q.grass);
   bloom.enabled = q.bloom;
   gtao.enabled = !!q.ao;
 }
@@ -3504,6 +3603,7 @@ function updateFading(dt) {
       if (mt.transparent !== see) { mt.transparent = see; mt.needsUpdate = true; }
       mt.opacity = see ? f.cur : 1;
       mt.depthWrite = !see;
+      if (mt.userData.leafCard) mt.alphaTest = see ? 0.5 * f.cur : 0.5;   // or the faded leaves would disappear completely
     }
   }
 }
