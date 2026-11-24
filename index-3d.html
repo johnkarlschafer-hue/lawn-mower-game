@@ -117,6 +117,22 @@
   .card .small { font-size: 13px; color: #ffe9a3; }
   .card .btns { display: flex; justify-content: center; gap: 20px; margin-top: 14px; }
   .hidden { display: none !important; }
+
+  /* ---- pause ---- */
+  body.paused #touchUI, body.paused #pullBtn { display: none !important; }
+  #pauseCard .btns { flex-wrap: wrap; gap: 12px; }
+  #pauseCard .small { margin-top: 10px; }
+
+  /* ---- phone held upright: ask to turn it sideways ---- */
+  #rotateMsg { display: none; }
+  @media (orientation: portrait) and (pointer: coarse) {
+    #rotateMsg { display: flex; position: fixed; inset: 0; z-index: 50; flex-direction: column; align-items: center;
+      justify-content: center; gap: 14px; padding: 24px; text-align: center; color: #e8f5e0; font-size: 20px;
+      background: rgba(22, 33, 15, 0.97); }
+    #rotateMsg .phone { font-size: 64px; animation: turnme 1.6s ease-in-out infinite; }
+    #rotateMsg small { font-size: 14px; color: #ffe9a3; }
+  }
+  @keyframes turnme { 0%, 30% { transform: rotate(0deg); } 60%, 100% { transform: rotate(-90deg); } }
   body.inhub #hud, body.inhub #miniWrap, body.inhub #touchUI, body.inhub #help, body.inhub #tiltDbg { display: none !important; }
 
   /* ---- floating text ---- */
@@ -207,6 +223,7 @@
   <button id="ctrlBtn" class="quiet hidden">🎮<span class="lbl"></span></button>
   <button id="levelBtn" class="quiet hidden">⟲ Level</button>
   <button id="toolBtn" class="hidden" title="Swap mower / trimmer (T)">🌿 Trimmer</button>
+  <button id="pauseBtn" class="quiet" title="Pause (P)">⏸</button>
   <button id="hubBtn" class="quiet" title="Clipboard (Esc)">📋</button>
   <button id="camBtn" class="quiet">🎥</button>
   <button id="finishBtn">Finish ✓</button>
@@ -219,9 +236,11 @@
   <div id="revBtn" class="pedal">REV</div>
   <div id="gasBtn" class="pedal">GO</div>
 </div>
-<div id="help">Arrows / WASD drive · C camera · G ghost · M sound · Q graphics · R restart · Esc clipboard</div>
+<div id="help">Arrows / WASD drive · P pause · C camera · G ghost · M sound · Q graphics · R restart · Esc clipboard</div>
 <div id="intro" class="card"></div>
 <div id="results" class="card hidden"></div>
+<div id="pauseCard" class="card hidden"></div>
+<div id="rotateMsg"><div class="phone">📱</div>Turn your phone sideways to mow<small>The game pauses until you do</small></div>
 <div id="hub" class="card hidden"></div>
 <div id="flash"></div>
 <button id="pullBtn" class="hidden">PULL THE CORD<small>tap fast · or press SPACE</small></button>
@@ -586,7 +605,7 @@ window.addEventListener('keydown', () => SFX.init());
 window.addEventListener('pointerdown', () => SFX.init());
 document.addEventListener('visibilitychange', () => {
   if (!SFX.ctx) return;
-  if (document.hidden) SFX.ctx.suspend(); else SFX.ctx.resume();
+  if (document.hidden) SFX.ctx.suspend(); else if (!PAUSE.on) SFX.ctx.resume();
 });
 
 const MEDAL_NAME = { gold: 'Gold', silver: 'Silver', bronze: 'Bronze', none: 'No medal' };
@@ -2333,6 +2352,8 @@ window.addEventListener('keydown', (e) => {
   if (e.repeat) return;
   keys.add(e.code);
   if (G.inHub) return;
+  if (e.code === 'KeyP') { if (PAUSE.on) resumeGame(); else pauseGame(); return; }
+  if (PAUSE.on) { if (['Escape', 'Space', 'Enter'].includes(e.code)) resumeGame(); return; }
   const midJob = RUN.paid && G.started && !G.finished;
   if (RUN.watch && (e.code === 'KeyR' || e.code === 'Enter')) { if (e.code === 'Enter') endWatch(); return; }
   if (e.code === 'KeyR') {
@@ -2630,6 +2651,7 @@ applyQuality();
 const fpsMeter = { t: 0, frames: 0 };
 function checkSpeed(dt) {
   if (!qAuto || qLevel >= QUALITY.length - 1) return;
+  if (dt > 0.5) { fpsMeter.t = 0; fpsMeter.frames = 0; return; }   // the game was paused or in the background, not slow
   fpsMeter.t += dt; fpsMeter.frames++;
   if (fpsMeter.t < 3) return;
   const fps = fpsMeter.frames / fpsMeter.t;
@@ -2654,6 +2676,13 @@ window.addEventListener('keydown', (e) => {
 // =====================================================================
 let lastT = performance.now();
 function frame(now) {
+  if (PAUSE.on) {
+    // paused: nothing moves; redraw a few times a second only (saves battery), e.g. after the screen turns
+    lastT = now; frame.prev = now;
+    if (now - PAUSE.drawn > 250) { PAUSE.drawn = now; if (QUALITY[qLevel].post) composer.render(); else renderer.render(scene, camera); }
+    requestAnimationFrame(frame);
+    return;
+  }
   const dt = Math.min(0.05, (now - lastT) / 1000);
   lastT = now;
   timeU.value = now / 1000;
@@ -2670,6 +2699,56 @@ function frame(now) {
   drawMini();
   if (QUALITY[qLevel].post) composer.render(); else renderer.render(scene, camera);
   requestAnimationFrame(frame);
+}
+
+// =====================================================================
+//  PAUSE — the ⏸ button or P. The game also pauses by itself when you
+//  switch apps, get a call, lock the phone, or hold the phone upright.
+// =====================================================================
+const PAUSE = { on: false, drawn: 0 };
+function pauseGame() {
+  if (PAUSE.on || !G.started || G.finished || G.inHub) return;
+  PAUSE.on = true; PAUSE.drawn = 0;
+  // let go of everything, so the mower doesn't drive off by itself when you come back
+  keys.clear(); pointer.active = false;
+  touch.id = null; touch.steer = 0; touch.gas = touch.rev = false;
+  for (const id of ['gasBtn', 'revBtn']) $(id).classList.remove('on');
+  $('knob').style.transform = '';
+  if (SFX.ctx) SFX.ctx.suspend();
+  document.body.classList.add('paused');
+  const locked = RUN.paid && !RUN.watch;   // paid jobs: no do-overs, no leaving halfway
+  const card = $('pauseCard');
+  card.innerHTML = `<h1>⏸ Paused</h1>
+    <p>The clock is stopped at <b>${G.elapsed.toFixed(1)}s</b>.</p>
+    <div class="btns">
+      <button id="resumeBtn" class="big">▶ Keep mowing</button>
+      <button id="pSoundBtn" class="quiet">${SFX.on ? '🔊 Sound on' : '🔇 Sound off'}</button>
+      ${locked ? '' : '<button id="pRestartBtn" class="quiet">⟲ Start yard over</button><button id="pHubBtn" class="quiet">📋 Clipboard</button>'}
+    </div>
+    ${locked ? '<div class="small">Paid job — finish it to get paid.</div>' : ''}`;
+  card.classList.remove('hidden');
+  clickBtn('resumeBtn', resumeGame);
+  clickBtn('pSoundBtn', () => { SFX.toggle(); if (SFX.ctx) SFX.ctx.suspend(); $('pSoundBtn').textContent = SFX.on ? '🔊 Sound on' : '🔇 Sound off'; });
+  if (!locked) {
+    clickBtn('pRestartBtn', () => { resumeGame(); newRun(); });
+    clickBtn('pHubBtn', () => { resumeGame(); showHub(); });
+  }
+}
+function resumeGame() {
+  if (!PAUSE.on) return;
+  if (window.matchMedia('(orientation: portrait) and (pointer: coarse)').matches) return;   // still upright: wait
+  PAUSE.on = false;
+  $('pauseCard').classList.add('hidden');
+  document.body.classList.remove('paused');
+  if (SFX.ctx && !document.hidden) SFX.ctx.resume();
+}
+clickBtn('pauseBtn', () => { if (PAUSE.on) resumeGame(); else pauseGame(); });
+document.addEventListener('visibilitychange', () => { if (document.hidden) pauseGame(); });
+window.addEventListener('pagehide', pauseGame);
+{
+  const upright = window.matchMedia('(orientation: portrait) and (pointer: coarse)');
+  const check = () => { if (upright.matches) pauseGame(); };
+  if (upright.addEventListener) upright.addEventListener('change', check); else upright.addListener(check);
 }
 
 function update(dt) {
