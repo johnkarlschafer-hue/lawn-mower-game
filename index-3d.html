@@ -255,6 +255,7 @@ import { Sky } from 'three/addons/objects/Sky.js';
 import { EffectComposer } from 'three/addons/postprocessing/EffectComposer.js';
 import { RenderPass } from 'three/addons/postprocessing/RenderPass.js';
 import { UnrealBloomPass } from 'three/addons/postprocessing/UnrealBloomPass.js';
+import { GTAOPass } from 'three/addons/postprocessing/GTAOPass.js';
 import { ShaderPass } from 'three/addons/postprocessing/ShaderPass.js';
 import { OutputPass } from 'three/addons/postprocessing/OutputPass.js';
 
@@ -784,6 +785,13 @@ const camera = new THREE.PerspectiveCamera(CAMERA.fov, 1, 1, 6000);
 // (phones: less edge-smoothing, to save graphics memory)
 const composer = new EffectComposer(renderer, new THREE.WebGLRenderTarget(1, 1, { type: THREE.HalfFloatType, samples: window.matchMedia('(pointer: coarse)').matches ? 2 : 4 }));
 composer.addPass(new RenderPass(scene, camera));
+// contact shading ("ambient occlusion"): soft shadows in corners, under the eaves, where walls, trees,
+// fences and the mower meet the lawn — the light that can't quite reach in there. High graphics on a computer only.
+const gtao = new GTAOPass(scene, camera, 1, 1);
+gtao.output = GTAOPass.OUTPUT.Default;
+gtao.updateGtaoMaterial({ radius: 26, distanceExponent: 1.5, thickness: 14, distanceFallOff: 1, scale: 1.5, samples: 12 });
+gtao.updatePdMaterial({ lumaPhi: 10, depthPhi: 2, normalPhi: 3, radius: 6, rings: 2, samples: 16 });
+composer.addPass(gtao);
 const bloom = new UnrealBloomPass(new THREE.Vector2(256, 256), 0.12, 0.45, 0.95);
 composer.addPass(bloom);
 const grade = new ShaderPass({
@@ -1109,9 +1117,21 @@ function buildGrass(cells) {
 
   // place 3 tufts in every grass cell, shuffled so we can show fewer on slow computers
   const spots = [];
+  const isGrass = (r, c) => cells[r * COLS + c] === 1;
   for (let row = 0; row < ROWS; row++) for (let col = 0; col < COLS; col++) {
     if (cells[row * COLS + col] !== 1) continue;
     for (let k = 0; k < 3; k++) spots.push([col * CELL + rnd() * CELL, row * CELL + rnd() * CELL]);
+    // at the edge of the lawn (driveway, flower beds, the house): a few tufts spill over the edge,
+    // so the lawn doesn't stop in a perfectly straight, computer-made line
+    for (const [dr, dc] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) {
+      const r2 = row + dr, c2 = col + dc;
+      if (r2 < 0 || c2 < 0 || r2 >= ROWS || c2 >= COLS || isGrass(r2, c2)) continue;
+      for (let k = 0; k < 2; k++) {
+        const out = rnd() * 3.5, along = rnd() * CELL;
+        spots.push(dc ? [(dc > 0 ? (col + 1) * CELL + out : col * CELL - out), row * CELL + along]
+                      : [col * CELL + along, (dr > 0 ? (row + 1) * CELL + out : row * CELL - out)]);
+      }
+    }
   }
   for (let i = spots.length - 1; i > 0; i--) { const j = Math.floor(rnd() * (i + 1)); [spots[i], spots[j]] = [spots[j], spots[i]]; }
   tuftCount = spots.length;
@@ -1138,6 +1158,26 @@ function buildGrass(cells) {
 const fadeables = [];   // things that turn see-through when they block your view
 
 // A house with a hip roof. r = footprint rectangle (x, y = top-left on the map).
+// roof shingles: two staggered rows of tabs, each tab a slightly different shade, with grit and a shadow line
+function shingleTex(color, seed) {
+  const c = canvas2d(256, 128), ctx = c.getContext('2d'), rnd = seeded(seed), base = new THREE.Color(color), t = new THREE.Color();
+  for (let row = 0; row < 2; row++) {
+    const y0 = row * 64;
+    for (let k = -1; k < 5; k++) {
+      const x0 = k * 64 + row * 32;
+      t.copy(base).offsetHSL(0, (rnd() - 0.5) * 0.06, (rnd() - 0.5) * 0.09);
+      ctx.fillStyle = t.getStyle(); ctx.fillRect(x0, y0, 64, 64);
+      ctx.fillStyle = 'rgba(0,0,0,0.35)'; ctx.fillRect(x0, y0 + 14, 2, 50);           // the cut between two tabs
+    }
+    ctx.fillStyle = 'rgba(0,0,0,0.32)'; ctx.fillRect(0, y0 + 54, 256, 10);            // shadow under the row above
+    ctx.fillStyle = 'rgba(255,255,255,0.10)'; ctx.fillRect(0, y0, 256, 5);            // sunlit top edge
+  }
+  for (let i = 0; i < 2600; i++) {                                                     // grit
+    ctx.fillStyle = rnd() < 0.5 ? 'rgba(0,0,0,0.16)' : 'rgba(255,255,255,0.10)';
+    ctx.fillRect(rnd() * 256, rnd() * 128, 1.5, 1.5);
+  }
+  return c;
+}
 function buildHouse(r, o) {
   const g = new THREE.Group(), mats = [];
   const wallH = o.wallH || 100;
@@ -1178,7 +1218,17 @@ function buildHouse(r, o) {
     const gd = mat(0xf7f7f2), groove = mat(0xd6d6cf); mats.push(gd, groove);
     const gx = r.x + o.garage, gz = r.y + r.h + 1;
     addMesh(new THREE.BoxGeometry(64, 70, 2), gd, gx, 35, gz, g);
-    for (const y of [18, 35, 52]) addMesh(new THREE.BoxGeometry(62, 1.5, 2.4), groove, gx, y, gz, g);
+    for (const y of [17.5, 35, 52.5]) addMesh(new THREE.BoxGeometry(62, 1.2, 2.4), groove, gx, y, gz, g);
+    // raised panels, a row of little windows at the top, and trim around the opening
+    const gGlass = new THREE.MeshPhysicalMaterial({ color: 0x2c3f52, roughness: 0.08, metalness: 0.5, envMapIntensity: ENV * 2 });
+    mats.push(gGlass);
+    for (let row = 0; row < 4; row++) for (let col = 0; col < 4; col++) {
+      const px = gx - 24 + col * 16, py = 8.75 + row * 17.5;
+      if (row === 3) addMesh(new RoundedBoxGeometry(12, 9, 1.4, 1, 0.5), gGlass, px, py, gz + 1.1, g);
+      else addMesh(new RoundedBoxGeometry(13, 13, 1.4, 1, 0.6), gd, px, py, gz + 1.1, g);
+    }
+    addMesh(new RoundedBoxGeometry(72, 5, 3, 2, 1), frame, gx, 72.5, gz + 0.4, g);
+    for (const sd of [-1, 1]) addMesh(new RoundedBoxGeometry(4, 70, 3, 2, 1), frame, gx + sd * 34, 35, gz + 0.4, g);
   }
   if (o.door) {
     const dm = mat(0x2f5d8a), knob = mat(0xe8c25a); mats.push(dm, knob);
@@ -1186,6 +1236,11 @@ function buildHouse(r, o) {
     addMesh(new THREE.SphereGeometry(1.6, 8, 6), knob, r.x + o.door + 7, 26, r.y + r.h + 2.5, g);
     addMesh(new RoundedBoxGeometry(30, 56, 2, 1, 0.8), frame, r.x + o.door, 27, r.y + r.h + 0.4, g);                       // door frame
     addMesh(new RoundedBoxGeometry(38, 5, 14, 2, 1.5), mat(0xbdb7ab, { roughness: 0.9 }), r.x + o.door, 2.5, r.y + r.h + 7, g);   // front step
+    // a porch light beside the door
+    const lampM = mat(0x22252a, { roughness: 0.5 }), glow = new THREE.MeshStandardMaterial({ color: 0xfff1c9, emissive: 0xffd98a, emissiveIntensity: 0.6 });
+    mats.push(lampM, glow);
+    addMesh(new RoundedBoxGeometry(5, 8, 4, 1, 0.8), lampM, r.x + o.door + 21, 40, r.y + r.h + 2.5, g);
+    addMesh(new RoundedBoxGeometry(3.6, 5, 3.6, 1, 0.6), glow, r.x + o.door + 21, 40, r.y + r.h + 3, g);
   }
 
   // roof
@@ -1196,16 +1251,13 @@ function buildHouse(r, o) {
   const pos = [], uv = [];
   tris.forEach((t, k) => {
     const ends = k >= 4;   // the two triangle ends of the roof
-    for (const p of t) { pos.push(...p); uv.push(ends ? p[2] / 50 : p[0] / 50, ends ? p[0] / 7 : p[2] / 7); }
+    for (const p of t) { pos.push(...p); uv.push(ends ? p[2] / 50 : p[0] / 50, ends ? p[0] / 14 : p[2] / 14); }
   });
   const rg = new THREE.BufferGeometry();
   rg.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3));
   rg.setAttribute('uv', new THREE.Float32BufferAttribute(uv, 2));
   rg.computeVertexNormals();
-  const sc = canvas2d(64, 64), sctx = sc.getContext('2d');   // shingles
-  sctx.fillStyle = o.roof; sctx.fillRect(0, 0, 64, 64);
-  sctx.fillStyle = 'rgba(0,0,0,0.28)'; sctx.fillRect(0, 54, 64, 10);
-  sctx.fillStyle = 'rgba(255,255,255,0.10)'; sctx.fillRect(0, 0, 64, 6);
+  const sc = shingleTex(o.roof, Math.round(r.x + r.y * 7) + 11);
   const roofMat = new THREE.MeshStandardMaterial({ map: texFrom(sc, [1, 1]), side: THREE.DoubleSide, roughness: 0.8, envMapIntensity: ENV });
   roofMat.map.wrapS = roofMat.map.wrapT = THREE.RepeatWrapping;
   mats.push(roofMat);
@@ -1216,6 +1268,27 @@ function buildHouse(r, o) {
   addMesh(new RoundedBoxGeometry(x1 - x0 + 2, 5, 3, 2, 1), fascia, (x0 + x1) / 2, y - 1.5, z1, g);
   addMesh(new RoundedBoxGeometry(3, 5, z1 - z0 + 2, 2, 1), fascia, x0, y - 1.5, (z0 + z1) / 2, g);
   addMesh(new RoundedBoxGeometry(3, 5, z1 - z0 + 2, 2, 1), fascia, x1, y - 1.5, (z0 + z1) / 2, g);
+  // the underside of the overhang (the soffit), so the roof doesn't look paper-thin from below
+  const soffitM = mat(0xe8e3d8, { side: THREE.DoubleSide }); mats.push(soffitM);
+  const soffit = new THREE.PlaneGeometry(x1 - x0, z1 - z0); soffit.rotateX(Math.PI / 2);
+  addMesh(soffit, soffitM, (x0 + x1) / 2, y - 0.3, (z0 + z1) / 2, g, false);
+  // gutters all the way round, and a downspout at each front corner
+  const gutterM = mat(0xf2efe8, { roughness: 0.45 }); mats.push(gutterM);
+  addMesh(new RoundedBoxGeometry(x1 - x0 + 8, 4, 4, 2, 1.6), gutterM, (x0 + x1) / 2, y - 2.5, z0 - 3.4, g);
+  addMesh(new RoundedBoxGeometry(x1 - x0 + 8, 4, 4, 2, 1.6), gutterM, (x0 + x1) / 2, y - 2.5, z1 + 3.4, g);
+  addMesh(new RoundedBoxGeometry(4, 4, z1 - z0 + 8, 2, 1.6), gutterM, x0 - 3.4, y - 2.5, (z0 + z1) / 2, g);
+  addMesh(new RoundedBoxGeometry(4, 4, z1 - z0 + 8, 2, 1.6), gutterM, x1 + 3.4, y - 2.5, (z0 + z1) / 2, g);
+  for (const [gxx, wx, kx] of [[x0 - 3.4, r.x - 2.2, -7], [x1 + 3.4, r.x + r.w + 2.2, 7]]) {
+    const zs = r.y + r.h - 6;
+    barC([gxx, y - 3, zs], [wx, y - 10, zs], 1.4, gutterM, g, true);
+    barC([wx, y - 10, zs], [wx, 5, zs], 1.4, gutterM, g, true);
+    barC([wx, 5, zs], [wx + kx, 1.5, zs], 1.4, gutterM, g, true);
+  }
+  // ridge caps along the top and down the corners of the roof
+  const ridgeM = new THREE.MeshStandardMaterial({ color: new THREE.Color(o.roof).multiplyScalar(0.72), roughness: 0.85, envMapIntensity: ENV });
+  mats.push(ridgeM);
+  barC(R1, R2, 2.2, ridgeM, g, true);
+  for (const [a, b] of [[A, R1], [D, R1], [B, R2], [C, R2]]) barC(a, b, 1.6, ridgeM, g, true);
   if (o.chimney) {
     const brick = mat(0x8c5546), dark = mat(0x2a2422); mats.push(brick, dark);
     addMesh(new THREE.BoxGeometry(18, 46, 18), brick, r.x + o.chimney[0], wallH + 40, r.y + o.chimney[1], g);
@@ -1303,8 +1376,16 @@ function buildHood() {
     const p = new THREE.PlaneGeometry(w, d); p.rotateX(-Math.PI / 2);
     const m = new THREE.Mesh(p, mat(color)); m.position.set(x, y, z); m.receiveShadow = true; P.add(m); return m;
   };
-  flat(6000, 34, 0xcdc9bf, W / 2, 0.3, H + 21);        // sidewalk
-  addMesh(new THREE.BoxGeometry(6000, 4, 4), mat(0xb5b1a7), W / 2, 1.5, H + 40, P, false);   // curb
+  // sidewalk: square concrete slabs with joints between them, edges slightly rounded
+  {
+    const c = canvas2d(128, 128), ctx = c.getContext('2d'), rnd = seeded(21);
+    ctx.fillStyle = '#cdc9bf'; ctx.fillRect(0, 0, 128, 128);
+    for (let i = 0; i < 1400; i++) { ctx.fillStyle = rnd.pick(['#c0bcb2', '#d8d4ca', '#b8b4aa']); ctx.fillRect(rnd() * 128, rnd() * 128, 1.2, 1.2); }
+    ctx.fillStyle = 'rgba(80,76,70,0.55)'; ctx.fillRect(0, 0, 2, 128);
+    const t = texFrom(c, [6000 / 34, 1]);
+    addMesh(new RoundedBoxGeometry(6000, 2, 34, 2, 0.8), mat(0xffffff, { map: t, roughness: 0.9 }), W / 2, -0.5, H + 21, P, false).receiveShadow = true;   // (a little lower than the driveway, so they don't flicker where they cross)
+  }
+  addMesh(new RoundedBoxGeometry(6000, 5, 6, 2, 2), mat(0xb5b1a7, { roughness: 0.9 }), W / 2, 1.5, H + 40, P, false).receiveShadow = true;   // curb
   flat(6000, 110, 0x4a4d52, W / 2, 0.2, H + 97);       // street
   for (let x = -2600; x < 3200 + W; x += 60) flat(30, 3, 0xf2d05c, x, 0.35, H + 97);   // center line
   buildHouse({ x: -330, y: 40, w: 230, h: 160 }, { parent: P, wall: 0xd9e7f2, roof: '#5f6f86', windows: [[60, 's'], [170, 's'], [60, 'e'], [120, 'e']] });
@@ -1357,9 +1438,10 @@ function buildDriveway() {
   ctx.strokeStyle = '#8f8c83'; ctx.lineWidth = 0.8;
   for (let y = 70; y < len; y += 70) { ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(d.w, y); ctx.stroke(); }
   ctx.fillStyle = 'rgba(110,107,101,0.25)'; ctx.beginPath(); ctx.ellipse(d.w / 2 + 4, 46, 13, 8, 0, 0, Math.PI * 2); ctx.fill();
-  const geo = new THREE.PlaneGeometry(d.w, len); geo.rotateX(-Math.PI / 2);
-  const m = new THREE.Mesh(geo, new THREE.MeshLambertMaterial({ map: texFrom(c) }));
-  m.position.set(d.x + d.w / 2, 0.6, d.y + len / 2);
+  // a slab of concrete with softly rounded edges, sitting a little above the soil
+  const geo = new RoundedBoxGeometry(d.w, 3, len, 2, 1.2);
+  const m = new THREE.Mesh(geo, new THREE.MeshLambertMaterial({ map: texFrom(c), polygonOffset: true, polygonOffsetFactor: -1, polygonOffsetUnits: -1 }));
+  m.position.set(d.x + d.w / 2, -0.6, d.y + len / 2);
   m.receiveShadow = true;
   yardGroup.add(m);
 }
@@ -1372,8 +1454,14 @@ function buildFence() {
   const wood = mat(0xa68558, { map: grainV }), railX = mat(0xdcc9a0, { map: grainH }), railZ = mat(0xdcc9a0, { map: grainV });
   const d = YARD.driveway;
   const F = 3, R = YARD_W - 3, B = YARD_H - 3, H = 46;
-  const postGeo = new RoundedBoxGeometry(6, H, 6, 2, 1.2);
-  const post = (x, z) => addMesh(postGeo, wood, x, H / 2, z, P);
+  const postGeo = new RoundedBoxGeometry(6, H, 6, 2, 1.2), capGeo = new THREE.ConeGeometry(4.9, 3.2, 4);
+  capGeo.rotateY(Math.PI / 4);
+  const fRnd = seeded(14);
+  const post = (x, z) => {
+    const m = addMesh(postGeo, wood, x, H / 2, z, P);
+    m.rotation.set((fRnd() - 0.5) * 0.035, (fRnd() - 0.5) * 0.08, (fRnd() - 0.5) * 0.035);   // real posts lean a tiny bit
+    addMesh(capGeo, wood, x, H + 1.5, z, P);                                                    // pointed cap
+  };
   const rails = (x0, z0, x1, z1) => {
     const len = Math.hypot(x1 - x0, z1 - z0), alongX = z0 === z1;
     for (const y of [17, 38]) {
@@ -2774,7 +2862,7 @@ clickBtn('ctrlBtn', () => setMode(ctrl.mode === 'auto' ? 'tilt' : ctrl.mode === 
 // =====================================================================
 const QUALITY = [
   // (phones draw at 1.5× sharpness at most: their screens are tiny, and double sharpness needs a lot of graphics memory)
-  { name: 'High',   pr: Math.min(window.devicePixelRatio || 1, window.matchMedia('(pointer: coarse)').matches ? 1.5 : 2), grass: 1, post: true, bloom: true },
+  { name: 'High',   pr: Math.min(window.devicePixelRatio || 1, window.matchMedia('(pointer: coarse)').matches ? 1.5 : 2), grass: 1, post: true, bloom: true, ao: !window.matchMedia('(pointer: coarse)').matches },
   { name: 'Medium', pr: 1,    grass: 0.6, post: true, bloom: false },
   { name: 'Low',    pr: 0.75, grass: 0.3, post: false, bloom: false }
 ];
@@ -2786,6 +2874,7 @@ function applyQuality() {
   resize();
   if (grassMesh) grassMesh.count = Math.floor(tuftCount * q.grass);
   bloom.enabled = q.bloom;
+  gtao.enabled = !!q.ao;
 }
 applyQuality();
 const fpsMeter = { t: 0, frames: 0 };
