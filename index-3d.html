@@ -416,25 +416,41 @@ const bestKey = () => YARD.id === 'peterson' ? 'lmg3d_yard1_best' : 'lmg3d_best_
 //  burn = liters per second at full throttle, wear = how much each job wears it out,
 //  cam = how far back the camera sits. (20 inches of cutting width = 32 units in the game.)
 //  type: walk = walk-behind, tractor = riding lawn tractor, standon = stand-on, zt = zero-turn rider
+// The brands are made up on purpose: real brand names, logos and color schemes are trademarks.
+// Each brand has its own logo style (font, text color, and a badge color or none).
+const BRANDS = {
+  hollis:   { name: 'HOLLIS & PIKE', tagline: 'Built to outlast you',  font: 'bold italic 60px Georgia, "Times New Roman", serif', fg: '#f1e4c3', bg: '#5a1d24' },
+  sprigg:   { name: 'SPRIGG',        tagline: 'Cheap and cheerful',    font: '900 66px "Trebuchet MS", Arial, sans-serif', fg: '#ffffff', bg: null },
+  badger:   { name: 'BADGERLINE',    tagline: 'Commercial since 1971', font: '900 62px Impact, "Arial Black", sans-serif', fg: '#c6ef3a', bg: '#1d2329' },
+  meadow:   { name: 'Meadowfield',   tagline: 'Sunday-morning easy',   font: '600 70px Fredoka, "Trebuchet MS", sans-serif', fg: '#ffffff', bg: null },
+  ironhorn: { name: 'IRONHORN',      tagline: 'Stand tall. Mow fast.', font: '900 64px Impact, "Arial Black", sans-serif', fg: '#f2d27a', bg: '#10302e' },
+  kestrel:  { name: 'KESTREL',       tagline: 'Turns on a dime',       font: 'bold italic 64px "Arial Black", Arial, sans-serif', fg: '#f2b632', bg: null },
+};
 const MOWERS = [
-  { id: 'walk30', type: 'walk', name: 'Dad\'s 30" wide-area mower', price: 0,
+  { id: 'walk30', type: 'walk', name: 'Dad\'s Hollis & Pike WideCut · 30" walk-behind', price: 0,
+    brand: 'hollis', model: 'WIDECUT 30', trim: 0xf1e4c3, old: true,
     like: 'a heavy 30-inch walk-behind from the garage — a wide cut, but you still walk',
-    deck: 30, speed: 125, reverse: 60, turn: 3.0, body: 20, tank: 1.4, burn: 0.0075, wear: 12, color: 0xb5523f, cam: 1.0 },
-  { id: 'walk36', type: 'walk', name: '36" commercial walk-behind', price: 450,
+    deck: 30, speed: 125, reverse: 60, turn: 3.0, body: 20, tank: 1.4, burn: 0.0075, wear: 12, color: 0x8c2f39, cam: 1.0 },
+  { id: 'walk36', type: 'walk', shape: 'walkpro', name: 'Badgerline Pro 36 · 36" hydro walk-behind', price: 450,
+    brand: 'badger', model: 'PRO 36', trim: 0xc6ef3a,
     like: 'the hydro-drive walk-behind lawn crews use — faster, and built to work every day',
-    deck: 36, speed: 140, reverse: 70, turn: 2.9, body: 24, tank: 2.5, burn: 0.011, wear: 8, color: 0x3d8b37, cam: 1.06 },
-  { id: 'tractor42', type: 'tractor', name: '42" riding lawn tractor', price: 1400,
+    deck: 36, speed: 140, reverse: 70, turn: 2.9, body: 24, tank: 2.5, burn: 0.011, wear: 8, color: 0x3b434c, cam: 1.06 },
+  { id: 'tractor42', type: 'tractor', name: 'Meadowfield LT42 · 42" lawn tractor', price: 1400,
+    brand: 'meadow', model: 'LT42', trim: 0xf4f4f0,
     like: 'sit down and steer with a wheel — fast, but it can only turn while it\'s rolling',
-    deck: 42, speed: 170, reverse: 80, turn: 2.3, body: 32, tank: 4, burn: 0.02, wear: 7, color: 0x2f7d32, cam: 1.15 },
-  { id: 'standon48', type: 'standon', name: '48" stand-on mower', price: 3200,
+    deck: 42, speed: 170, reverse: 80, turn: 2.3, body: 32, tank: 4, burn: 0.02, wear: 7, color: 0x2f7fc6, cam: 1.15 },
+  { id: 'standon48', type: 'standon', name: 'Ironhorn S48 · 48" stand-on', price: 3200,
+    brand: 'ironhorn', model: 'S48', trim: 0xf2d27a,
     like: 'you ride standing at the back — quick, nimble and great around trees',
-    deck: 48, speed: 180, reverse: 90, turn: 3.3, body: 36, tank: 6, burn: 0.03, wear: 6, color: 0xe36a1e, cam: 1.2 },
-  { id: 'zt54', type: 'zt', name: '54" zero-turn rider', price: 5500,
+    deck: 48, speed: 180, reverse: 90, turn: 3.3, body: 36, tank: 6, burn: 0.03, wear: 6, color: 0x17807a, cam: 1.2 },
+  { id: 'zt54', type: 'zt', name: 'Kestrel Z54 · 54" zero-turn', price: 5500,
+    brand: 'kestrel', model: 'Z54', trim: 0xf2b632,
     like: 'the pro\'s machine: each lever drives one back wheel, so it spins on the spot',
-    deck: 54, speed: 200, reverse: 100, turn: 4.2, body: 40, tank: 8, burn: 0.04, wear: 5, color: 0xd62828, cam: 1.26 }
+    deck: 54, speed: 200, reverse: 100, turn: 4.2, body: 40, tank: 8, burn: 0.04, wear: 5, color: 0x3d3a9e, cam: 1.26 }
 ];
 // a helper's own mower (not in the shop)
-MOWERS.push({ id: 'push21', type: 'walk', hidden: true, name: 'Tommy\'s family 21" push mower', price: 0,
+MOWERS.push({ id: 'push21', type: 'walk', hidden: true, name: 'Tommy\'s family Sprigg 21 · 21" push mower', price: 0,
+  brand: 'sprigg', model: '21', trim: 0xffffff, old: true,
   like: 'an old 21-inch push mower from the neighbors\' shed', deck: 21, speed: 110, reverse: 55, turn: 3.0, body: 15,
   tank: 0.9, burn: 0.006, wear: 14, color: 0x4a6fa5, cam: 0.95 });
 const mowerById = (id) => MOWERS.find(m => m.id === id) || MOWERS[0];
@@ -1425,15 +1441,53 @@ function buildProps() {
 // =====================================================================
 //  THE MOWER AND THE WORKER (built facing +x)
 // =====================================================================
+// ---- brand stickers: the logo is drawn on a little canvas and used as a picture on the mower ----
+const decalCache = {};
+function decalTex(brandId, text) {
+  const key = brandId + '|' + text;
+  if (decalCache[key]) return decalCache[key].tex;
+  const b = BRANDS[brandId], W = 512, H = 112, c = canvas2d(W, H), ctx = c.getContext('2d');
+  const draw = () => {
+    ctx.clearRect(0, 0, W, H);
+    if (b.bg) {                                           // a badge: rounded rectangle with a thin border
+      const x = 4, y = 8, w = W - 8, h = H - 16, r = 24;
+      ctx.beginPath();
+      ctx.moveTo(x + r, y); ctx.arcTo(x + w, y, x + w, y + h, r); ctx.arcTo(x + w, y + h, x, y + h, r);
+      ctx.arcTo(x, y + h, x, y, r); ctx.arcTo(x, y, x + w, y, r); ctx.closePath();
+      ctx.fillStyle = b.bg; ctx.fill(); ctx.lineWidth = 5; ctx.strokeStyle = b.fg; ctx.stroke();
+    }
+    ctx.font = b.font; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+    const sx = Math.min(1, (W - 56) / ctx.measureText(text).width);   // squeeze long names to fit
+    ctx.save(); ctx.translate(W / 2, H / 2 + 3); ctx.scale(sx, 1);
+    if (!b.bg) { ctx.lineJoin = 'round'; ctx.lineWidth = 9; ctx.strokeStyle = 'rgba(0,0,0,0.5)'; ctx.strokeText(text, 0, 0); }
+    ctx.fillStyle = b.fg; ctx.fillText(text, 0, 0);
+    ctx.restore();
+  };
+  draw();
+  const tex = texFrom(c);
+  decalCache[key] = { tex, draw };
+  return tex;
+}
+// the logo fonts may still be downloading the first time: redraw the stickers once they arrive
+if (document.fonts && document.fonts.ready) document.fonts.ready.then(() => {
+  for (const d of Object.values(decalCache)) { d.draw(); d.tex.needsUpdate = true; }
+});
+const decalMat = (tex) => new THREE.MeshStandardMaterial({ map: tex, transparent: true, roughness: 0.38, metalness: 0,
+  envMapIntensity: ENV, polygonOffset: true, polygonOffsetFactor: -2, polygonOffsetUnits: -2, depthWrite: false });
+
 // type: 'walk' (walk-behind), 'tractor' (riding lawn tractor), 'standon' (stand-on), 'zt' (zero-turn rider)
+// mw: the mower from the MOWERS list (its brand, colors and shape)
 // parent: where to put it (the game scene, or the little scene that takes the clipboard pictures)
-function buildMower(ghost, type = 'walk', parent = scene, look = null) {
+function buildMower(ghost, type = 'walk', parent = scene, look = null, mw = null) {
   const g = new THREE.Group();
   const ghostMat = new THREE.MeshBasicMaterial({ color: 0x8fcaff, transparent: true, opacity: 0.4, depthWrite: false });
   const M = ghost ? () => ghostMat : (c, e) => mat(c, e);
   // shiny clear-coated paint, like a new mower in the showroom
+  // (an old mower from the shed has dull, sun-faded paint)
+  const OLD = !!(mw && mw.old);
   const PAINT = ghost ? () => ghostMat : (c, e) => new THREE.MeshPhysicalMaterial({
-    color: c, roughness: 0.42, metalness: 0.05, clearcoat: 0.8, clearcoatRoughness: 0.18, envMapIntensity: ENV * 1.1, ...e });
+    color: c, roughness: OLD ? 0.62 : 0.42, metalness: 0.05, clearcoat: OLD ? 0.15 : 0.8, clearcoatRoughness: OLD ? 0.5 : 0.18,
+    envMapIntensity: ENV * 1.1, ...e });
   // two parts: the machine (mg — it vibrates, and walk-behinds get wider with a bigger deck) and the worker (wg)
   const mg = new THREE.Group(), wg = new THREE.Group();
   g.add(mg, wg);
@@ -1441,12 +1495,36 @@ function buildMower(ghost, type = 'walk', parent = scene, look = null) {
   const add = (geo, m, x, y, z) => addMesh(geo, m, x, y, z, part, !ghost);
   const sh = !ghost;
   const black = M(0x161616, { roughness: 0.85 }), metal = M(0xd0d4da, { roughness: 0.22, metalness: 0.85, envMapIntensity: ENV * 2.2 });
-  const hub = M(0xe4e4e4, { roughness: 0.25, metalness: 0.8, envMapIntensity: ENV * 2 }), yellow = PAINT(0xf2c230);
+  const hub = M(0xe4e4e4, { roughness: 0.25, metalness: 0.8, envMapIntensity: ENV * 2 }), yellow = PAINT(mw && mw.trim != null ? mw.trim : 0xf2c230);   // the brand's second color
   const engine = M(0x2a2a2a, { roughness: 0.45 }), deckM = M(0x3a3d42, { roughness: 0.55, metalness: 0.2 });
   // a wheel: tire + hub, axle along z
-  const wheel = (x, y, z, r, w) => {
+  const wheel = (x, y, z, r, w, rim = hub) => {
     const t = add(new THREE.CylinderGeometry(r, r, w, 28), black, x, y, z); t.rotation.x = Math.PI / 2;
-    const h = add(new THREE.CylinderGeometry(r * 0.55, r * 0.55, w + 0.6, 20), hub, x, y, z); h.rotation.x = Math.PI / 2;
+    const h = add(new THREE.CylinderGeometry(r * 0.55, r * 0.55, w + 0.6, 20), rim, x, y, z); h.rotation.x = Math.PI / 2;
+  };
+  // ---- logo stickers (not on the see-through ghost) ----
+  const brand = !ghost && mw && BRANDS[mw.brand];
+  const logo = brand ? decalTex(mw.brand, brand.name) : null;
+  // a flat sticker. With no rotation it faces +z (the mower's right side); ry = PI faces left, -PI/2 faces backward,
+  // and (rx, rz) = (-PI/2, -PI/2) lies flat facing up, reading correctly from behind the mower
+  const flatDecal = (tex, w, h, x, y, z, rx = 0, ry = 0, rz = 0, into = part) => {
+    if (!tex) return null;
+    const m = new THREE.Mesh(new THREE.PlaneGeometry(w, h), decalMat(tex));
+    m.position.set(x, y, z); m.rotation.set(rx, ry, rz); into.add(m); return m;
+  };
+  // a sticker on a tilted panel (like a seat back): cx, cy = the panel's centre, tilt = how far it leans back,
+  // ox, oy = where the sticker sits on the panel before it is tilted
+  const tiltDecal = (tex, w, h, cx, cy, tilt, ox, oy) => {
+    if (!tex) return;
+    const grp = new THREE.Group(); grp.position.set(cx, cy, 0); grp.rotation.z = tilt; part.add(grp);
+    flatDecal(tex, w, h, ox, oy, 0, 0, -Math.PI / 2, 0, grp);
+  };
+  // a sticker wrapped around a round deck: th = which way it faces (0 = right side, PI = left, -PI/2 = back),
+  // len = how much of the circle it covers (radians), r1/r2 = radius at its top/bottom edge
+  const arcDecal = (tex, r1, r2, h, y, th, len) => {
+    if (!tex) return;
+    const m = new THREE.Mesh(new THREE.CylinderGeometry(r1, r2, h, 24, 1, true, th - len / 2, len), decalMat(tex));
+    m.position.set(0, y, 0); part.add(m);
   };
   // a flat cutting deck under a riding mower, R = half the cutting width
   const ridingDeck = (x, R, len) => {
@@ -1460,13 +1538,43 @@ function buildMower(ghost, type = 'walk', parent = scene, look = null) {
     // just a person standing (a helper watching a lesson): no machine
     var red = M(0xffffff), darkRed = red;
     pose = { legs: 'stand', hip: [0, 34], hands: [3, 36, 12.5], lean: 0 };
+  } else if (type === 'walk' && mw && mw.shape === 'walkpro') {
+    // ---- commercial hydro walk-behind: flat steel deck, big drive wheels, engine on a frame, pistol-grip handles ----
+    var red = PAINT(mw.color), darkRed = PAINT(0x24282d, { roughness: 0.5 });
+    const R = mw.deck * 0.8;                                                              // half the cutting width (20" = 32 units)
+    add(new RoundedBoxGeometry(48, 7, R * 2, 3, 2.6), red, 12, 8, 0);                    // the deck
+    add(new RoundedBoxGeometry(50, 1.6, R * 2 + 2, 2, 0.7), deckM, 12, 4.8, 0);          // reinforced deck edge
+    add(new RoundedBoxGeometry(30, 3, R * 1.3, 2, 1.4), darkRed, 14, 12.5, 0);           // belt covers over the blades
+    for (const z of [-R * 0.45, R * 0.45]) add(new THREE.CylinderGeometry(2.8, 2.8, 1.4, 18), metal, 14, 14.4, z);   // blade spindles
+    add(new RoundedBoxGeometry(14, 6, 10, 2, 2), darkRed, 18, 7.5, R + 4.5).rotation.x = -0.2;   // side chute
+    for (const z of [-R + 3, R - 3]) { wheel(41, 4.5, z, 4.5, 3.6); barC([41, 4.5, z], [36, 11, z * 0.95], 1.1, metal, mg, sh); }   // front casters
+    add(new RoundedBoxGeometry(40, 4, 34, 2, 1.6), darkRed, -16, 15, 0);                 // frame
+    wheel(-20, 10, -21, 10, 7, yellow); wheel(-20, 10, 21, 10, 7, yellow);               // big drive wheels
+    add(new RoundedBoxGeometry(20, 14, 20, 3, 3), engine, -14, 24, 0);                   // engine
+    add(new RoundedBoxGeometry(18, 4, 22, 2, 1.8), red, -14, 32.5, 0);                   // engine cover
+    add(new THREE.CylinderGeometry(3.4, 3.4, 5, 18), black, -6, 37, -6);                 // air filter
+    add(new THREE.CylinderGeometry(1.8, 1.8, 9, 14), metal, -4, 20, 11).rotation.x = Math.PI / 2;   // muffler
+    for (const z of [-12, 12]) add(new THREE.CylinderGeometry(2.4, 2.4, 7, 14), black, -26, 20, z);  // hydraulic pumps
+    add(new RoundedBoxGeometry(12, 9, 28, 3, 3), red, -32, 27, 0);                       // fuel tank
+    add(new THREE.CylinderGeometry(1.8, 1.8, 1.6, 16), yellow, -32, 32, 8);              // gas cap
+    for (const sd of [-1, 1]) {
+      barC([-28, 17, sd * 15], [-52, 42, sd * 16], 1.2, metal, mg, sh);                  // handle tubes
+      barC([-54, 43, sd * 17.5], [-54, 43, sd * 9], 1.9, black, mg, sh);                 // grips
+      barC([-50.5, 44.5, sd * 13], [-52.5, 46.5, sd * 13], 0.8, yellow, mg, sh);        // pistol-grip drive levers
+    }
+    barC([-50, 39, -16], [-50, 39, 16], 1.1, metal, mg, sh);                             // cross bar
+    add(new RoundedBoxGeometry(2, 7, 20, 1, 0.8), darkRed, -48.5, 36.5, 0);             // control panel
+    flatDecal(logo, 17, 3.8, -49.6, 36.5, 0, 0, -Math.PI / 2, 0);                         // ...with the logo facing you
+    flatDecal(logo, 22, 4.8, 12, 8.3, -R - 0.06, 0, Math.PI, 0);                          // deck, left side
+    flatDecal(logo, 18, 4, -1, 8.3, R + 0.06);                                            // deck, right side (in front of the chute)
+    pose = { legs: 'walk', hip: [-67, 34], hands: [-54.5, 43, 13], lean: -0.12 };
   } else if (type === 'walk') {
   // ---- the walk-behind mower: smooth curved deck, engine with cooling fins, bent tube handle ----
   var red = PAINT(0xd8342a), darkRed = PAINT(0x9e281e, { roughness: 0.5 });
   const V2 = (x, y) => new THREE.Vector2(x, y), V3 = (x, y, z) => new THREE.Vector3(x, y, z);
   // the deck: a skirt that curves up into a low dome (spun around like a pot on a wheel)
   add(new THREE.LatheGeometry([V2(0.1, 3), V2(16.2, 3), V2(16.4, 5.5), V2(15.8, 7.6), V2(14.2, 9.2), V2(11, 10.4), V2(6, 11), V2(0.1, 11.2)], 48), red, 0, 0, 0);
-  add(new THREE.TorusGeometry(16.1, 0.9, 10, 56), darkRed, 0, 3.4, 0).rotation.x = Math.PI / 2;                 // rolled edge
+  add(new THREE.TorusGeometry(16.1, 0.9, 10, 56), mw ? yellow : darkRed, 0, 3.4, 0).rotation.x = Math.PI / 2;     // rolled edge (brand trim color)
   const chute = add(new THREE.CapsuleGeometry(3.4, 6, 8, 16), darkRed, 1, 6.2, 17);                            // side discharge chute
   chute.rotation.x = Math.PI / 2; chute.scale.set(1.5, 1, 0.7);
   // engine: finned cylinder, starter cover on top, air filter, muffler, spark plug
@@ -1482,7 +1590,16 @@ function buildMower(ghost, type = 'walk', parent = scene, look = null) {
   for (const [x, z] of [[11, -16.8], [11, 16.8], [-11, -16.8], [-11, 16.8]]) {
     const tire = add(new THREE.LatheGeometry(tireProf, 28), black, x, 4.8, z); tire.rotation.x = Math.PI / 2;
     const cap = add(new THREE.CylinderGeometry(2.4, 2.4, 3.4, 20), hub, x, 4.8, z); cap.rotation.x = Math.PI / 2;
-    add(new THREE.SphereGeometry(1, 10, 8), darkRed, x, 4.8, z + Math.sign(z) * 1.8).scale.set(1, 1, 0.4);    // wheel bolt
+    add(new THREE.SphereGeometry(1, 10, 8), mw ? yellow : darkRed, x, 4.8, z + Math.sign(z) * 1.8).scale.set(1, 1, 0.4);    // wheel bolt
+    // height-adjust lever on each wheel
+    barC([x - Math.sign(x) * 1.5, 6.5, z * 0.97], [x - Math.sign(x) * 4.5, 11, z * 0.95], 0.45, black, mg, sh);
+  }
+  if (logo) {
+    // the deck gets stretched wider for bigger mowers (see styleMower), so make the sticker cover less of the
+    // circle to keep the letters the right shape
+    const k = mw.deck / 20, len = 15 / 16.2 / k;
+    arcDecal(logo, 15.95, 16.47, 3.0, 5.9, Math.PI, len);                // left side (the chute is on the right)
+    arcDecal(logo, 15.95, 16.47, 3.0, 5.9, -Math.PI / 2, 12 / 16.2 / k);  // back, where you can see it while you mow
   }
   // handle: two bent tubes up from the back of the deck, the grip, and the safety bar you hold down
   for (const sd of [-1, 1]) {
@@ -1499,18 +1616,24 @@ function buildMower(ghost, type = 'walk', parent = scene, look = null) {
     // ---- riding lawn tractor: steering wheel, hood in front, seat over the back wheels ----
     var red = PAINT(0x2f7d32), darkRed = PAINT(0x1f5a22, { roughness: 0.5 });
     ridingDeck(2, 33.6, 52);
-    wheel(-30, 13, -25, 13, 9); wheel(-30, 13, 25, 13, 9);                                   // big back wheels
-    wheel(36, 8, -19, 8, 6); wheel(36, 8, 19, 8, 6);                                         // front wheels
+    wheel(-30, 13, -25, 13, 9, yellow); wheel(-30, 13, 25, 13, 9, yellow);                   // big back wheels (rims in the brand's trim color)
+    wheel(36, 8, -19, 8, 6, yellow); wheel(36, 8, 19, 8, 6, yellow);                         // front wheels
     add(new RoundedBoxGeometry(92, 7, 26, 2, 2), darkRed, 2, 17, 0);                         // frame
     add(new RoundedBoxGeometry(42, 19, 30, 4, 6), red, 33, 28, 0);                           // hood
     add(new RoundedBoxGeometry(3, 13, 22, 2, 1.2), black, 54.5, 26, 0);                      // grille
-    for (const z of [-9, 9]) add(new THREE.SphereGeometry(2.2, 12, 8), yellow, 55, 31, z);   // headlights
+    add(new RoundedBoxGeometry(42.6, 1.8, 30.6, 1, 0.8), yellow, 33, 23.5, 0);               // stripe around the hood
+    const lamp = M(0xfff4d6, { roughness: 0.1, metalness: 0.2, emissive: 0x2a2208 });
+    for (const z of [-9, 9]) add(new THREE.SphereGeometry(2.2, 12, 8), lamp, 55, 31, z).scale.set(0.5, 1, 1);   // headlights
+    for (const sd of [-1, 1]) flatDecal(logo, 24, 5.2, 31, 28.6, sd * 15.06, 0, sd > 0 ? 0 : Math.PI, 0);       // logo on both sides of the hood
+    add(new RoundedBoxGeometry(6, 3, 10, 1, 1), metal, -51, 16, 0);                          // tow hitch at the back
     add(new RoundedBoxGeometry(40, 9, 56, 3, 3.5), red, -30, 25, 0);                         // rear body and fenders
     add(new RoundedBoxGeometry(16, 4, 22, 2, 1.8), black, -24, 32, 0);                       // seat
     add(new RoundedBoxGeometry(4, 15, 22, 2, 1.8), black, -32.5, 40, 0).rotation.z = 0.18;   // seat back
+    tiltDecal(logo, 17, 3.7, -32.5, 40, 0.18, -2.06, 2);                                     // logo on the back of the seat
     barC([12, 34, 0], [3, 46, 0], 1.4, black, mg, sh);                                       // steering column
     const sw = add(new THREE.TorusGeometry(6, 1.1, 10, 28), black, 2.5, 47, 0);              // steering wheel
     sw.rotation.y = Math.PI / 2; sw.rotation.x = 0; sw.rotation.z = 0.5;
+    add(new THREE.CylinderGeometry(2, 2, 1.2, 14), yellow, 2.5, 47, 0).rotation.z = Math.PI / 2 + 0.5;   // steering wheel cap
     add(new THREE.CylinderGeometry(1.8, 1.8, 2, 12), yellow, 14, 38, 8);                     // gas cap
     pose = { legs: 'sit', hip: [-21, 38], knee: [-5, 40], foot: [3, 21], hands: [3.5, 46, 5], lean: 0.02 };
   } else if (type === 'standon') {
@@ -1527,6 +1650,12 @@ function buildMower(ghost, type = 'walk', parent = scene, look = null) {
       barC([-44, 30, z], [-45, 53, z], 1.3, metal, mg, sh);                                  // control towers
       barC([-45, 53, z], [-48, 54, z * 0.5], 1.6, black, mg, sh);                            // levers
     }
+    add(new RoundedBoxGeometry(4, 8, 26, 2, 1.8), black, -47, 46, 0);                        // padded thigh rest
+    add(new RoundedBoxGeometry(16, 8, 10, 3, 3), red, -22, 36, -14);                         // fuel tank
+    add(new THREE.CylinderGeometry(1.8, 1.8, 1.6, 16), yellow, -22, 40.6, -14);              // gas cap
+    barC([37, 9, -34], [37, 9, 34], 1.2, metal, mg, sh);                                     // front bumper
+    for (const sd of [-1, 1]) flatDecal(logo, 22, 5.4, -32, 26, sd * 19.06, 0, sd > 0 ? 0 : Math.PI, 0);   // logo on the body
+    flatDecal(logo, 30, 6.6, 20, 12.06, 0, -Math.PI / 2, 0, -Math.PI / 2);                   // big logo on the deck (you see it while you ride)
     pose = { legs: 'stand', hip: [-60, 42], hands: [-47, 53, 8], lean: 0.05 };
   } else if (type === 'trimmer') {
     // ---- string trimmer: the cutting head is at the middle (where the grass gets cut), the worker walks behind it ----
@@ -1552,6 +1681,15 @@ function buildMower(ghost, type = 'walk', parent = scene, look = null) {
     add(new RoundedBoxGeometry(22, 22, 30, 3, 4), engine, -52, 33, 0);                       // engine at the back
     add(new RoundedBoxGeometry(18, 5, 24, 2, 2), black, -24, 33, 0);                         // seat
     add(new RoundedBoxGeometry(5, 24, 24, 2, 2), black, -34, 46, 0).rotation.z = 0.15;       // high seat back
+    tiltDecal(logo, 19, 4.2, -34, 46, 0.15, -2.56, 6);                                       // logo on the back of the seat
+    for (const sd of [-1, 1]) {
+      add(new RoundedBoxGeometry(18, 7, 7, 3, 3), red, -30, 33.5, sd * 24);                  // fuel tanks on both sides
+      add(new THREE.CylinderGeometry(1.6, 1.6, 1.4, 14), yellow, -26, 37.4, sd * 24);        // gas caps
+      flatDecal(logo, 20, 3.6, -30, 25, sd * 22.06, 0, sd > 0 ? 0 : Math.PI, 0);             // logo on the body
+      barC([-40, 28, sd * 21], [-42, 52, sd * 21], 1.5, black, mg, sh);                      // roll bar posts...
+      barC([-42, 52, sd * 21], [-64, 47, sd * 21], 1.4, black, mg, sh);                      // ...with the top half folded down
+    }
+    barC([-64, 47, -21], [-64, 47, 21], 1.4, black, mg, sh);
     for (const z of [-16, 16]) {
       barC([-20, 30, z], [-7, 45, z], 1.4, metal, mg, sh);                                   // lap bars
       barC([-7, 45, z], [-7, 45, z * 0.4], 1.8, black, mg, sh);
@@ -1560,6 +1698,7 @@ function buildMower(ghost, type = 'walk', parent = scene, look = null) {
   }
   g.userData.paint = [red, darkRed];
   g.userData.type = type;
+  g.userData.mowerId = mw ? mw.id : null;
 
   // ---- the worker: a proper character, with a face, bending knees and real proportions ----
   part = wg;
@@ -1650,8 +1789,8 @@ function disposeModel(obj) {
   obj.parent && obj.parent.remove(obj);
   obj.traverse(o => { if (o.geometry) o.geometry.dispose(); if (o.material) [].concat(o.material).forEach(m => m.dispose()); });
 }
-let mowerMesh = buildMower(false);
-let ghostMesh = buildMower(true);
+let mowerMesh = buildMower(false, 'walk', scene, null, mowerById('walk30'));
+let ghostMesh = buildMower(true, 'walk', scene, null, mowerById('walk30'));
 ghostMesh.visible = false;
 const trimMesh = buildMower(false, 'trimmer');
 trimMesh.visible = false;
@@ -1914,11 +2053,11 @@ function updatePet(dt) {
 }
 // swap the 3D model when you switch mowers (and the ghost to match)
 function setMowerModel(mw, look = null) {
-  if (mowerMesh.userData.type !== mw.type || mowerMesh.userData.lookId !== (look ? look.id : null)) {
+  if (mowerMesh.userData.mowerId !== mw.id || mowerMesh.userData.lookId !== (look ? look.id : null)) {
     const keep = { pos: mowerMesh.position.clone(), rot: mowerMesh.rotation.y, gv: ghostMesh.visible };
     disposeModel(mowerMesh); disposeModel(ghostMesh);
-    mowerMesh = buildMower(false, mw.type, scene, look);
-    ghostMesh = buildMower(true, mw.type);
+    mowerMesh = buildMower(false, mw.type, scene, look, mw);
+    ghostMesh = buildMower(true, mw.type, scene, null, mw);
     mowerMesh.position.copy(keep.pos); mowerMesh.rotation.y = keep.rot; ghostMesh.visible = keep.gv;
   }
   styleMower(mw);
@@ -2271,8 +2410,9 @@ function safeStart() {
 // paint the mower and make the deck wider for bigger mowers
 function styleMower(mw, model = mowerMesh) {
   const [red, darkRed] = model.userData.paint;
-  red.color.set(mw.color); darkRed.color.set(mw.color).multiplyScalar(0.7);
-  if (model.userData.type === 'walk') {
+  red.color.set(mw.color);
+  if (!mw.shape) darkRed.color.set(mw.color).multiplyScalar(0.7);
+  if (model.userData.type === 'walk' && mw.shape !== 'walkpro') {
     // walk-behinds: stretch the deck to the cutting width, and move the worker back to the handle
     const k = mw.deck / 20;
     model.userData.mower.scale.set(k, 1, k);
@@ -3786,7 +3926,7 @@ function makeMowerPics() {
     const key = new THREE.DirectionalLight(0xfff1d6, 2.2); key.position.set(150, 250, 200); sc.add(key);
     const cam = new THREE.PerspectiveCamera(30, W / H, 1, 3000);
     for (const mw of MOWERS) {
-      const model = buildMower(false, mw.type, sc);
+      const model = buildMower(false, mw.type, sc, null, mw);
       styleMower(mw, model);
       model.rotation.y = 0.55;                                    // a three-quarter view from the front
       const box = new THREE.Box3().setFromObject(model), c = box.getCenter(new THREE.Vector3()), size = box.getSize(new THREE.Vector3()).length();
@@ -3899,7 +4039,7 @@ function showHub() {
   const shopRows = MOWERS.filter(m => m.id !== mw.id && !m.hidden).map(m => {
     const own = c.owned.includes(m.id);
     return `<div class="row">${mowerPic(m.id)}<div class="info"><div class="name">${m.name}</div>
-      <div class="sub2">${m.like} · ${m.deck}" cut · tank ${m.tank} L</div></div>
+      <div class="sub2"><i>${BRANDS[m.brand] ? '“' + BRANDS[m.brand].tagline + '” — ' : ''}</i>${m.like} · ${m.deck}" cut · tank ${m.tank} L</div></div>
       ${own ? `<button data-use="${m.id}">Use it</button>`
             : `<button data-buy="${m.id}" ${c.money >= m.price ? '' : 'disabled'}>Buy · $${m.price}</button>`}</div>`;
   }).join('');
