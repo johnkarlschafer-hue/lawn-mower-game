@@ -269,6 +269,43 @@
   .card [style*="#9be37a"], .card [style*="#c6f0a8"], .card [style*="#8fd16a"], .card [style*="#94d36c"] { color: var(--green) !important; }
   .card [style*="#c9dcbf"] { color: var(--pencil) !important; }
   #rotateMsg { font-family: var(--hand); }
+  /* ---- phone controls: a paper steering card and two rubber-stamp pedals ---- */
+  #steerPad { background: repeating-linear-gradient(0deg, transparent 0 17px, rgba(80,110,160,.14) 17px 18px), rgba(246,238,214,0.55);
+    border: 2px dashed rgba(42,42,51,0.55); border-radius: 10px; box-shadow: none; }
+  #steerPad .hint { font-family: var(--hand); color: var(--ink); font-size: 15px; text-shadow: 0 0 4px var(--paper), 0 0 4px var(--paper); }
+  #steerPad::before, #steerPad::after { position: absolute; top: 55%; transform: translateY(-50%); font-family: var(--hand);
+    font-size: 30px; color: rgba(42,42,51,0.55); pointer-events: none; }
+  #steerPad::before { content: '◀'; left: 12px; } #steerPad::after { content: '▶'; right: 12px; }
+  #knob { background: var(--paper); border: 3px solid var(--ink); box-shadow: 3px 3px 0 var(--ink); color: var(--ink); font-family: var(--hand); }
+  .pedal { font-family: var(--hand); font-weight: 400; background: var(--paper) !important; border: 4px solid; letter-spacing: 1px;
+    box-shadow: 3px 3px 0 currentColor; }
+  .pedal.on { transform: translate(2px, 2px); box-shadow: 1px 1px 0 currentColor; filter: none; background: #fff3d6 !important; }
+  #gasBtn { color: var(--green); border-color: var(--green); font-size: 30px; }
+  #revBtn { color: var(--red); border-color: var(--red); font-size: 18px; }
+  /* ---- the title screen ---- */
+  body.intitle #hub { display: none !important; }
+  #title { min-width: 380px; max-width: 560px; padding: 22px 34px 24px; max-height: calc(100vh - 60px); overflow-y: auto; box-sizing: border-box; }
+  #title .gameTitle { font-size: 58px; line-height: 0.95; margin: 6px 0 2px; transform: rotate(-2deg); color: var(--green);
+    text-shadow: 2px 2px 0 rgba(0,0,0,0.12); }
+  #title .tag { font-size: 21px; color: var(--pencil); margin-bottom: 4px; }
+  #title .stripes { height: 14px; margin: 8px auto 2px; width: 70%; border-radius: 3px;
+    background: repeating-linear-gradient(90deg, #6aa84f 0 22px, #8cc66d 22px 44px); }
+  #title .menu { display: flex; flex-direction: column; gap: 11px; align-items: center; margin-top: 18px; }
+  #title .menu button { min-width: 230px; font-size: 23px; }
+  #title .menu button.big { font-size: 27px; }
+  #title .menu button small { font-size: 15px; color: var(--pencil); }
+  #title h2 { font-weight: 400; font-size: 30px; margin: 0 0 8px; color: var(--green); }
+  #title ol { text-align: left; margin: 6px 0 4px; padding-left: 26px; font-size: 18px; line-height: 1.4; }
+  #title ol li { margin-bottom: 6px; }
+  #title .keys { font-size: 16px; color: var(--pencil); margin-top: 8px; line-height: 1.45; }
+  #title .set { display: flex; align-items: center; justify-content: space-between; gap: 14px; margin: 10px 0; font-size: 19px; text-align: left; }
+  #title .set .opts { display: flex; gap: 6px; flex-wrap: wrap; justify-content: flex-end; }
+  #title .set button { font-size: 16px; padding: 2px 10px; }
+  #title .set button.on { background: #dff0c8; box-shadow: 2px 2px 0 var(--green); border-color: var(--green); color: var(--green); }
+  #title .credits { font-size: 18px; line-height: 1.5; }
+  #title .credits small { color: var(--pencil); font-size: 15px; }
+  #title .back { margin-top: 14px; }
+  #hub .menuBtn { float: left; font-size: 15px; padding: 1px 9px; margin-top: 4px; }
   @media (max-height: 520px) {
     #hud { font-size: 16px; }
     #hud::before { width: 80px; margin-left: -40px; height: 12px; top: -5px; }
@@ -281,6 +318,19 @@
     #hub h2 { font-size: 15px; }
     #hub .row button { font-size: 14px; }
     .pop { font-size: 17px !important; }
+    #title { padding: 10px 20px 12px; max-height: calc(100vh - 24px); min-width: 0; max-width: 86vw; top: 50%; }
+    #title .gameTitle { font-size: 36px; }
+    #title .tag { font-size: 16px; }
+    #title .menu { gap: 6px; margin-top: 8px; }
+    #title .menu button { font-size: 17px; min-width: 180px; }
+    #title .menu button.big { font-size: 20px; }
+    #title h2 { font-size: 22px; margin-bottom: 4px; }
+    #title ol { font-size: 14px; line-height: 1.3; } #title ol li { margin-bottom: 3px; }
+    #title .keys { font-size: 13px; }
+    #title .set { font-size: 15px; margin: 5px 0; } #title .set button { font-size: 13px; }
+    #title .credits { font-size: 14px; }
+    #title .back { margin-top: 6px; }
+    #gasBtn { font-size: 25px; } #revBtn { font-size: 15px; }
   }
 </style>
 <!-- Three.js is the 3D engine. This tells the browser where to download it from. -->
@@ -326,6 +376,7 @@
 <div id="pauseCard" class="card hidden"></div>
 <div id="rotateMsg"><div class="phone">📱</div>Turn your phone sideways to mow<small>The game pauses until you do</small></div>
 <div id="hub" class="card hidden"></div>
+<div id="title" class="card hidden"></div>
 <div id="flash"></div>
 <button id="pullBtn" class="hidden">PULL THE CORD<small>tap fast · or press SPACE</small></button>
 <div id="pops"></div>
@@ -477,6 +528,21 @@ const YARDS = [
     props:    [ { kind: 'shed', x: 60, y: 40, w: 90, h: 70, wall: 0xb9603f, roof: '#5a4636' },
                 { kind: 'sedan', x: 449, y: 188, w: 62, h: 146, color: 0x1c2f45 } ],
     start:    { x: 480, y: 607, angle: -Math.PI / 2 } },
+  { id: 'whitmore', name: 'The Whitmores', pay: 110, stars: 12, pet: { kind: 'dog', name: 'Biscuit' }, w: 960, h: 640, ref: 'tractor42', medalEase: 1.15,
+    story: 'The Whitmores just put in a swimming pool. "Keep the clippings out of the water, please — and mind the hedges."',
+    house:    { x: 360, y: 20,  w: 280, h: 150 },
+    // a modern two-storey house with a pool and patio beside it
+    look:     { wall: 0xf4f4f1, roof: '#3b3f45', storeys: 2, garages: [[70, 58], [136, 58]], door: 220, chimney: [250, 40],
+                porch: [188, 252, 22], lanterns: true, doorColor: 0x3a4a5a, shutter: 0x4a5560,
+                windows: [[50, 'n'], [140, 'n'], [230, 'n'], [50, 'e'], [110, 'e'], [50, 'w'], [110, 'w']],
+                windows2: [[70, 's'], [136, 's'], [220, 's']] },
+    driveway: { x: 423, y: 170, w: 80,  h: 470 },
+    beds:     [ { x: 40, y: 30, w: 220, h: 40 } ],
+    trees:    [ { x: 200, y: 260, r: 28 }, { x: 780, y: 330, r: 26 }, { x: 620, y: 500, r: 22 }, { x: 120, y: 420, r: 20 }, { x: 880, y: 560, r: 18 } ],
+    props:    [ { kind: 'pool', x: 690, y: 40, w: 230, h: 150 },
+                { kind: 'hedge', x: 60, y: 520, w: 180, h: 28 }, { kind: 'hedge', x: 300, y: 300, w: 28, h: 140 },
+                { kind: 'sedan', x: 432, y: 178, w: 62, h: 146, color: 0xe9e9e6 } ],
+    start:    { x: 463, y: 607, angle: -Math.PI / 2 } },
   { id: 'church', name: 'Grace Church', pay: 130, stars: 15, pet: { kind: 'cat', name: 'Smokey' }, w: 1120, h: 720, ref: 'standon48',
     story: 'Pastor Ruth needs the church lawn perfect for weddings every weekend. "Mind the benches and the old oaks, please."',
     house:    { x: 380, y: 30,  w: 360, h: 180 },
@@ -501,7 +567,25 @@ const YARDS = [
                 { x: 1190, y: 715, r: 28 }, { x: 560, y: 740, r: 18 } ],
     props:    [ { kind: 'goal', x: 470, y: 400, w: 14, h: 84 }, { kind: 'goal', x: 1096, y: 400, w: 14, h: 84, flip: true },
                 { kind: 'bench', x: 820, y: 210, w: 60, h: 14 }, { kind: 'bench', x: 900, y: 210, w: 60, h: 14 } ],
-    start:    { x: 250, y: 767, angle: -Math.PI / 2 } }
+    start:    { x: 250, y: 767, angle: -Math.PI / 2 } },
+  { id: 'ashford', name: 'Ashford Manor', pay: 240, stars: 27, w: 1280, h: 800, ref: 'zt54', medalEase: 1.1,
+    story: 'Mr. Ashford owns the big house on the hill: a fountain, hedges you could get lost in, and a lawn the size of a park. "Only the best crew in town will do."',
+    house:    { x: 380, y: 20,  w: 520, h: 200 },
+    // a mansion: two storeys, tall columns, three-car garage, wrought-iron fence with stone gate posts
+    look:     { wall: 0xefe6d6, roof: '#2f3440', storeys: 2, garages: [[60, 58], [126, 58], [192, 58]], door: 400, chimney: [470, 50],
+                porch: [340, 460, 26], columns: true, lanterns: true, doorColor: 0x2a2a2a, roofH: 90,
+                windows: [[60, 'n'], [180, 'n'], [300, 'n'], [420, 'n'], [60, 'e'], [140, 'e'], [60, 'w'], [140, 'w'], [280, 's']],
+                windows2: [[60, 's'], [126, 's'], [192, 's'], [280, 's'], [400, 's'], [490, 's']] },
+    fence: 'iron', gateLights: true,
+    driveway: { x: 466, y: 220, w: 80,  h: 580 },
+    beds:     [ { x: 640, y: 232, w: 200, h: 30 } ],
+    trees:    [ { x: 200, y: 160, r: 34 }, { x: 260, y: 420, r: 30 }, { x: 1120, y: 420, r: 30 }, { x: 960, y: 700, r: 26 },
+                { x: 160, y: 700, r: 24 }, { x: 660, y: 700, r: 20 } ],
+    props:    [ { kind: 'fountain', x: 760, y: 420, w: 110, h: 110 },
+                { kind: 'hedge', x: 1000, y: 60, w: 220, h: 26 }, { kind: 'hedge', x: 1000, y: 180, w: 220, h: 26 },
+                { kind: 'hedge', x: 80, y: 600, w: 260, h: 26 },
+                { kind: 'sedan', x: 475, y: 228, w: 62, h: 146, color: 0x111317 } ],
+    start:    { x: 506, y: 767, angle: -Math.PI / 2 } }
 ];
 let YARD = YARDS[0];
 const bestKey = () => YARD.id === 'peterson' ? 'lmg3d_yard1_best' : 'lmg3d_best_' + YARD.id;
@@ -554,9 +638,9 @@ const mowerById = (id) => MOWERS.find(m => m.id === id) || MOWERS[0];
 // ---- Helpers you can hire ----
 //  stars = reputation needed before they ask for work. shirt/cap = their colors.
 const HELPERS = [
-  { id: 'tommy', name: 'Tommy', stars: 3, shirt: 0x3d7fd6, cap: 0xd83a2c,
+  { id: 'tommy', name: 'Tommy', stars: 3, shirt: 0x5f7fa6, cap: 0x9a3b33,
     story: 'Tommy (14) from down the street has been watching you work. "Can I help? I\'ve got my family\'s old push mower, and I learn fast!"' },
-  { id: 'maya', name: 'Maya', stars: 12, shirt: 0x8e44ad, cap: 0x2c3e50,
+  { id: 'maya', name: 'Maya', stars: 12, shirt: 0x7d6290, cap: 0x2c3e50,
     story: 'Maya (15) mows her grandpa\'s lawn every week. "Teach me your routes and I\'ll take care of the smaller yards."' }
 ];
 const HELP = {
@@ -1772,16 +1856,18 @@ function buildDriveway() {
 
 // Wooden fence with a gap for the driveway
 function buildFence() {
-  const P = yardGroup, picket = YARD.fence === 'picket';   // a white picket fence for the fancier houses
+  const iron = YARD.fence === 'iron';                       // black wrought iron with stone posts, for the mansion
+  const P = yardGroup, picket = YARD.fence === 'picket' || iron;   // a white picket fence for the fancier houses
   if (YARD.fence === 'chain') return buildChainFence();     // a plain metal chain-link fence for the cheapest yard
   const grainV = stripeTex(32, 128, '#ffffff', [['rgba(90,60,30,0.25)', 10, 1], ['rgba(255,255,255,0.2)', 6, 1]], true, seeded(12), [1, 1]);
   const grainH = stripeTex(128, 32, '#ffffff', [['rgba(90,60,30,0.25)', 10, 1], ['rgba(255,255,255,0.2)', 6, 1]], false, seeded(13), [1, 1]);
-  const paintW = mat(0xf7f6f0, { roughness: 0.55 });
-  const wood = picket ? paintW : mat(0xa68558, { map: grainV });
+  const paintW = iron ? mat(0x1f2124, { roughness: 0.45, metalness: 0.5 }) : mat(0xf7f6f0, { roughness: 0.55 });
+  const wood = iron ? mat(0xcfc8b8, { roughness: 0.85 }) : picket ? paintW : mat(0xa68558, { map: grainV });
   const railX = picket ? paintW : mat(0xdcc9a0, { map: grainH }), railZ = picket ? paintW : mat(0xdcc9a0, { map: grainV });
   const d = YARD.driveway;
-  const F = 3, R = YARD_W - 3, B = YARD_H - 3, H = picket ? 40 : 46;
-  const postGeo = new RoundedBoxGeometry(6, H, 6, 2, 1.2), capGeo = new THREE.ConeGeometry(4.9, 3.2, 4);
+  const F = 3, R = YARD_W - 3, B = YARD_H - 3, H = iron ? 50 : picket ? 40 : 46;
+  const postGeo = iron ? new RoundedBoxGeometry(13, H, 13, 2, 1.5) : new RoundedBoxGeometry(6, H, 6, 2, 1.2);
+  const capGeo = iron ? new RoundedBoxGeometry(17, 4, 17, 2, 1.5) : new THREE.ConeGeometry(4.9, 3.2, 4);
   capGeo.rotateY(Math.PI / 4);
   const fRnd = seeded(14);
   const post = (x, z) => {
@@ -1792,23 +1878,24 @@ function buildFence() {
   const pickets = [];
   const rails = (x0, z0, x1, z1) => {
     const len = Math.hypot(x1 - x0, z1 - z0), alongX = z0 === z1;
-    for (const y of picket ? [12, 30] : [17, 38]) {
-      addMesh(new RoundedBoxGeometry(alongX ? len : 3, picket ? 3.5 : 5, alongX ? 3 : len, 2, 1), alongX ? railX : railZ, (x0 + x1) / 2, y, (z0 + z1) / 2, P);
+    for (const y of iron ? [6, 38] : picket ? [12, 30] : [17, 38]) {
+      addMesh(new RoundedBoxGeometry(alongX ? len : (iron ? 2 : 3), picket ? (iron ? 2 : 3.5) : 5, alongX ? (iron ? 2 : 3) : len, 2, iron ? 0.8 : 1), alongX ? railX : railZ, (x0 + x1) / 2, y, (z0 + z1) / 2, P);
     }
-    if (picket) for (let t = 5; t < len - 3; t += 7) pickets.push([x0 + (x1 - x0) * t / len, z0 + (z1 - z0) * t / len, alongX]);
+    if (picket) for (let t = iron ? 8 : 5; t < len - (iron ? 6 : 3); t += iron ? 6 : 7) pickets.push([x0 + (x1 - x0) * t / len, z0 + (z1 - z0) * t / len, alongX]);
   };
   rails(F, F, R, F); rails(F, F, F, B); rails(R, F, R, B); rails(F, B, d.x, B); rails(d.x + d.w, B, R, B);
   if (picket) {
     // hundreds of pointed white pickets, drawn in one go
-    const bodyG = new THREE.BoxGeometry(3.4, 32, 1.4), tipG = new THREE.ConeGeometry(2.4, 4.5, 4);
+    const bodyG = iron ? new THREE.CylinderGeometry(0.8, 0.8, 42, 6) : new THREE.BoxGeometry(3.4, 32, 1.4);
+    const tipG = iron ? new THREE.ConeGeometry(1.8, 5, 4) : new THREE.ConeGeometry(2.4, 4.5, 4);   // iron bars end in little spear tips
     tipG.rotateY(Math.PI / 4); tipG.scale(1, 1, 0.6);
     const bodies = new THREE.InstancedMesh(bodyG, paintW, pickets.length), tips = new THREE.InstancedMesh(tipG, paintW, pickets.length);
     const m4 = new THREE.Matrix4(), q = new THREE.Quaternion(), one = new THREE.Vector3(1, 1, 1), v = new THREE.Vector3(), up = new THREE.Vector3(0, 1, 0);
     pickets.forEach(([x, z, alongX], k) => {
       const off = alongX ? [0, (z < YARD_H / 2 ? -2.2 : 2.2)] : [(x < YARD_W / 2 ? -2.2 : 2.2), 0];   // on the outside of the rails
       q.setFromAxisAngle(up, alongX ? 0 : Math.PI / 2);
-      bodies.setMatrixAt(k, m4.compose(v.set(x + off[0], 18, z + off[1]), q, one));
-      tips.setMatrixAt(k, m4.compose(v.set(x + off[0], 36.2, z + off[1]), q, one));
+      bodies.setMatrixAt(k, m4.compose(v.set(x + (iron ? 0 : off[0]), iron ? 22 : 18, z + (iron ? 0 : off[1])), q, one));
+      tips.setMatrixAt(k, m4.compose(v.set(x + (iron ? 0 : off[0]), iron ? 45 : 36.2, z + (iron ? 0 : off[1])), q, one));
     });
     for (const im of [bodies, tips]) { im.castShadow = true; im.receiveShadow = true; P.add(im); }
   }
@@ -1821,8 +1908,9 @@ function buildFence() {
       addMesh(new THREE.ConeGeometry(5.2, 4, 4), lampM, x, H + 13.5, B, P).rotation.y = Math.PI / 4;
     }
   }
-  for (let x = F; x <= R; x += 32) { post(x, F); if (x < d.x || x > d.x + d.w) post(x, B); }
-  for (let z = F + 32; z < B; z += 32) { post(F, z); post(R, z); }
+  const gap = iron ? 128 : 32;                        // stone posts are far apart, with iron bars in between
+  for (let x = F; x <= R; x += gap) { post(x, F); if (x < d.x - 10 || x > d.x + d.w + 10) post(x, B); }
+  for (let z = F + gap; z < B; z += gap) { post(F, z); post(R, z); }
   post(R, F); post(F, B); post(R, B); post(d.x, B); post(d.x + d.w, B);
 }
 
@@ -1947,6 +2035,54 @@ function buildProps() {
       fadeables.push({ group: g, mats: [stone, slate], box: new THREE.Box3().setFromObject(g) });
     } else if (p.kind === 'pickup' || p.kind === 'sedan') {
       buildCar(p, P);
+    } else if (p.kind === 'pool') {
+      // a swimming pool on a stone patio: coping round the edge, blue water, a chrome ladder, two lounge chairs
+      const patio = mat(0xd9d2c3, { roughness: 0.85 }), coping = mat(0xeeeae0, { roughness: 0.6 });
+      addMesh(new RoundedBoxGeometry(p.w, 3, p.h, 2, 1.2), patio, cx, 1.5, cz, P);
+      const m = 16, pw = p.w * 0.62, ph = p.h - m * 2, px = p.x + m + pw / 2;
+      addMesh(new RoundedBoxGeometry(pw + 8, 4, ph + 8, 2, 1.6), coping, px, 2.2, cz, P);
+      const water = new THREE.MeshPhysicalMaterial({ color: 0x3fa6d8, roughness: 0.05, metalness: 0.1, clearcoat: 1, clearcoatRoughness: 0.03,
+        envMapIntensity: ENV * 2.4, emissive: 0x0b3a52 });
+      const wg = new THREE.PlaneGeometry(pw, ph); wg.rotateX(-Math.PI / 2);
+      addMesh(wg, water, px, 4.35, cz, P, false).receiveShadow = true;
+      const chromeM = mat(0xd9dde2, { roughness: 0.2, metalness: 0.9 });
+      for (const dz of [-5, 5]) {
+        const lx = px + pw / 2 - 8, lz = cz + dz;
+        barC([lx, 2, lz], [lx, 16, lz], 0.8, chromeM, P, true);
+        barC([lx, 16, lz], [lx + 8, 9, lz], 0.8, chromeM, P, true);
+      }
+      const chairM = mat(0xf2f0ea, { roughness: 0.6 }), cushion = mat(0x2f7f8c, { roughness: 0.9 });
+      for (const dz of [-22, 22]) {
+        const lx = p.x + p.w - 30, lz = cz + dz;
+        addMesh(new RoundedBoxGeometry(40, 3, 16, 1, 1), chairM, lx, 7, lz, P);
+        addMesh(new RoundedBoxGeometry(26, 2.5, 14, 1, 1), cushion, lx + 5, 9.5, lz, P);
+        const back = addMesh(new RoundedBoxGeometry(14, 2.5, 14, 1, 1), cushion, lx - 16, 13, lz, P);
+        back.rotation.z = -0.7;
+        for (const ex of [-17, 17]) addMesh(new THREE.BoxGeometry(2, 6, 14), chairM, lx + ex, 3, lz, P);
+      }
+    } else if (p.kind === 'hedge') {
+      // a neatly clipped hedge: a rounded green block covered in leaves
+      const lc = canvas2d(128, 128), lx = lc.getContext('2d'), rnd = seeded(p.x + p.y);
+      lx.fillStyle = '#2c5a22'; lx.fillRect(0, 0, 128, 128);
+      for (let i = 0; i < 900; i++) {
+        lx.fillStyle = rnd.pick(['#3a7a2c', '#2f6625', '#47883a', '#24501c', '#539a43']);
+        lx.beginPath(); lx.ellipse(rnd() * 128, rnd() * 128, 2.5 + rnd() * 2.5, 1.4 + rnd(), rnd() * 3, 0, Math.PI * 2); lx.fill();
+      }
+      const t = texFrom(lc, [Math.max(1, p.w / 40), 1]), hm = mat(0xffffff, { map: t, roughness: 0.95 });
+      addMesh(new RoundedBoxGeometry(p.w, 34, p.h, 4, Math.min(8, p.h / 2 - 1)), hm, cx, 17, cz, P);
+    } else if (p.kind === 'fountain') {
+      // a round stone fountain: a wide basin of water, a column, a little bowl spilling over at the top
+      const stone = mat(0xd4cec0, { roughness: 0.8 }), water = new THREE.MeshPhysicalMaterial({ color: 0x5fb3d9, roughness: 0.05, clearcoat: 1, envMapIntensity: ENV * 2.4, emissive: 0x0b3a52 });
+      const R = Math.min(p.w, p.h) / 2;
+      addMesh(new THREE.CylinderGeometry(R, R + 2, 12, 40, 1, true), stone, cx, 6, cz, P);
+      addMesh(new THREE.TorusGeometry(R, 2.6, 8, 40), stone, cx, 12, cz, P).rotation.x = Math.PI / 2;
+      addMesh(new THREE.CircleGeometry(R - 1, 40), water, cx, 9, cz, P, false).rotation.x = -Math.PI / 2;
+      addMesh(new THREE.CylinderGeometry(4, 6, 34, 16), stone, cx, 22, cz, P);
+      addMesh(new THREE.CylinderGeometry(14, 6, 6, 24), stone, cx, 40, cz, P);
+      addMesh(new THREE.CircleGeometry(12.5, 24), water, cx, 42.6, cz, P, false).rotation.x = -Math.PI / 2;
+      addMesh(new THREE.SphereGeometry(3, 12, 8), stone, cx, 46, cz, P);
+      const spray = new THREE.MeshBasicMaterial({ color: 0xe6f6ff, transparent: true, opacity: 0.35, depthWrite: false });
+      addMesh(new THREE.CylinderGeometry(13.5, 17, 32, 24, 1, true), spray, cx, 26, cz, P, false);   // water spilling over the bowl
     } else if (p.kind === 'bench') {
       const L = along ? p.w : p.h, g = new THREE.Group();
       for (const y of [13, 15.5]) addMesh(new RoundedBoxGeometry(L, 2, 4, 1, 0.8), wood, 0, y, y === 13 ? -2.5 : 2.5, g);   // seat slats
@@ -2247,8 +2383,11 @@ function buildMower(ghost, type = 'walk', parent = scene, look = null, mw = null
 
   // ---- the worker: a proper character, with a face, bending knees and real proportions ----
   part = wg;
-  const skin = M(0xf2c294, { roughness: 0.62 }), shirt = M(look ? look.shirt : 0xff7a3d, { roughness: 0.92 }), jeans = M(0x3a5590, { roughness: 0.95 });
-  const capM = M(look ? look.cap : 0x2f5fb3, { roughness: 0.75 }), shoeM = M(0x4a5560, { roughness: 0.7 }), sole = M(0xf2f2ee, { roughness: 0.8 });
+  // dressed for a real summer job: a faded tee, khaki work shorts, socks and work boots, leather gloves,
+  // ear protection, and a cap on backwards (soft, worn-in colors, not bright toy colors)
+  const skin = M(0xf2c294, { roughness: 0.62 }), shirt = M(look ? look.shirt : 0x8f9c86, { roughness: 0.95 }), jeans = M(0xb3a27a, { roughness: 0.95 });
+  const capM = M(look ? look.cap : 0x3a4560, { roughness: 0.8 }), shoeM = M(0x7a5634, { roughness: 0.75 }), sole = M(0x3a2c22, { roughness: 0.9 });
+  const sock = M(0xf1efe8, { roughness: 0.95 }), glove = M(0xb48752, { roughness: 0.85 }), muff = M(0x3b3f44, { roughness: 0.5 }), muffBand = M(0xd2a12b, { roughness: 0.5 });
   const hair = M(0x5a3a22, { roughness: 0.9 }), eyeW = M(0xffffff, { roughness: 0.3 }), iris = M(0x3b2a1a, { roughness: 0.3 }), lips = M(0xa4524a, { roughness: 0.6 });
   const V = (x, y, z) => new THREE.Vector3(x, y, z);
   // a smooth tapered limb from a (radius r1) to b (radius r2), with round joints
@@ -2261,22 +2400,34 @@ function buildMower(ghost, type = 'walk', parent = scene, look = null, mw = null
     addMesh(new THREE.SphereGeometry(r1, 16, 12), m, ...a, parent, sh);
     addMesh(new THREE.SphereGeometry(r2, 16, 12), m, ...b, parent, sh);
   };
-  // a sneaker: colored upper on a white sole, toe pointing forward (+x)
+  // a work boot: leather upper on a thick dark sole, with a white sock showing above it, toe forward (+x)
   const sneaker = (x, y, z, parent) => {
-    addMesh(new THREE.SphereGeometry(1, 18, 12), sole, x + 1.6, y - 1.2, z, parent, sh).scale.set(4.4, 1.1, 2.3);
-    addMesh(new THREE.SphereGeometry(1, 18, 12), shoeM, x + 1.2, y + 0.2, z, parent, sh).scale.set(3.8, 1.9, 2.1);
+    addMesh(new THREE.SphereGeometry(1, 18, 12), sole, x + 1.6, y - 1.3, z, parent, sh).scale.set(4.5, 1.2, 2.4);
+    addMesh(new THREE.SphereGeometry(1, 18, 12), shoeM, x + 1.2, y + 0.3, z, parent, sh).scale.set(3.9, 2.1, 2.2);
+    addMesh(new THREE.CylinderGeometry(2.5, 2.4, 3.6, 16), shoeM, x - 0.2, y + 2.2, z, parent, sh);    // boot ankle
+  };
+  // a leg in shorts: khaki down to just above the knee, then a bare knee
+  const thigh = (a, b, parent) => {
+    const m = a.map((v, i) => v + (b[i] - v) * 0.72);
+    limb(a, m, 4.3, 4.0, jeans, parent);
+    limb(m, b, 3.1, 3.0, skin, parent);
+  };
+  const shin = (a, b, parent) => {
+    const m = a.map((v, i) => v + (b[i] - v) * 0.78);
+    limb(a, m, 3.0, 2.5, skin, parent);
+    limb(m, b, 2.6, 2.5, sock, parent);
   };
   const [hx, hy] = pose.hip, legs = [], knees = [];
   for (const z of [-4.4, 4.4]) {
     if (pose.legs === 'sit') {
-      limb([hx, hy, z], [pose.knee[0], pose.knee[1], z], 3.9, 3.2, jeans);                 // thigh
-      limb([pose.knee[0], pose.knee[1], z], [pose.foot[0], pose.foot[1] + 3, z], 3.1, 2.5, jeans);   // shin
+      thigh([hx, hy, z], [pose.knee[0], pose.knee[1], z], wg);
+      shin([pose.knee[0], pose.knee[1], z], [pose.foot[0], pose.foot[1] + 3, z], wg);
       sneaker(pose.foot[0], pose.foot[1] + 1, z, wg);
     } else {
       const hip = new THREE.Group(); hip.position.set(hx, hy, z); wg.add(hip);
-      limb([0, 0, 0], [0, -14, 0], 3.9, 3.2, jeans, hip);                                   // thigh
+      thigh([0, 0, 0], [0, -14, 0], hip);
       const knee = new THREE.Group(); knee.position.set(0, -14, 0); hip.add(knee);
-      limb([0, 0, 0], [0, -13.5, 0], 3.1, 2.5, jeans, knee);                                // shin
+      shin([0, 0, 0], [0, -13.5, 0], knee);
       sneaker(0.4, -16.5, 0, knee);
       legs.push(hip); knees.push(knee);
     }
@@ -2301,14 +2452,28 @@ function buildMower(ghost, type = 'walk', parent = scene, look = null, mw = null
     barC([hc.x + 5.75, hc.y + 2.35, z * 0.55], [hc.x + 5.35, hc.y + 2.6, z * 1.45], 0.36, hair, wg, sh);
   }
   add(new THREE.SphereGeometry(0.75, 14, 10), M(0xf0b98c, { roughness: 0.6 }), hc.x + 6.75, hc.y - 0.9, 0).scale.set(1, 1.05, 0.85);   // nose
+  // freckles from working in the sun, and a little sunburn on the cheeks
+  const freck = M(0xd29a6e, { roughness: 0.7 }), blush = M(0xf2b08c, { roughness: 0.7 });
+  for (const z of [-1, 1]) {
+    add(new THREE.SphereGeometry(1.5, 14, 10), blush, hc.x + 4.98, hc.y - 1.3, z * 3.1).scale.set(0.25, 0.55, 0.85);
+    for (const [dy, dz] of [[-0.5, 2.4], [-1.2, 3.0], [-0.7, 3.5]])
+      add(new THREE.SphereGeometry(0.17, 6, 4), freck, hc.x + 5.62 - (dz - 2.4) * 0.45, hc.y + dy, z * dz);
+  }
   const smile = new THREE.CatmullRomCurve3([V(hc.x + 5.75, hc.y - 2.5, -1.5), V(hc.x + 6.2, hc.y - 2.95, 0), V(hc.x + 5.75, hc.y - 2.5, 1.5)]);
   const mouth = new THREE.Mesh(new THREE.TubeGeometry(smile, 12, 0.24, 6), lips); wg.add(mouth);
-  // hair under the cap (back and sides, not the face), then the cap with a curved brim
+  // hair under the cap (back and sides), then the cap - on backwards
   add(new THREE.SphereGeometry(6.75, 32, 16, -Math.PI * 0.63, Math.PI * 1.26, Math.PI * 0.28, Math.PI * 0.32), hair, hc.x - 0.3, hc.y, 0);
   add(new THREE.SphereGeometry(6.9, 32, 16, 0, Math.PI * 2, 0, Math.PI / 2), capM, hc.x - 0.5, hc.y + 3.1, 0).scale.set(1, 0.78, 1);
-  const brim = add(new THREE.CylinderGeometry(6.2, 6.2, 0.7, 28, 1, false, 0, Math.PI), capM, hc.x + 1.6, hc.y + 3.3, 0);
-  brim.rotation.z = -0.1; brim.scale.set(1.08, 1, 1);
+  const brim = add(new THREE.CylinderGeometry(6.2, 6.2, 0.7, 28, 1, false, Math.PI, Math.PI), capM, hc.x - 2.6, hc.y + 3.3, 0);
+  brim.rotation.z = 0.12; brim.scale.set(1.0, 1, 1);
   add(new THREE.SphereGeometry(0.8, 10, 8), capM, hc.x - 0.5, hc.y + 8.4, 0);                                // button on top
+  // ear protection: a cup over each ear and a band over the top of the cap
+  for (const z of [-1, 1]) {
+    add(new THREE.CylinderGeometry(2.7, 2.9, 2.6, 18), muff, hc.x - 0.3, hc.y - 0.2, z * 6.6).rotation.x = Math.PI / 2;
+    add(new THREE.CylinderGeometry(2.0, 2.0, 0.6, 16), muffBand, hc.x - 0.3, hc.y - 0.2, z * 8).rotation.x = Math.PI / 2;
+  }
+  const band = add(new THREE.TorusGeometry(7.3, 0.75, 8, 28, Math.PI), muffBand, hc.x - 0.3, hc.y + 0.8, 0);
+  band.rotation.y = Math.PI / 2;
   // arms: short sleeves, elbows, hands with a thumb
   const [ax, ay, az] = pose.hands;
   for (const s of [-1, 1]) {
@@ -2318,8 +2483,10 @@ function buildMower(ghost, type = 'walk', parent = scene, look = null, mw = null
     limb(S, mid, 3.0, 2.8, shirt);                                                                              // sleeve
     limb(mid, E, 2.3, 2.05, skin);                                                                              // upper arm
     limb(E, [ax, ay, s * az], 2.0, 1.6, skin);                                                                  // forearm
-    add(new THREE.SphereGeometry(2.1, 16, 12), skin, ax + 0.4, ay - 0.3, s * az).scale.set(1.05, 0.8, 1);     // hand
-    barC([ax + 0.6, ay + 0.6, s * (az - 1.3)], [ax + 1.8, ay + 1.4, s * (az - 2.2)], 0.65, skin, wg, sh);      // thumb
+    add(new THREE.SphereGeometry(2.3, 16, 12), glove, ax + 0.4, ay - 0.3, s * az).scale.set(1.05, 0.82, 1);   // gloved hand
+    barC([ax + 0.6, ay + 0.6, s * (az - 1.3)], [ax + 1.8, ay + 1.4, s * (az - 2.2)], 0.75, glove, wg, sh);     // thumb
+    const cuff = E.map((v, i) => [ax, ay, s * az][i] + (v - [ax, ay, s * az][i]) * 0.22);
+    limb(cuff, [ax, ay, s * az], 2.35, 2.2, glove);                                                             // glove cuff
   }
   g.userData.legs = legs;
   g.userData.knees = knees;
@@ -2816,6 +2983,9 @@ function drawMiniStatic() {
     if (p.kind === 'shed') drawRoof(p, p.roof);
     else if (p.kind === 'steeple') drawRoof(p, '#41464f');
     else if (p.color != null) { c.fillStyle = '#' + new THREE.Color(p.color).getHexString(); c.fillRect(p.x + 3, p.y, p.w - 6, p.h); }
+    else if (p.kind === 'pool') { c.fillStyle = '#d9d2c3'; c.fillRect(p.x, p.y, p.w, p.h); c.fillStyle = '#4fb0de'; c.fillRect(p.x + 16, p.y + 16, p.w * 0.62, p.h - 32); }
+    else if (p.kind === 'hedge') { c.fillStyle = '#2f6b2a'; c.fillRect(p.x, p.y, p.w, p.h); }
+    else if (p.kind === 'fountain') { c.fillStyle = '#5fb3d9'; c.beginPath(); c.arc(p.x + p.w / 2, p.y + p.h / 2, p.w / 2, 0, Math.PI * 2); c.fill(); }
     else { c.fillStyle = p.kind === 'goal' ? '#f4f4f0' : '#9a6b3f'; c.fillRect(p.x, p.y, p.w, p.h); }
   }
   for (const t of YARD.trees) {
@@ -2975,6 +3145,7 @@ function styleMower(mw, model = mowerMesh) {
 }
 
 function newRun() {
+  if (TITLE.on) { TITLE.on = false; $('title').classList.add('hidden'); document.body.classList.remove('intitle'); }
   G.inHub = false;
   document.body.classList.remove('inhub');
   $('hub').classList.add('hidden');
@@ -2990,7 +3161,8 @@ function newRun() {
   grassLen.value = RUN.tall ? 1.5 : 1;
   fuelMax = mw.tank / mw.burn;                      // gas measured in "seconds of full-throttle mowing"
   let fuel = fuelMax;
-  if (RUN.paid && !RUN.lesson) { topUpTank(); fuel = career.tank / mw.burn; }   // (lessons: the helper's mower starts full; the gas comes out of your can afterwards)
+  if (RUN.paid && !RUN.lesson && !RUN.resume) { topUpTank(); fuel = career.tank / mw.burn; }
+  if (!RUN.resume) clearRun();                  // a new lawn: forget any half-finished one   // (lessons: the helper's mower starts full; the gas comes out of your can afterwards)
   G.cells.set(cellsTemplate);
   dropUnreachable();
   G.cutCount = 0;
@@ -3390,6 +3562,7 @@ function frame(now) {
   updateRings(dt);
   updateRain(dt);
   updateCamera(dt, false);
+  if (TITLE.on) titleCamera(dt);
   updateFading(dt);
   updateTiltDbg();
   drawMini();
@@ -3404,6 +3577,7 @@ function frame(now) {
 const PAUSE = { on: false, drawn: 0 };
 function pauseGame() {
   if (PAUSE.on || !G.started || G.finished || G.inHub) return;
+  saveRun();                                    // pausing (or the phone sending the game to the background) saves your yard
   PAUSE.on = true; PAUSE.drawn = 0;
   // let go of everything, so the mower doesn't drive off by itself when you come back
   keys.clear(); pointer.active = false;
@@ -3477,6 +3651,8 @@ function update(dt) {
   if ((turn !== 0 || drive !== 0) && !G.started) { G.started = true; hideIntro(); SFX.startUp(); }
   if (G.started) {
     G.elapsed += dt;
+    G.saveT = (G.saveT || 0) + dt;
+    if (G.saveT > 12) { G.saveT = 0; saveRun(); }   // and every 12 seconds while you mow
     if (G.stallAt && G.elapsed >= G.stallAt && !G.trimming) stall();
     if (!G.stalled && !G.trimming) G.fuel -= dt * (IDLE_BURN + (1 - IDLE_BURN) * Math.min(1, Math.abs(G.throttle)));
     if (G.fuel <= 0) {
@@ -4052,6 +4228,7 @@ function hideIntro() { $('intro').classList.add('hidden'); }
 
 function finish(reason) {
   if (G.finished || G.inHub) return;
+  clearRun();                                   // the yard is done: nothing to continue
   endStripe();
   G.finished = true;
   G.stalled = null;
@@ -4515,6 +4692,8 @@ window.addEventListener('keydown', (e) => {
   if (typed === 'cheat') { typed = ''; toggleCheats(); }
 });
 function showHub() {
+  if (G.started && !G.finished && !PAUSE.on) clearRun();   // left a practice lawn halfway: forget it
+  if (TITLE.on) { TITLE.on = false; $('title').classList.add('hidden'); document.body.classList.remove('intitle'); }
   G.inHub = true;
   document.body.classList.add('inhub');
   ['results', 'intro'].forEach(id => $(id).classList.add('hidden'));
@@ -4631,6 +4810,7 @@ function showHub() {
 
   const el = $('hub');
   el.innerHTML = `
+    <button class="quiet menuBtn" data-menu>☰ Menu</button>
     <h1 id="hubTitle" style="user-select:none">📋 My Mowing Business</h1>
     <div class="top"><span>Day <b>${c.day}</b></span><span>${wet ? '🌧️ Rain' : '☀️ Sunny'}</span>
       <span>${left > 0 ? (c.slot === 0 ? 'Morning' : 'Afternoon') + ` · ${left} job${left > 1 ? 's' : ''} left` : 'Evening'}</span>
@@ -4675,6 +4855,7 @@ function showHub() {
   });
   on('[data-plan]', b => { const h = c.helpers[b.dataset.plan]; h.plan = h.plan === 'share' ? 'wage' : 'share'; showHub(); });
   on('[data-next]', nextDay);
+  on('[data-menu]', () => showTitle());
   on('[data-tune]', () => { c.money -= BIZ.tuneUp; c.wearOf[c.mower] = 0; SFX.cash(); showHub(); });
   on('[data-gas]', () => {
     const liters = Math.min(fillL, c.money / BIZ.gasPrice);
@@ -4715,13 +4896,174 @@ function showHub() {
   });
 }
 
+// =====================================================================
+//  SAVING IN THE MIDDLE OF A YARD. If the phone closes the game halfway through a lawn
+//  (a call, the battery, swiping it away), the title screen offers "Continue".
+//  Saved: which grass is cut and the stripes, time, gas, score, where the mower is.
+// =====================================================================
+const RUN_KEY = 'lmg3d_run';
+// "run-length" packing: 0,0,0,0,255,255 becomes [0,4, 255,2] — the cut-grass pictures are mostly long runs like that
+const rle = (arr, stride = 1, off = 0) => {
+  const out = []; let prev = -1, n = 0;
+  for (let i = off; i < arr.length; i += stride) {
+    const v = arr[i];
+    if (v === prev && n < 1e6) n++; else { if (n) out.push(prev, n); prev = v; n = 1; }
+  }
+  if (n) out.push(prev, n);
+  return out;
+};
+const unrle = (data, arr, stride = 1, off = 0) => {
+  let i = off;
+  for (let k = 0; k < data.length; k += 2) for (let c = 0; c < data[k + 1] && i < arr.length; c++, i += stride) arr[i] = data[k];
+};
+function saveRun() {
+  if (!G.started || G.finished || RUN.watch) return;
+  const m = G.trimming && G.parked ? G.parked : G.mower;     // (if you're on the trimmer, you continue on the mower)
+  const keep = ['elapsed', 'distance', 'fuel', 'style', 'combo', 'bestCombo', 'cleanStripes', 'wasted', 'trimCount', 'cutCount',
+                'mowDoneAt', 'stallAt', 'milestone', 'medalStage', 'rec'];
+  const g = {}; for (const k of keep) g[k] = G[k];
+  g.mower = { x: m.x, y: m.y, rot: m.rot };
+  const sv = { v: 1, yard: YARD.id, mowerId: currentMower().id, run: { ...RUN }, weather: RUN.paid ? 'sun' : career.weather, when: Date.now(), g,
+    cells: rle(G.cells), mask: [0, 1, 2, 3].map(ch => rle(maskData, 4, ch)), cut: G.cutCount / grassTotal };
+  try { localStorage.setItem(RUN_KEY, JSON.stringify(sv)); } catch (e) {}
+}
+function savedRun() {
+  try {
+    const sv = JSON.parse(localStorage.getItem(RUN_KEY));
+    if (sv && sv.v === 1 && YARDS.some(y => y.id === sv.yard)) return sv;
+  } catch (e) {}
+  return null;
+}
+function clearRun() { try { localStorage.removeItem(RUN_KEY); } catch (e) {} }
+function resumeRun(sv) {
+  if (YARD.id !== sv.yard || !yardGroup.children.length) loadYard(sv.yard);
+  career.lastYard = sv.yard;
+  RUN = { ...sv.run, resume: true };
+  setWeather(sv.weather);
+  newRun();                                     // a fresh lawn first (without taking gas from your can again)...
+  delete RUN.resume;
+  unrle(sv.cells, G.cells);                     // ...then put back everything you'd done
+  for (let ch = 0; ch < 4; ch++) unrle(sv.mask[ch], maskData, 4, ch);
+  maskTex.needsUpdate = true;
+  Object.assign(G, sv.g, { started: true });
+  placeModel(mowerMesh, G.mower.x, G.mower.y, G.mower.rot);
+  // the mini-map: paint the cut cells
+  mlctx.fillStyle = '#82c25d';
+  for (let row = 0; row < ROWS; row++) for (let col = 0; col < COLS; col++)
+    if (G.cells[row * COLS + col] === 2) mlctx.fillRect(col * CELL, row * CELL, CELL, CELL);
+  hideIntro();
+  updateCamera(0, true);
+  pauseGame();                                  // start paused, so you can get ready
+}
+
+// =====================================================================
+//  THE TITLE SCREEN: the game's name, Play, How to play, Settings, Credits.
+//  Behind it, the camera slowly circles the yard.
+// =====================================================================
+const GAME_TITLE = 'Lawn Mower Game', GAME_TAG = 'a summer of stripes';   // (working title: change it here)
+const TITLE = { on: false, t: 0 };
+function showTitle(page = 'main') {
+  TITLE.on = true;
+  G.inHub = true;
+  document.body.classList.add('inhub', 'intitle');
+  ['results', 'intro', 'hub'].forEach(id => $(id).classList.add('hidden'));
+  const el = $('title');
+  const back = '<div class="back"><button class="quiet" data-tpage="main">← Back</button></div>';
+  if (page === 'main') {
+    el.innerHTML = `<div class="stripes"></div>
+      <h1 class="gameTitle">${GAME_TITLE}</h1><div class="tag">${GAME_TAG}</div>
+      <div class="menu">
+        ${(() => { const sv = savedRun(); if (!sv) return '';
+          const y = YARDS.find(v => v.id === sv.yard);
+          return `<button class="big" data-continue>▶ Continue ${y.name}'s yard<br><small>${Math.round(sv.cut * 100)}% cut · ${sv.g.elapsed.toFixed(0)}s${sv.run.paid ? ' · paid job' : ''}</small></button>`; })()}
+        <button class="${savedRun() ? '' : 'big'}" data-play>▶ ${savedRun() ? 'Play (start fresh)' : 'Play'}</button>
+        <button data-tpage="howto">How to play</button>
+        <button data-tpage="settings">Settings</button>
+        <button data-tpage="credits">Credits</button>
+      </div>`;
+  } else if (page === 'howto') {
+    el.innerHTML = `<h2>How to play</h2>
+      <ol>
+        <li>🌱 <b>Mow every patch of grass</b> in the yard. The faster you finish, the better your medal.</li>
+        <li>➖ <b>Long straight stripes</b> on uncut grass earn tips. Do them one after another for a combo.</li>
+        <li>⛽ <b>Watch your gas</b>, and don't drive over grass you've already cut for too long.</li>
+        <li>🌿 <b>Swap to the trimmer</b> at the end of the driveway to tidy up around trees and fences.</li>
+        <li>📋 Back at <b>your clipboard</b>: take jobs, earn money, buy bigger mowers and hire helpers.</li>
+      </ol>
+      <div class="keys">${isPhone ? 'Phone: hold <b>GO</b> to drive (REV to back up) and drag the pad on the left to steer.'
+        : 'Computer: <b>arrow keys</b> or <b>WASD</b> to drive · <b>T</b> trimmer · <b>P</b> pause · <b>C</b> camera · <b>G</b> ghost of your best run · <b>Esc</b> clipboard'}</div>
+      ${TITLE.firstPlay ? '<div class="back"><button class="big" data-play>Got it — let\'s mow!</button></div>' : back}`;
+  } else if (page === 'settings') {
+    const opt = (key, val, label, on) => `<button data-set="${key}|${val}" class="${on ? 'on' : ''}">${label}</button>`;
+    el.innerHTML = `<h2>Settings</h2>
+      <div class="set"><span>Sound</span><span class="opts">${opt('sound', 'on', 'On', SFX.on)}${opt('sound', 'off', 'Off', !SFX.on)}</span></div>
+      <div class="set"><span>Graphics</span><span class="opts">${opt('gfx', 'auto', 'Auto', qAuto)}${QUALITY.map((q, i) => opt('gfx', i, q.name, !qAuto && qLevel === i)).join('')}</span></div>
+      <div class="set"><span>Camera</span><span class="opts">${opt('cam', 'turning', 'Turns with mower', camMode === 'turning')}${opt('cam', 'fixed', 'Fixed', camMode !== 'turning')}</span></div>
+      <div class="keys">"Auto" graphics start sharp and step down by themselves if the game runs slowly.</div>
+      ${back}`;
+  } else if (page === 'credits') {
+    el.innerHTML = `<h2>Credits</h2>
+      <div class="credits">
+        Made by <b>John Schafer</b>, with help from Claude.<br>
+        3D engine: <b>three.js</b> <small>(MIT licence)</small><br>
+        Fonts: <b>Fredoka</b> and <b>Patrick Hand</b> <small>(SIL Open Font Licence, via Google Fonts)</small><br>
+        Sounds: made in code, no recordings.<br>
+        <small>All mower brands and customers in this game are made up.</small>
+      </div>${back}`;
+  }
+  el.classList.remove('hidden');
+  el.scrollTop = 0;
+  el.querySelectorAll('[data-tpage]').forEach(b => b.addEventListener('click', (e) => { e.stopPropagation(); showTitle(b.dataset.tpage); }));
+  el.querySelectorAll('[data-play]').forEach(b => b.addEventListener('click', (e) => { e.stopPropagation(); playFromTitle(); }));
+  el.querySelectorAll('[data-continue]').forEach(b => b.addEventListener('click', (e) => {
+    e.stopPropagation();
+    const sv = savedRun(); if (!sv) return showTitle();
+    TITLE.on = false; $('title').classList.add('hidden'); document.body.classList.remove('intitle');
+    try { localStorage.setItem('lmg_seenHowTo', '1'); } catch (err) {}
+    SFX.init();
+    resumeRun(sv);
+  }));
+  el.querySelectorAll('[data-set]').forEach(b => b.addEventListener('click', (e) => {
+    e.stopPropagation();
+    const [k, v] = b.dataset.set.split('|');
+    if (k === 'sound' && (v === 'on') !== SFX.on) SFX.toggle();
+    if (k === 'gfx') {
+      if (v === 'auto') { qAuto = true; qLevel = 0; try { localStorage.removeItem('lmg3d_quality'); } catch (err) {} }
+      else { qAuto = false; qLevel = +v; try { localStorage.setItem('lmg3d_quality', qLevel); } catch (err) {} }
+      applyQuality();
+    }
+    if (k === 'cam' && camMode !== v) toggleCamera();
+    showTitle('settings');
+  }));
+}
+function playFromTitle() {
+  // the very first time, show how to play before starting
+  let seen = false;
+  try { seen = localStorage.getItem('lmg_seenHowTo') === '1'; } catch (e) {}
+  if (!seen && !TITLE.firstPlay) { TITLE.firstPlay = true; return showTitle('howto'); }
+  try { localStorage.setItem('lmg_seenHowTo', '1'); } catch (e) {}
+  TITLE.firstPlay = false;
+  TITLE.on = false;
+  $('title').classList.add('hidden');
+  document.body.classList.remove('intitle');
+  SFX.init();
+  showHub();
+}
+// the slow circle around the yard behind the title screen
+function titleCamera(dt) {
+  TITLE.t += dt;
+  const a = TITLE.t * 0.045 + 1.1, R = Math.max(YARD_W, YARD_H) * 0.78;
+  camera.position.set(YARD_W / 2 + Math.cos(a) * R, 190, YARD_H / 2 + Math.sin(a) * R);
+  camera.lookAt(YARD_W / 2, 10, YARD_H / 2 - 40);
+}
+
 // ---- go! ----
 updateCamButton();
 loadYard(career.lastYard || 'peterson');
 placeModel(mowerMesh, YARD.start.x, YARD.start.y, YARD.start.angle);
 G.mower = { x: YARD.start.x, y: YARD.start.y, rot: YARD.start.angle };
 paintMiniUncut();
-showHub();
+showTitle();
 updateCamera(0, true);
 requestAnimationFrame(frame);
 window.__game = { G, keys, CAMERA, tilt, readTilt, ctrl, touch, setMode, finish, newRun, mowAt, update, updateCamera,
