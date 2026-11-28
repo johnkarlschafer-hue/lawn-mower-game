@@ -305,6 +305,43 @@
   #title .credits { font-size: 18px; line-height: 1.5; }
   #title .credits small { color: var(--pencil); font-size: 15px; }
   #title .back { margin-top: 14px; }
+  /* ---- the yard editor ---- */
+  #editor { position: fixed; inset: 0; z-index: 20; display: flex; gap: 12px; padding: 12px; box-sizing: border-box; font-family: var(--hand); color: var(--ink);
+    background: #a07a46; }
+  #edPlanWrap { flex: 1.7; display: flex; flex-direction: column; align-items: center; justify-content: center; min-width: 0;
+    background: repeating-linear-gradient(0deg, transparent 0 25px, rgba(80,110,160,.14) 25px 26px), linear-gradient(var(--paper), var(--paper2));
+    border-radius: 4px; box-shadow: 0 0 0 3px #6e5230; }
+  #edPlan { touch-action: none; border-radius: 3px; box-shadow: 0 3px 10px rgba(0,0,0,.3); cursor: pointer; }
+  #edMsg { min-height: 22px; font-size: 17px; color: var(--pencil); margin-top: 4px; text-align: center; }
+  #edMsg.warn { color: var(--red); }
+  #edSide { flex: 1; max-width: 380px; display: flex; flex-direction: column; min-height: 0;
+    background: repeating-linear-gradient(0deg, transparent 0 25px, rgba(80,110,160,.14) 25px 26px), linear-gradient(var(--paper), var(--paper2));
+    border-radius: 4px; box-shadow: 0 0 0 3px #6e5230; padding: 10px 12px; box-sizing: border-box; }
+  #edPanel { flex: 1; overflow-y: auto; }
+  #edPanel .tabs { display: flex; gap: 6px; margin-bottom: 8px; }
+  #edPanel .tabs button { flex: 1; font-size: 18px; }
+  #edPanel button.on, #title .set button.on { background: #dff0c8; box-shadow: 2px 2px 0 var(--green); border-color: var(--green); color: var(--green); }
+  #edPanel .tools { display: grid; grid-template-columns: 1fr 1fr; gap: 7px; }
+  #edPanel .tools button { font-size: 17px; padding: 6px 6px; }
+  #edPanel .hint { font-size: 15px; color: var(--pencil); margin: 2px 0 8px; }
+  #edPanel .set { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin: 7px 0; font-size: 17px; }
+  #edPanel .set .opts { display: flex; gap: 5px; flex-wrap: wrap; justify-content: flex-end; }
+  #edPanel .set button { font-size: 15px; padding: 1px 8px; }
+  #edPanel button.sw { width: 26px; height: 26px; padding: 0; border-radius: 50%; }
+  #edPanel button.sw.on { box-shadow: 0 0 0 3px var(--green); }
+  #edPanel input, #title input { font-family: var(--hand); font-size: 17px; padding: 2px 6px; border: 2px solid var(--ink); border-radius: 5px; background: #fffdf5; width: 150px; }
+  #edPanel .selbox { background: rgba(255, 214, 102, 0.3); border-left: 4px solid #c9a227; padding: 5px 8px; margin-bottom: 8px; font-size: 16px;
+    display: flex; align-items: center; justify-content: space-between; gap: 6px; flex-wrap: wrap; }
+  #edPanel .selbox .opts { display: flex; gap: 4px; } #edPanel .selbox button { font-size: 15px; padding: 1px 9px; }
+  .edBtns { display: flex; gap: 8px; flex-wrap: wrap; padding-top: 8px; }
+  .edBtns button { font-size: 18px; } .edBtns #edPlayBtn { flex: 1; font-size: 22px; background: #dff0c8; }
+  .edBtns button:disabled { opacity: 0.45; }
+  #title .myrow { display: flex; align-items: center; justify-content: space-between; gap: 8px; text-align: left; padding: 6px 4px;
+    border-bottom: 1.5px dashed rgba(42,42,51,.25); font-size: 18px; }
+  #title .myrow small { color: var(--pencil); font-size: 14px; }
+  #title .myrow .opts { display: flex; gap: 4px; flex-wrap: wrap; justify-content: flex-end; }
+  #title .myrow button { font-size: 15px; padding: 1px 8px; min-width: 0; }
+  #title textarea { width: 100%; box-sizing: border-box; font-family: monospace; font-size: 12px; border: 2px solid var(--ink); border-radius: 5px; background: #fffdf5; }
   #hub .menuBtn { float: left; font-size: 15px; padding: 1px 9px; margin-top: 4px; }
   @media (max-height: 520px) {
     #hud { font-size: 16px; }
@@ -331,6 +368,15 @@
     #title .credits { font-size: 14px; }
     #title .back { margin-top: 6px; }
     #gasBtn { font-size: 25px; } #revBtn { font-size: 15px; }
+    #editor { padding: 6px; gap: 6px; }
+    #edSide { padding: 6px 8px; }
+    #edPanel .tabs button { font-size: 15px; padding: 1px 4px; }
+    #edPanel .tools button { font-size: 14px; padding: 3px 4px; }
+    #edPanel .set { font-size: 14px; margin: 4px 0; } #edPanel .set button { font-size: 13px; padding: 0 6px; }
+    #edPanel button.sw { width: 20px; height: 20px; }
+    #edPanel .hint, #edMsg { font-size: 13px; }
+    .edBtns { padding-top: 4px; gap: 5px; } .edBtns button { font-size: 14px; padding: 2px 8px; } .edBtns #edPlayBtn { font-size: 17px; }
+    #title .myrow { font-size: 15px; padding: 3px 2px; } #title .myrow button { font-size: 13px; }
   }
 </style>
 <!-- Three.js is the 3D engine. This tells the browser where to download it from. -->
@@ -377,6 +423,13 @@
 <div id="rotateMsg"><div class="phone">📱</div>Turn your phone sideways to mow<small>The game pauses until you do</small></div>
 <div id="hub" class="card hidden"></div>
 <div id="title" class="card hidden"></div>
+<div id="editor" class="hidden">
+  <div id="edPlanWrap"><canvas id="edPlan"></canvas><div id="edMsg"></div></div>
+  <div id="edSide">
+    <div id="edPanel"></div>
+    <div class="edBtns"><button id="edPlayBtn" class="big">▶ Mow it!</button><button id="edShareBtn">🔗 Share</button><button id="edBack" class="quiet">← My yards</button></div>
+  </div>
+</div>
 <div id="flash"></div>
 <button id="pullBtn" class="hidden">PULL THE CORD<small>tap fast · or press SPACE</small></button>
 <div id="pops"></div>
@@ -3039,7 +3092,7 @@ const medalT = { gold: 0, silver: 0, bronze: 0 };
 
 // Throw away the old customer's yard and build a new one
 function loadYard(id) {
-  YARD = YARDS.find(y => y.id === id) || YARDS[0];
+  YARD = typeof id === 'object' ? id : (YARDS.find(y => y.id === id) || YARDS[0]);   // (an object = a yard from the editor)
   document.title = `Lawn Mower Game 3D — ${YARD.name}`;
   // 0. the yard's size: everything that depends on it gets resized
   YARD_W = YARD.w || 640; YARD_H = YARD.h || 448;
@@ -4329,11 +4382,15 @@ function finish(reason) {
     <p>${lines.join('<br>')}</p>${news}
     <div class="btns">${RUN.paid
       ? `<button id="hubBtn2">📋 Back to the clipboard</button>`
+      : YARD.custom ? `<button id="againBtn">Mow again</button><button id="editBtn2">✏️ Edit this yard</button><button id="shareBtn2">🔗 Share</button>`
       : `<button id="againBtn">Mow again</button><button id="hubBtn2" class="quiet">📋 Clipboard</button>`}
       <button id="routeBtn" class="quiet">See route</button></div>`;
   el.classList.remove('hidden');
   if (!RUN.paid) clickBtn('againBtn', newRun);
-  clickBtn('hubBtn2', showHub);
+  if (YARD.custom) {
+    clickBtn('editBtn2', () => { $('results').classList.add('hidden'); edOpen(YARD.slotId); });
+    clickBtn('shareBtn2', () => { $('results').classList.add('hidden'); TITLE.shareId = YARD.slotId; showTitle('share'); });
+  } else clickBtn('hubBtn2', showHub);
   clickBtn('routeBtn', () => el.classList.add('hidden'));
   $('finishBtn').textContent = 'Results';
   updateHud();
@@ -4917,7 +4974,7 @@ const unrle = (data, arr, stride = 1, off = 0) => {
   for (let k = 0; k < data.length; k += 2) for (let c = 0; c < data[k + 1] && i < arr.length; c++, i += stride) arr[i] = data[k];
 };
 function saveRun() {
-  if (!G.started || G.finished || RUN.watch) return;
+  if (!G.started || G.finished || RUN.watch || YARD.custom) return;
   const m = G.trimming && G.parked ? G.parked : G.mower;     // (if you're on the trimmer, you continue on the mower)
   const keep = ['elapsed', 'distance', 'fuel', 'style', 'combo', 'bestCombo', 'cleanStripes', 'wasted', 'trimCount', 'cutCount',
                 'mowDoneAt', 'stallAt', 'milestone', 'medalStage', 'rec'];
@@ -4963,6 +5020,7 @@ function resumeRun(sv) {
 const GAME_TITLE = 'Lawn Mower Game', GAME_TAG = 'a summer of stripes';   // (working title: change it here)
 const TITLE = { on: false, t: 0 };
 function showTitle(page = 'main') {
+  $('editor').classList.add('hidden');
   TITLE.on = true;
   G.inHub = true;
   document.body.classList.add('inhub', 'intitle');
@@ -4977,6 +5035,9 @@ function showTitle(page = 'main') {
           const y = YARDS.find(v => v.id === sv.yard);
           return `<button class="big" data-continue>▶ Continue ${y.name}'s yard<br><small>${Math.round(sv.cut * 100)}% cut · ${sv.g.elapsed.toFixed(0)}s${sv.run.paid ? ' · paid job' : ''}</small></button>`; })()}
         <button class="${savedRun() ? '' : 'big'}" data-play>▶ ${savedRun() ? 'Play (start fresh)' : 'Play'}</button>
+        ${ED.incoming && ED.slots.concat().length >= 0 ? (() => { edLoad(); const s = ED.slots.find(v => v.id === ED.incoming);
+          return s ? `<button class="big" data-edplay="${s.id}">🏡 Mow the yard you were sent:<br><small>${s.design.name.replace(/</g, '')}${s.design.best ? ` · time to beat ${s.design.best}s` : ''}</small></button>` : ''; })() : ''}
+        <button data-tpage="myyards">🏡 My yards <small>(design your own)</small></button>
         <button data-tpage="howto">How to play</button>
         <button data-tpage="settings">Settings</button>
         <button data-tpage="credits">Credits</button>
@@ -5001,6 +5062,10 @@ function showTitle(page = 'main') {
       <div class="set"><span>Camera</span><span class="opts">${opt('cam', 'turning', 'Turns with mower', camMode === 'turning')}${opt('cam', 'fixed', 'Fixed', camMode !== 'turning')}</span></div>
       <div class="keys">"Auto" graphics start sharp and step down by themselves if the game runs slowly.</div>
       ${back}`;
+  } else if (page === 'myyards') {
+    el.innerHTML = edListPage();
+  } else if (page === 'share') {
+    el.innerHTML = edSharePage(TITLE.shareId);
   } else if (page === 'credits') {
     el.innerHTML = `<h2>Credits</h2>
       <div class="credits">
@@ -5015,6 +5080,7 @@ function showTitle(page = 'main') {
   el.scrollTop = 0;
   el.querySelectorAll('[data-tpage]').forEach(b => b.addEventListener('click', (e) => { e.stopPropagation(); showTitle(b.dataset.tpage); }));
   el.querySelectorAll('[data-play]').forEach(b => b.addEventListener('click', (e) => { e.stopPropagation(); playFromTitle(); }));
+  edWireTitle(el);
   el.querySelectorAll('[data-continue]').forEach(b => b.addEventListener('click', (e) => {
     e.stopPropagation();
     const sv = savedRun(); if (!sv) return showTitle();
@@ -5056,6 +5122,411 @@ function titleCamera(dt) {
   camera.position.set(YARD_W / 2 + Math.cos(a) * R, 190, YARD_H / 2 + Math.sin(a) * R);
   camera.lookAt(YARD_W / 2, 10, YARD_H / 2 - 40);
 }
+
+// =====================================================================
+//  THE YARD EDITOR: design your own house and yard on a top-down plan,
+//  mow it, and share it with friends as a link or a code.
+//  Everything snaps to a grid, so it's easy to use on a phone.
+//  The driveway is drawn for you, from the garage straight down to the street.
+// =====================================================================
+const ED = {
+  SNAP: 16,
+  LOTS: { small: { w: 640, h: 448, ref: 'walk30', label: 'Small' }, big: { w: 960, h: 640, ref: 'tractor42', label: 'Big' } },
+  HOUSES: { S: { w: 200, h: 130 }, M: { w: 260, h: 150 }, L: { w: 330, h: 170 } },
+  ITEMS: {
+    tree:     { label: '🌳 Tree', r: 24 },
+    bed:      { label: '🌷 Flower bed', w: 112, h: 40 },
+    shed:     { label: '🛖 Shed', w: 96, h: 72 },
+    pool:     { label: '🏊 Pool', w: 224, h: 144 },
+    hedge:    { label: '🟩 Hedge', w: 160, h: 26 },
+    fountain: { label: '⛲ Fountain', w: 112, h: 112 }
+  },
+  WALLS: [0xf3e6c9, 0xcfe0ee, 0xf1e7d0, 0xdfe8d4, 0xf4f4f1, 0xe8cfc4, 0xd9d2e6, 0xc9b79a],
+  ROOFS: ['#c4603a', '#8a3b32', '#3f5a3c', '#3b3f45', '#2f3440', '#5a4636'],
+  KEY: 'lmg3d_myyards',
+  slots: [], slot: null, d: null, sel: null, tool: null, drag: null, tab: 'place', bad: new Set(), canvas: null, scale: 1, incoming: null
+};
+const edHex = (n) => '#' + new THREE.Color(n).getHexString();
+function edDefault() {
+  return { v: 1, name: 'My house', lot: 'small', fence: 'wood', car: 'none', roses: false,
+    house: { x: 208, y: 24, size: 'M', storeys: 1, wall: 0xf3e6c9, roof: '#8a3b32', garages: 1, side: 'L', porch: false, columns: false, chimney: true },
+    items: [{ k: 'tree', x: 112, y: 288, r: 24 }, { k: 'tree', x: 544, y: 128, r: 28 }, { k: 'bed', x: 32, y: 32, w: 112, h: 40 }] };
+}
+function edLoad() { try { ED.slots = JSON.parse(localStorage.getItem(ED.KEY)) || []; } catch (e) { ED.slots = []; } }
+function edSave() { try { localStorage.setItem(ED.KEY, JSON.stringify(ED.slots)); } catch (e) {} }
+const edBest = (id) => { try { return JSON.parse(localStorage.getItem('lmg3d_best_my_' + id)); } catch (e) { return null; } };
+
+// ---- the design's shapes: house, driveway (worked out from the garage) and the things you placed ----
+function edGeom(d) {
+  const L = ED.LOTS[d.lot], S = ED.HOUSES[d.house.size], h = d.house, n = h.garages;
+  const gw = n === 1 ? 64 : 58, gap = 8, total = n * gw + (n - 1) * gap;
+  const gStart = h.side === 'L' ? 22 : S.w - 22 - total;
+  const garages = []; for (let k = 0; k < n; k++) garages.push([gStart + gw / 2 + k * (gw + gap), gw]);
+  const gMid = gStart + total / 2, dw = n === 1 ? 70 : 80;
+  const drive = { x: h.x + gMid - dw / 2, y: h.y + S.h, w: dw, h: L.h - (h.y + S.h) };
+  // the front door goes on the other side from the garage
+  const door = h.side === 'L' ? Math.round(Math.min(S.w - 30, Math.max(gStart + total + 40, S.w * 0.72)))
+                              : Math.round(Math.max(30, Math.min(gStart - 40, S.w * 0.28)));
+  return { L, S, garages, gStart, total, drive, door, house: { x: h.x, y: h.y, w: S.w, h: S.h } };
+}
+function edShapes(d, g = edGeom(d)) {
+  return d.items.map((it, i) => it.k === 'tree' ? { i, c: true, x: it.x, y: it.y, r: it.r } : { i, c: false, x: it.x, y: it.y, w: it.w, h: it.h });
+}
+const rectHit = (a, b, m = 0) => a.x < b.x + b.w + m && a.x + a.w + m > b.x && a.y < b.y + b.h + m && a.y + a.h + m > b.y;
+const circRect = (c, r, m = 0) => { const nx = clamp(c.x, r.x, r.x + r.w), ny = clamp(c.y, r.y, r.y + r.h); return (c.x - nx) ** 2 + (c.y - ny) ** 2 < (c.r + m) ** 2; };
+const shapeHit = (a, b, m) => a.c && b.c ? (a.x - b.x) ** 2 + (a.y - b.y) ** 2 < (a.r + b.r + m) ** 2
+  : a.c ? circRect(a, b, m) : b.c ? circRect(b, a, m) : rectHit(a, b, m);
+// which things overlap something (or stick out of the lot)? Those are drawn in red, and you can't mow until they're fixed
+function edCheck(d) {
+  const g = edGeom(d), sh = edShapes(d, g), bad = new Set(), W = g.L.w, H = g.L.h;
+  const fixed = [{ c: false, ...g.house }, { c: false, ...g.drive }];
+  for (const a of sh) {
+    const out = a.c ? (a.x - a.r < 10 || a.y - a.r < 10 || a.x + a.r > W - 10 || a.y + a.r > H - 10)
+                    : (a.x < 10 || a.y < 10 || a.x + a.w > W - 10 || a.y + a.h > H - 10);
+    if (out || fixed.some(f => shapeHit(a, f, 6))) bad.add(a.i);
+    for (const b of sh) if (b.i > a.i && shapeHit(a, b, 6)) { bad.add(a.i); bad.add(b.i); }
+  }
+  ED.bad = bad;
+  return bad.size === 0;
+}
+
+// ---- turn a design into a yard the game can load (the same kind of thing as the customers' yards) ----
+function edToYard(d, id) {
+  const g = edGeom(d), h = d.house, S = g.S, L = g.L, two = h.storeys === 2;
+  const look = { wall: h.wall, roof: h.roof, garages: g.garages, door: g.door, storeys: two ? 2 : 1, doorColor: 0x2f5d8a };
+  if (h.chimney) look.chimney = [h.side === 'L' ? Math.round(S.w * 0.7) : Math.round(S.w * 0.3), 34];
+  if (h.porch) {
+    const p0 = Math.max(4, g.door - 30), p1 = Math.min(S.w - 4, g.door + 30);
+    const clash = p0 < g.gStart + g.total + 6 && p1 > g.gStart - 6;
+    if (!clash) { look.porch = [p0, p1, 20]; if (h.columns) { look.columns = true; look.lanterns = true; } }
+  }
+  // windows all round, plus on the front where there's room (not over the garage or the door)
+  const W = S.w, Hh = S.h;
+  look.windows = [[W * 0.2, 'n'], [W * 0.5, 'n'], [W * 0.8, 'n'], [Hh * 0.3, 'e'], [Hh * 0.7, 'e'], [Hh * 0.3, 'w'], [Hh * 0.7, 'w']].map(([a, s]) => [Math.round(a), s]);
+  for (let x = 30; x < W - 24; x += 46) {
+    const free = (x < g.gStart - 26 || x > g.gStart + g.total + 26) && Math.abs(x - g.door) > 40 && !(look.porch && x > look.porch[0] - 20 && x < look.porch[1] + 20);
+    if (free) look.windows.push([x, 's']);
+  }
+  if (two) look.windows2 = [...g.garages.map(([x]) => [Math.round(x), 's']), [g.door, 's']];
+  const trees = d.items.filter(it => it.k === 'tree').map(it => ({ x: it.x, y: it.y, r: it.r }));
+  const beds = d.items.filter(it => it.k === 'bed').map(it => ({ x: it.x, y: it.y, w: it.w, h: it.h }));
+  const props = d.items.filter(it => ['shed', 'pool', 'hedge', 'fountain'].includes(it.k)).map(it => {
+    const p = { kind: it.k, x: it.x, y: it.y, w: it.w, h: it.h };
+    if (it.k === 'shed') Object.assign(p, { wall: 0xb9603f, roof: '#5a4636' });
+    return p;
+  });
+  if (d.car !== 'none') {
+    const cw = d.car === 'pickup' ? 58 : 62, ch = d.car === 'pickup' ? 136 : 146;
+    props.push({ kind: d.car, x: g.drive.x + (g.drive.w - cw) / 2, y: g.drive.y + 10, w: cw, h: ch, color: d.car === 'pickup' ? 0x7a1f1f : 0x1c2f45 });
+  }
+  return { id: 'my_' + id, custom: true, slotId: id, name: d.name, pay: 0, stars: 0, w: L.w, h: L.h, ref: L.ref, medalEase: 1.15,
+    story: `${d.name} — a yard you designed. Mow it as fast as you can, then share it and see if your friends can beat your time.`,
+    house: g.house, look, driveway: g.drive, beds, trees, props, roses: d.roses,
+    fence: d.fence === 'wood' ? undefined : d.fence, start: { x: g.drive.x + g.drive.w / 2, y: L.h - 33, angle: -Math.PI / 2 } };
+}
+function edPlay(slotId) {
+  const s = ED.slots.find(v => v.id === slotId); if (!s) return;
+  if (!edCheck(s.design)) { ED.slot = s; edOpen(s.id); edMsg('Some things overlap or stick out (shown in red). Move them first.'); return; }
+  $('editor').classList.add('hidden');
+  TITLE.on = false; $('title').classList.add('hidden'); document.body.classList.remove('intitle');
+  const y = edToYard(s.design, s.id);
+  loadYard(y);
+  RUN = { paid: false, tall: false, payFactor: 1 };
+  setWeather('sun');
+  newRun();
+}
+
+// ---- sharing: the whole design fits in a short code, so a link is all it takes (no server needed) ----
+function edEncode(d, best) {
+  const j = JSON.stringify({ ...d, best: best || undefined });
+  return btoa(unescape(encodeURIComponent(j))).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+}
+function edDecode(code) {
+  try {
+    const s = code.trim().replace(/^.*#yard=/, '').replace(/-/g, '+').replace(/_/g, '/');
+    const d = JSON.parse(decodeURIComponent(escape(atob(s + '==='.slice((s.length + 3) % 4)))));
+    if (!d || d.v !== 1 || !ED.LOTS[d.lot] || !d.house || !Array.isArray(d.items)) return null;
+    d.items = d.items.filter(it => ED.ITEMS[it.k]).slice(0, 60);
+    return d;
+  } catch (e) { return null; }
+}
+function edLink(s) {
+  const best = edBest(s.id);
+  return location.href.split('#')[0] + '#yard=' + edEncode(s.design, best && best.time ? +best.time.toFixed(1) : s.design.best);
+}
+function edAddShared(d, from) {
+  edLoad();
+  const code = edEncode(d);
+  let s = ED.slots.find(v => edEncode(v.design) === code);
+  if (!s) { s = { id: Math.random().toString(36).slice(2, 9), design: d, from }; ED.slots.unshift(s); edSave(); }
+  return s;
+}
+// opened a shared link? keep the yard, and offer it on the title screen
+function edFromLink() {
+  const m = location.hash.match(/yard=([A-Za-z0-9_-]+)/);
+  if (!m) return false;
+  const d = edDecode(m[1]);
+  if (d) ED.incoming = edAddShared(d, 'link').id;
+  try { history.replaceState(null, '', location.href.split('#')[0]); } catch (e) {}
+  return !!d;
+}
+edFromLink();
+// (a link pasted into a tab where the game is already open)
+window.addEventListener('hashchange', () => { if (edFromLink() && (TITLE.on || G.inHub)) showTitle(); });
+
+// ---- the "My yards" page (on the title card) ----
+function edListPage() {
+  edLoad();
+  const rows = ED.slots.map(s => {
+    const b = edBest(s.id), t = b && b.time ? `your best ${b.time.toFixed(1)}s` : 'not mowed yet';
+    const beat = s.design.best ? ` · time to beat ${s.design.best}s` : '';
+    return `<div class="myrow"><div><b>${s.design.name.replace(/</g, '')}</b><br><small>${s.from ? 'sent to you · ' : ''}${t}${beat}</small></div>
+      <div class="opts"><button data-edplay="${s.id}" class="big">▶ Mow</button><button data-edit="${s.id}">✏️ Edit</button>
+      <button data-edshare="${s.id}">🔗 Share</button><button data-eddel="${s.id}" class="quiet">🗑</button></div></div>`;
+  }).join('') || '<p>No yards yet. Make one — your own house, maybe?</p>';
+  return `<h2>🏡 My yards</h2>${rows}
+    <div class="menu" style="margin-top:12px"><button class="big" data-ednew>+ Design a new yard</button></div>
+    <div class="set"><span>Got a code?</span><span class="opts"><input id="edCode" placeholder="paste a yard code or link"><button data-edpaste>Open</button></span></div>
+    <div class="back"><button class="quiet" data-tpage="main">← Back</button></div>`;
+}
+function edSharePage(id) {
+  const s = ED.slots.find(v => v.id === id), link = edLink(s);
+  return `<h2>🔗 Share "${s.design.name.replace(/</g, '')}"</h2>
+    <p>Send this link to a friend. When they open it, they can mow your yard and try to beat your time.</p>
+    <textarea id="edLinkBox" readonly rows="3">${link}</textarea>
+    <div class="menu">${navigator.share ? '<button class="big" data-ednshare>📤 Share…</button>' : ''}<button data-edcopy>📋 Copy link</button></div>
+    <div class="keys" id="edCopied"></div>
+    <div class="back"><button class="quiet" data-tpage="myyards">← Back</button></div>`;
+}
+function edWireTitle(el) {
+  const go = (sel, fn) => el.querySelectorAll(sel).forEach(b => b.addEventListener('click', (e) => { e.stopPropagation(); fn(b); }));
+  go('[data-ednew]', () => { const s = { id: Math.random().toString(36).slice(2, 9), design: edDefault() }; ED.slots.unshift(s); edSave(); edOpen(s.id); });
+  go('[data-edit]', (b) => edOpen(b.dataset.edit));
+  go('[data-edplay]', (b) => edPlay(b.dataset.edplay));
+  go('[data-edshare]', (b) => { TITLE.shareId = b.dataset.edshare; showTitle('share'); });
+  go('[data-eddel]', (b) => { const s = ED.slots.find(v => v.id === b.dataset.eddel); if (s && confirmDelete(s)) { ED.slots = ED.slots.filter(v => v !== s); edSave(); showTitle('myyards'); } });
+  go('[data-edpaste]', () => {
+    const d = edDecode($('edCode').value || '');
+    if (!d) { $('edCode').value = ''; $('edCode').placeholder = "That code didn't work — check it's complete"; return; }
+    edAddShared(d, 'code'); showTitle('myyards');
+  });
+  go('[data-edcopy]', () => {
+    const box = $('edLinkBox'); box.select();
+    const done = () => { $('edCopied').textContent = 'Copied! Paste it into a message.'; };
+    if (navigator.clipboard) navigator.clipboard.writeText(box.value).then(done, () => { document.execCommand('copy'); done(); });
+    else { document.execCommand('copy'); done(); }
+  });
+  go('[data-ednshare]', () => {
+    const s = ED.slots.find(v => v.id === TITLE.shareId);
+    navigator.share({ title: GAME_TITLE, text: `Can you mow "${s.design.name}" faster than me?`, url: $('edLinkBox').value }).catch(() => {});
+  });
+}
+// (deleting asks twice, by tapping the bin again within 3 seconds — no pop-up boxes in this game)
+function confirmDelete(s) {
+  if (ED.armed === s.id && Date.now() - ED.armedAt < 3000) { ED.armed = null; return true; }
+  ED.armed = s.id; ED.armedAt = Date.now();
+  const b = document.querySelector(`[data-eddel="${s.id}"]`); if (b) b.textContent = 'Sure? 🗑';
+  return false;
+}
+
+// ---- the editor screen ----
+function edOpen(id) {
+  edLoad();
+  ED.slot = ED.slots.find(v => v.id === id); if (!ED.slot) return;
+  ED.d = ED.slot.design; ED.sel = null; ED.tool = null; ED.tab = ED.tab || 'place';
+  TITLE.on = true;                                  // (keeps the 3D game quiet behind the editor)
+  $('title').classList.add('hidden');
+  document.body.classList.add('inhub', 'intitle');
+  $('editor').classList.remove('hidden');
+  edPanel(); edFit(); edDraw();
+}
+function edClose() { $('editor').classList.add('hidden'); edSave(); showTitle('myyards'); }
+function edMsg(t) { const m = $('edMsg'); if (m) { m.textContent = t; m.classList.toggle('warn', !!t); } }
+function edFit() {
+  const wrap = $('edPlanWrap'), c = ED.canvas = $('edPlan'), L = ED.LOTS[ED.d.lot];
+  const aw = wrap.clientWidth - 8, ah = wrap.clientHeight - 30;
+  const s = Math.min(aw / L.w, ah / (L.h + 40));
+  ED.scale = s;
+  const dpr = Math.min(2, window.devicePixelRatio || 1);
+  c.style.width = Math.round(L.w * s) + 'px'; c.style.height = Math.round((L.h + 40) * s) + 'px';
+  c.width = Math.round(L.w * s * dpr); c.height = Math.round((L.h + 40) * s * dpr);
+  ED.dpr = dpr;
+}
+function edDraw() {
+  const c = ED.canvas, x = c.getContext('2d'), d = ED.d, g = edGeom(d), L = g.L, s = ED.scale * ED.dpr;
+  edCheck(d);
+  x.setTransform(s, 0, 0, s, 0, 0);
+  // lawn with stripes, street at the bottom
+  for (let i = 0; i * 32 < L.w; i++) { x.fillStyle = i % 2 ? '#7fbf5a' : '#8cc96a'; x.fillRect(i * 32, 0, 32, L.h); }
+  x.fillStyle = '#cfc9bd'; x.fillRect(0, L.h, L.w, 14); x.fillStyle = '#55595e'; x.fillRect(0, L.h + 14, L.w, 26);
+  x.fillStyle = '#f0d34a'; for (let i = 10; i < L.w; i += 60) x.fillRect(i, L.h + 26, 30, 2);
+  // grid
+  x.strokeStyle = 'rgba(255,255,255,0.12)'; x.lineWidth = 1 / ED.scale;
+  for (let i = 0; i <= L.w; i += ED.SNAP * 2) { x.beginPath(); x.moveTo(i, 0); x.lineTo(i, L.h); x.stroke(); }
+  for (let i = 0; i <= L.h; i += ED.SNAP * 2) { x.beginPath(); x.moveTo(0, i); x.lineTo(L.w, i); x.stroke(); }
+  // fence
+  x.strokeStyle = { wood: '#8a6a3e', picket: '#ffffff', chain: '#9aa0a6', iron: '#1f2124' }[d.fence]; x.lineWidth = 5;
+  x.beginPath(); x.moveTo(g.drive.x, L.h - 3); x.lineTo(3, L.h - 3); x.lineTo(3, 3); x.lineTo(L.w - 3, 3); x.lineTo(L.w - 3, L.h - 3); x.lineTo(g.drive.x + g.drive.w, L.h - 3); x.stroke();
+  // driveway, house, garage doors, front door
+  x.fillStyle = '#d7d2c6'; x.fillRect(g.drive.x, g.drive.y, g.drive.w, g.drive.h + 14);
+  const H = g.house;
+  x.fillStyle = d.house.roof; x.fillRect(H.x, H.y, H.w, H.h);
+  x.strokeStyle = 'rgba(0,0,0,0.35)'; x.lineWidth = 2;
+  x.beginPath(); x.moveTo(H.x + H.h / 2, H.y + H.h / 2); x.lineTo(H.x + H.w - H.h / 2, H.y + H.h / 2);
+  x.moveTo(H.x, H.y); x.lineTo(H.x + H.h / 2, H.y + H.h / 2); x.lineTo(H.x, H.y + H.h);
+  x.moveTo(H.x + H.w, H.y); x.lineTo(H.x + H.w - H.h / 2, H.y + H.h / 2); x.lineTo(H.x + H.w, H.y + H.h); x.stroke();
+  x.fillStyle = edHex(d.house.wall); x.fillRect(H.x, H.y + H.h - 8, H.w, 8);
+  x.fillStyle = '#ffffff'; for (const [gx, gw] of g.garages) x.fillRect(H.x + gx - gw / 2, H.y + H.h - 6, gw, 6);
+  x.fillStyle = '#2f5d8a'; x.fillRect(H.x + g.door - 10, H.y + H.h - 6, 20, 6);
+  if (d.car !== 'none') { x.fillStyle = d.car === 'pickup' ? '#7a1f1f' : '#1c2f45'; x.fillRect(g.drive.x + (g.drive.w - 58) / 2, g.drive.y + 10, 58, 136); }
+  x.fillStyle = 'rgba(0,0,0,0.55)'; x.font = `${Math.max(12, 14 / ED.scale * 0.9)}px 'Patrick Hand', cursive`; x.textAlign = 'center';
+  x.fillText(d.name, H.x + H.w / 2, H.y + H.h / 2 - 6);
+  // the things you placed
+  d.items.forEach((it, i) => {
+    const bad = ED.bad.has(i);
+    if (it.k === 'tree') {
+      x.fillStyle = '#3d7a2c'; x.beginPath(); x.arc(it.x, it.y, it.r, 0, 7); x.fill();
+      x.fillStyle = '#5a9a40'; x.beginPath(); x.arc(it.x - it.r * 0.25, it.y - it.r * 0.25, it.r * 0.55, 0, 7); x.fill();
+    } else {
+      const col = { bed: '#6b4a2b', shed: '#8a5a3a', pool: '#d9d2c3', hedge: '#2f6b2a', fountain: '#d4cec0' }[it.k];
+      x.fillStyle = col; x.fillRect(it.x, it.y, it.w, it.h);
+      if (it.k === 'pool') { x.fillStyle = '#4fb0de'; x.fillRect(it.x + 14, it.y + 14, it.w - 28, it.h - 28); }
+      if (it.k === 'fountain') { x.fillStyle = '#5fb3d9'; x.beginPath(); x.arc(it.x + it.w / 2, it.y + it.h / 2, it.w / 2 - 6, 0, 7); x.fill(); }
+      if (it.k === 'bed') { for (let k = 0; k < it.w * it.h / 180; k++) { x.fillStyle = d.roses ? ['#c8102e', '#ff7a9c'][k % 2] : ['#ff6b9a', '#ffd23f', '#ffffff', '#b57cff'][k % 4];
+        x.fillRect(it.x + 4 + ((k * 37) % (it.w - 8)), it.y + 4 + ((k * 53) % (it.h - 8)), 4, 4); } }
+      if (it.k === 'shed') { x.strokeStyle = 'rgba(0,0,0,0.3)'; x.lineWidth = 2; x.beginPath(); x.moveTo(it.x, it.y + it.h / 2); x.lineTo(it.x + it.w, it.y + it.h / 2); x.stroke(); }
+    }
+    if (bad || ED.sel === i) {
+      x.save(); x.lineWidth = 3; x.strokeStyle = bad ? '#d42a1e' : '#ffffff'; x.setLineDash([8, 5]);
+      if (it.k === 'tree') { x.beginPath(); x.arc(it.x, it.y, it.r + 4, 0, 7); x.stroke(); } else x.strokeRect(it.x - 3, it.y - 3, it.w + 6, it.h + 6);
+      x.restore();
+    }
+  });
+  if (ED.sel === 'house') { x.save(); x.lineWidth = 3; x.strokeStyle = '#fff'; x.setLineDash([8, 5]); x.strokeRect(H.x - 4, H.y - 4, H.w + 8, H.h + 8); x.restore(); }
+  x.fillStyle = 'rgba(255,255,255,0.85)'; x.font = `${Math.max(11, 12 / ED.scale * 0.9)}px 'Patrick Hand', cursive`;
+  x.fillText('street', L.w / 2, L.h + 38);
+  const ok = ED.bad.size === 0;
+  $('edPlayBtn').disabled = !ok;
+  edMsg(ok ? (ED.tool ? `Tap the plan to put the ${ED.ITEMS[ED.tool].label.slice(3).toLowerCase()} there.` : '') : 'Red = overlapping or outside the fence. Drag it somewhere else.');
+}
+const edSnap = (v) => Math.round(v / ED.SNAP) * ED.SNAP;
+function edPoint(e) { const r = ED.canvas.getBoundingClientRect(); return { x: (e.clientX - r.left) / ED.scale, y: (e.clientY - r.top) / ED.scale }; }
+function edHitItem(p) {
+  const d = ED.d;
+  for (let i = d.items.length - 1; i >= 0; i--) {
+    const it = d.items[i];
+    if (it.k === 'tree' ? (p.x - it.x) ** 2 + (p.y - it.y) ** 2 < (it.r + 6) ** 2 : p.x > it.x - 4 && p.x < it.x + it.w + 4 && p.y > it.y - 4 && p.y < it.y + it.h + 4) return i;
+  }
+  const H = edGeom(d).house;
+  if (p.x > H.x && p.x < H.x + H.w && p.y > H.y && p.y < H.y + H.h) return 'house';
+  return null;
+}
+function edKeepInLot(it) {
+  const L = ED.LOTS[ED.d.lot];
+  if (it.k === 'tree') { it.x = clamp(it.x, it.r + 12, L.w - it.r - 12); it.y = clamp(it.y, it.r + 12, L.h - it.r - 12); }
+  else { it.x = clamp(it.x, 16, L.w - it.w - 16); it.y = clamp(it.y, 16, L.h - it.h - 16); }
+}
+function edKeepHouse() {
+  const L = ED.LOTS[ED.d.lot], S = ED.HOUSES[ED.d.house.size], h = ED.d.house;
+  h.x = clamp(edSnap(h.x), 16, L.w - S.w - 16); h.y = clamp(edSnap(h.y), 16, L.h - S.h - 140);
+}
+function edWirePlan() {
+  const c = $('edPlan');
+  c.addEventListener('pointerdown', (e) => {
+    e.preventDefault();
+    const p = edPoint(e), d = ED.d;
+    if (ED.tool) {
+      const def = ED.ITEMS[ED.tool];
+      const it = def.r ? { k: ED.tool, x: edSnap(p.x), y: edSnap(p.y), r: def.r } : { k: ED.tool, x: edSnap(p.x - def.w / 2), y: edSnap(p.y - def.h / 2), w: def.w, h: def.h };
+      edKeepInLot(it); d.items.push(it); ED.sel = d.items.length - 1; ED.tool = null;
+      edPanel(); edDraw(); edSave(); return;
+    }
+    const hit = edHitItem(p);
+    ED.sel = hit;
+    if (hit !== null) {
+      const o = hit === 'house' ? d.house : d.items[hit];
+      ED.drag = { dx: p.x - o.x, dy: p.y - o.y };
+      c.setPointerCapture(e.pointerId);
+    }
+    edPanel(); edDraw();
+  });
+  c.addEventListener('pointermove', (e) => {
+    if (!ED.drag || ED.sel === null) return;
+    const p = edPoint(e), d = ED.d;
+    if (ED.sel === 'house') { d.house.x = p.x - ED.drag.dx; d.house.y = p.y - ED.drag.dy; edKeepHouse(); }
+    else { const it = d.items[ED.sel]; it.x = edSnap(p.x - ED.drag.dx); it.y = edSnap(p.y - ED.drag.dy); edKeepInLot(it); }
+    edDraw();
+  });
+  const end = () => { if (ED.drag) { ED.drag = null; edSave(); } };
+  c.addEventListener('pointerup', end); c.addEventListener('pointercancel', end);
+}
+// the side panel: what's selected, then three tabs
+function edPanel() {
+  const d = ED.d, h = d.house, sel = ED.sel;
+  const opt = (k, v, label, on) => `<button data-ed="${k}|${v}" class="${on ? 'on' : ''}">${label}</button>`;
+  const sw = (k, v, col, on) => `<button data-ed="${k}|${v}" class="sw ${on ? 'on' : ''}" style="background:${col}"></button>`;
+  let selHtml = '';
+  if (sel === 'house') selHtml = `<div class="selbox">🏠 House selected — drag it on the plan, or change it in the <b>House</b> tab.</div>`;
+  else if (sel !== null && d.items[sel]) {
+    const it = d.items[sel], name = ED.ITEMS[it.k].label;
+    const turn = it.k !== 'tree' && it.k !== 'fountain' ? `<button data-edsel="turn">↻ Turn</button>` : '';
+    selHtml = `<div class="selbox">${name} <span class="opts"><button data-edsel="smaller">−</button><button data-edsel="bigger">+</button>${turn}<button data-edsel="delete" class="quiet">🗑</button></span></div>`;
+  }
+  let body = '';
+  if (ED.tab === 'place') {
+    body = `<p class="hint">Pick something, then tap the plan to place it. Drag things to move them.</p><div class="tools">` +
+      Object.entries(ED.ITEMS).map(([k, v]) => `<button data-edtool="${k}" class="${ED.tool === k ? 'on' : ''}">${v.label}</button>`).join('') + '</div>';
+  } else if (ED.tab === 'house') {
+    body = `<div class="set"><span>Size</span><span class="opts">${['S', 'M', 'L'].map(v => opt('size', v, { S: 'Small', M: 'Medium', L: 'Large' }[v], h.size === v)).join('')}</span></div>
+      <div class="set"><span>Floors</span><span class="opts">${opt('storeys', 1, '1', h.storeys === 1)}${opt('storeys', 2, '2', h.storeys === 2)}</span></div>
+      <div class="set"><span>Walls</span><span class="opts">${ED.WALLS.map((c, i) => sw('wall', i, edHex(c), h.wall === c)).join('')}</span></div>
+      <div class="set"><span>Roof</span><span class="opts">${ED.ROOFS.map((c, i) => sw('roof', i, c, h.roof === c)).join('')}</span></div>
+      <div class="set"><span>Garage doors</span><span class="opts">${[1, 2, 3].map(v => opt('garages', v, v, h.garages === v)).join('')}</span></div>
+      <div class="set"><span>Garage side</span><span class="opts">${opt('side', 'L', 'Left', h.side === 'L')}${opt('side', 'R', 'Right', h.side === 'R')}</span></div>
+      <div class="set"><span>Porch</span><span class="opts">${opt('porch', 0, 'No', !h.porch)}${opt('porch', 1, 'Posts', h.porch && !h.columns)}${opt('porch', 2, 'Columns', h.porch && h.columns)}</span></div>
+      <div class="set"><span>Chimney</span><span class="opts">${opt('chimney', 1, 'Yes', h.chimney)}${opt('chimney', 0, 'No', !h.chimney)}</span></div>`;
+  } else {
+    body = `<div class="set"><span>Name</span><span class="opts"><input id="edName" maxlength="28" value="${d.name.replace(/"/g, '')}"></span></div>
+      <div class="set"><span>Lot</span><span class="opts">${opt('lot', 'small', 'Small', d.lot === 'small')}${opt('lot', 'big', 'Big', d.lot === 'big')}</span></div>
+      <div class="set"><span>Fence</span><span class="opts">${['wood', 'picket', 'chain', 'iron'].map(v => opt('fence', v, { wood: 'Wood', picket: 'Picket', chain: 'Chain-link', iron: 'Iron' }[v], d.fence === v)).join('')}</span></div>
+      <div class="set"><span>Car</span><span class="opts">${['none', 'pickup', 'sedan'].map(v => opt('car', v, { none: 'None', pickup: 'Pickup', sedan: 'Sedan' }[v], d.car === v)).join('')}</span></div>
+      <div class="set"><span>Flowers</span><span class="opts">${opt('roses', 0, 'Mixed', !d.roses)}${opt('roses', 1, 'Roses', d.roses)}</span></div>`;
+  }
+  $('edPanel').innerHTML = `<div class="tabs">${['place', 'house', 'yard'].map(t => `<button data-edtab="${t}" class="${ED.tab === t ? 'on' : ''}">${{ place: 'Place', house: 'House', yard: 'Yard' }[t]}</button>`).join('')}</div>
+    ${selHtml}${body}`;
+  const P = $('edPanel'), go = (q, fn) => P.querySelectorAll(q).forEach(b => b.addEventListener('click', (e) => { e.stopPropagation(); fn(b); }));
+  go('[data-edtab]', (b) => { ED.tab = b.dataset.edtab; edPanel(); });
+  go('[data-edtool]', (b) => { ED.tool = ED.tool === b.dataset.edtool ? null : b.dataset.edtool; ED.sel = null; edPanel(); edDraw(); });
+  go('[data-edsel]', (b) => {
+    const it = d.items[ED.sel], a = b.dataset.edsel;
+    if (a === 'delete') { d.items.splice(ED.sel, 1); ED.sel = null; }
+    else if (it.k === 'tree') it.r = clamp(it.r + (a === 'bigger' ? 4 : a === 'smaller' ? -4 : 0), 14, 40);
+    else if (a === 'turn') { [it.w, it.h] = [it.h, it.w]; }
+    else {
+      const k = a === 'bigger' ? 1 : -1, long = it.w >= it.h ? 'w' : 'h';
+      if (it.k === 'hedge' || it.k === 'bed') it[long] = clamp(it[long] + k * 32, 48, 320);
+      else { const f = k > 0 ? 1.15 : 1 / 1.15; it.w = clamp(edSnap(it.w * f), 64, 320); it.h = clamp(edSnap(it.h * f), 48, 240); }
+    }
+    if (ED.sel !== null && d.items[ED.sel]) edKeepInLot(d.items[ED.sel]);
+    edPanel(); edDraw(); edSave();
+  });
+  go('[data-ed]', (b) => {
+    const [k, v] = b.dataset.ed.split('|');
+    if (k === 'size') h.size = v; if (k === 'storeys') h.storeys = +v; if (k === 'garages') h.garages = +v; if (k === 'side') h.side = v;
+    if (k === 'wall') h.wall = ED.WALLS[+v]; if (k === 'roof') h.roof = ED.ROOFS[+v]; if (k === 'chimney') h.chimney = v === '1';
+    if (k === 'porch') { h.porch = v !== '0'; h.columns = v === '2'; }
+    if (k === 'lot') { d.lot = v; edFit(); d.items.forEach(edKeepInLot); }
+    if (k === 'fence') d.fence = v; if (k === 'car') d.car = v; if (k === 'roses') d.roses = v === '1';
+    edKeepHouse(); edPanel(); edDraw(); edSave();
+  });
+  const nm = $('edName'); if (nm) nm.addEventListener('input', () => { d.name = nm.value.trim() || 'My yard'; edDraw(); edSave(); });
+}
+// buttons along the bottom, and wiring the plan once
+edWirePlan();
+$('edBack').addEventListener('click', edClose);
+$('edPlayBtn').addEventListener('click', () => { edSave(); edPlay(ED.slot.id); });
+$('edShareBtn').addEventListener('click', () => { edSave(); $('editor').classList.add('hidden'); TITLE.shareId = ED.slot.id; showTitle('share'); });
+window.addEventListener('resize', () => { if (!$('editor').classList.contains('hidden')) { edFit(); edDraw(); } });
 
 // ---- go! ----
 updateCamButton();
